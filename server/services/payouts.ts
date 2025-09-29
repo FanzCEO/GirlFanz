@@ -32,7 +32,7 @@ export interface PayoutCalculation {
 }
 
 export class CreatorPayoutService {
-  private readonly PLATFORM_FEE_RATE = 0.20; // 20% platform fee
+  private readonly PLATFORM_FEE_RATE = 0.00; // 0% platform fee - creators keep 100%
   private readonly MIN_PAYOUT_THRESHOLD = 5000; // $50.00 minimum
   private readonly PAYOUT_SCHEDULE_DAY = 1; // 1st of each month
 
