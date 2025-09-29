@@ -1,26 +1,111 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* GirlFanz Brand Colors */
+  --gf-pink: #ff69b4;
+  --gf-gold: #d4af37;
+  --gf-cream: #fff6ed;
+  --gf-dark-cream: #f5e6d3;
+  --gf-text-primary: #1d1420;
+  --gf-text-secondary: #6b5b73;
+  --gf-border: #e5d4c1;
+  
+  /* Theme Variables */
+  --bg-page: var(--gf-cream);
+  --bg-elevated: #ffffff;
+  --bg-accent: var(--gf-dark-cream);
+  --text-primary: var(--gf-text-primary);
+  --text-secondary: var(--gf-text-secondary);
+  --border-color: var(--gf-border);
+  --primary: var(--gf-pink);
+  --accent: var(--gf-gold);
+  
+  /* Legacy compatibility */
+  --background: var(--bg-page);
+  --foreground: var(--text-primary);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--bg-page);
+  --color-foreground: var(--text-primary);
+  --color-primary: var(--primary);
+  --color-accent: var(--accent);
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-serif: 'Playfair Display', serif;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* GirlFanz maintains light theme identity */
+    --bg-page: var(--gf-cream);
+    --bg-elevated: #ffffff;
+    --text-primary: var(--gf-text-primary);
+    --background: var(--bg-page);
+    --foreground: var(--text-primary);
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-feature-settings: "rlig" 1, "calt" 1;
+}
+
+/* GirlFanz Brand Styles */
+.gf-brand-primary {
+  color: var(--gf-pink);
+}
+
+.gf-brand-accent {
+  color: var(--gf-gold);
+}
+
+.gf-bg-primary {
+  background-color: var(--gf-pink);
+}
+
+.gf-bg-accent {
+  background-color: var(--gf-gold);
+}
+
+.gf-bg-cream {
+  background-color: var(--gf-cream);
+}
+
+/* Accessibility & Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus styles for keyboard navigation */
+:focus-visible {
+  outline: 2px solid var(--gf-pink);
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+/* Scrollbar styling (webkit) */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--gf-cream);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gf-gold);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #c4a928;
 }
