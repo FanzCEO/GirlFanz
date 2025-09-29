@@ -14,6 +14,7 @@ import Messages from "@/pages/Messages";
 import Settings from "@/pages/Settings";
 import Moderation from "@/pages/Moderation";
 import SystemHealth from "@/pages/SystemHealth";
+import { Verification } from "@/pages/Verification";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -52,6 +53,7 @@ function Router() {
             <Route path="/analytics" component={Dashboard} />
             <Route path="/earnings" component={Dashboard} />
             <Route path="/settings" component={Settings} />
+            <Route path="/verification" component={Verification} />
             <Route path="/moderation" component={Moderation} />
             <Route path="/health" component={SystemHealth} />
           </>

@@ -9,6 +9,7 @@ import {
   subscriptions,
   transactions,
   auditLogs,
+  kycVerifications,
   type User,
   type UpsertUser,
   type Profile,
@@ -25,6 +26,8 @@ import {
   type Transaction,
   type InsertTransaction,
   type AuditLog,
+  type KycVerification,
+  type InsertKycVerification,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, sql } from "drizzle-orm";
@@ -80,6 +83,10 @@ export interface IStorage {
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   updateTransaction(id: string, updates: Partial<Transaction>): Promise<Transaction | undefined>;
 
+  // KYC operations
+  getKycVerification(userId: string): Promise<KycVerification | undefined>;
+  createKycVerification(verification: InsertKycVerification): Promise<KycVerification>;
+  
   // Audit operations
   createAuditLog(log: Partial<AuditLog>): Promise<AuditLog>;
 }
@@ -450,6 +457,34 @@ export class DatabaseStorage implements IStorage {
       .where(eq(transactions.id, id))
       .returning();
     return transaction;
+  }
+
+  // KYC operations
+  async getKycVerification(userId: string): Promise<KycVerification | undefined> {
+    const [verification] = await db
+      .select()
+      .from(kycVerifications)
+      .where(eq(kycVerifications.userId, userId))
+      .orderBy(desc(kycVerifications.createdAt))
+      .limit(1);
+    return verification;
+  }
+
+  async createKycVerification(verificationData: InsertKycVerification): Promise<KycVerification> {
+    const [verification] = await db
+      .insert(kycVerifications)
+      .values(verificationData)
+      .returning();
+    return verification;
+  }
+
+  // Audit operations  
+  async createAuditLog(logData: Partial<AuditLog>): Promise<AuditLog> {
+    const [auditLog] = await db
+      .insert(auditLogs)
+      .values(logData)
+      .returning();
+    return auditLog;
   }
 }
 

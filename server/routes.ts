@@ -12,6 +12,7 @@ import { insertMediaAssetSchema, insertMessageSchema, insertProfileSchema } from
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import { createCCBillService } from "./payments/ccbill";
+import { verifymyService } from "./compliance/verifymy";
 
 // Rate limiting
 const limiter = rateLimit({
@@ -534,6 +535,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching creator transactions:', error);
       res.status(500).json({ error: 'Failed to fetch transactions' });
+    }
+  });
+
+  // Age verification endpoints (verifymy integration)
+  app.post('/api/verification/age', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const verificationRequest = {
+        userId,
+        firstName: user.firstName || req.body.firstName,
+        lastName: user.lastName || req.body.lastName,
+        dateOfBirth: req.body.dateOfBirth,
+        ssn4: req.body.ssn4,
+        phone: req.body.phone,
+        email: user.email!,
+        address: req.body.address
+      };
+
+      const result = await verifymyService.verifyAge(verificationRequest);
+      
+      res.json({
+        transactionId: result.transactionId,
+        status: result.status,
+        confidence: result.confidence
+      });
+    } catch (error) {
+      console.error('Error processing age verification:', error);
+      res.status(500).json({ error: 'Age verification failed' });
+    }
+  });
+
+  // Identity verification endpoints 
+  app.post('/api/verification/identity', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const verificationRequest = {
+        userId,
+        documentType: req.body.documentType,
+        frontImageUrl: req.body.frontImageUrl,
+        backImageUrl: req.body.backImageUrl,
+        selfieImageUrl: req.body.selfieImageUrl,
+        documentNumber: req.body.documentNumber
+      };
+
+      const result = await verifymyService.verifyIdentity(verificationRequest);
+      
+      res.json({
+        transactionId: result.transactionId,
+        status: result.status,
+        confidence: result.confidence
+      });
+    } catch (error) {
+      console.error('Error processing identity verification:', error);
+      res.status(500).json({ error: 'Identity verification failed' });
+    }
+  });
+
+  // Get KYC status
+  app.get('/api/verification/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const verification = await storage.getKycVerification(userId);
+      const profile = await storage.getProfile(userId);
+      
+      res.json({
+        ageVerified: profile?.ageVerified || false,
+        kycStatus: profile?.kycStatus || 'pending',
+        lastVerification: verification
+      });
+    } catch (error) {
+      console.error('Error fetching verification status:', error);
+      res.status(500).json({ error: 'Failed to fetch verification status' });
+    }
+  });
+
+  // Content moderation endpoint (for verifymy AI moderation)
+  app.post('/api/moderation/ai', isAuthenticated, async (req: any, res) => {
+    try {
+      const { mediaId, contentUrl, contentType } = req.body;
+      const userId = req.user.claims.sub;
+      
+      const result = await verifymyService.moderateContent(
+        contentUrl,
+        contentType,
+        { userId, mediaId }
+      );
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error processing AI moderation:', error);
+      res.status(500).json({ error: 'AI moderation failed' });
+    }
+  });
+
+  // Verifymy webhook endpoint
+  app.post('/api/webhooks/verifymy', async (req, res) => {
+    try {
+      const signature = req.headers['x-verifymy-signature'] as string;
+      const body = JSON.stringify(req.body);
+
+      // Verify webhook signature
+      if (!verifymyService.verifyWebhookSignature(body, signature)) {
+        console.error('Invalid verifymy webhook signature');
+        return res.status(401).json({ error: 'Invalid signature' });
+      }
+
+      // Process webhook
+      await verifymyService.processWebhookNotification(req.body);
+      
+      res.status(200).json({ status: 'success' });
+    } catch (error) {
+      console.error('Error processing verifymy webhook:', error);
+      res.status(500).json({ error: 'Webhook processing failed' });
     }
   });
 
