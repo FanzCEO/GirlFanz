@@ -117,7 +117,7 @@ export default function Landing() {
             </div>
             <h3 className="font-display font-bold text-xl text-gf-snow mb-4">Maximum Earnings</h3>
             <p className="text-gf-smoke">
-              Keep up to 85% of your earnings with our creator-first revenue model.
+              Keep 100% of your earnings with our creator-first revenue model.
               No hidden fees, just transparent payouts.
             </p>
           </div>
