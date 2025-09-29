@@ -243,13 +243,23 @@ export class VerifymyService {
       verifiedAt: isVerified ? new Date() : undefined
     });
 
-    // Update profile KYC status
+    // Update or create profile with KYC status
     const user = await storage.getUser(userId);
     if (user) {
-      await storage.updateProfile(userId, {
-        kycStatus: isVerified ? 'verified' : 'rejected',
-        updatedAt: new Date()
-      });
+      const existingProfile = await storage.getProfile(userId);
+      if (existingProfile) {
+        await storage.updateProfile(userId, {
+          kycStatus: isVerified ? 'verified' : 'rejected',
+          updatedAt: new Date()
+        });
+      } else {
+        // Create profile if it doesn't exist
+        await storage.createProfile({
+          userId,
+          ageVerified: false,
+          kycStatus: isVerified ? 'verified' : 'rejected'
+        });
+      }
     }
 
     // Log the verification attempt
