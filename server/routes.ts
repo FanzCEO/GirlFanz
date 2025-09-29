@@ -1082,6 +1082,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/wiki/articles/by-slug/:slug', async (req, res) => {
+    try {
+      const slug = req.params.slug;
+      const article = await storage.getKnowledgeArticleBySlug(slug);
+      
+      if (!article) {
+        return res.status(404).json({ error: 'Article not found' });
+      }
+      
+      res.json(article);
+    } catch (error) {
+      console.error('Error fetching knowledge article by slug:', error);
+      res.status(500).json({ error: 'Failed to fetch article' });
+    }
+  });
+
   app.post('/api/wiki/articles', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -1121,6 +1137,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error updating knowledge article:', error);
       res.status(500).json({ error: 'Failed to update article' });
+    }
+  });
+
+  // AI-Powered Knowledge Base Routes
+  app.get('/api/wiki/search/semantic', async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      const limit = parseInt(req.query.limit as string) || 10;
+      
+      if (!query || query.trim().length < 2) {
+        return res.status(400).json({ error: 'Query must be at least 2 characters long' });
+      }
+      
+      const articles = await storage.searchKnowledgeSemanticSimilarity(query, limit);
+      res.json({ articles, query, searchType: 'semantic' });
+    } catch (error) {
+      console.error('Error performing semantic search:', error);
+      res.status(500).json({ error: 'Failed to perform semantic search' });
+    }
+  });
+
+  app.get('/api/wiki/recommendations', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const limit = parseInt(req.query.limit as string) || 5;
+      
+      const recommendations = await storage.getRecommendedArticles(userId, limit);
+      res.json({ articles: recommendations, type: 'personalized' });
+    } catch (error) {
+      console.error('Error fetching recommendations:', error);
+      res.status(500).json({ error: 'Failed to fetch recommendations' });
+    }
+  });
+
+  app.get('/api/wiki/popular', async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 5;
+      const articles = await storage.getPopularArticles(limit);
+      res.json({ articles, type: 'popular' });
+    } catch (error) {
+      console.error('Error fetching popular articles:', error);
+      res.status(500).json({ error: 'Failed to fetch popular articles' });
+    }
+  });
+
+  app.get('/api/wiki/trending', async (req, res) => {
+    try {
+      const timeframe = (req.query.timeframe as string) || '7d';
+      const limit = parseInt(req.query.limit as string) || 5;
+      
+      if (!['24h', '7d', '30d'].includes(timeframe)) {
+        return res.status(400).json({ error: 'Invalid timeframe. Use 24h, 7d, or 30d' });
+      }
+      
+      const articles = await storage.getTrendingArticles(timeframe, limit);
+      res.json({ articles, timeframe, type: 'trending' });
+    } catch (error) {
+      console.error('Error fetching trending articles:', error);
+      res.status(500).json({ error: 'Failed to fetch trending articles' });
+    }
+  });
+
+  app.post('/api/wiki/articles/:id/view', async (req: any, res) => {
+    try {
+      const articleId = req.params.id;
+      const userId = req.user?.claims?.sub; // Optional for unauthenticated users
+      
+      await storage.recordKnowledgeView(articleId, userId);
+      res.json({ message: 'View recorded successfully' });
+    } catch (error) {
+      console.error('Error recording article view:', error);
+      res.status(500).json({ error: 'Failed to record view' });
+    }
+  });
+
+  app.get('/api/wiki/articles/:id/analytics', isAuthenticated, async (req: any, res) => {
+    try {
+      const articleId = req.params.id;
+      const user = await storage.getUser(req.user.claims.sub);
+      
+      // Only allow admin/support to view analytics
+      if (user?.role !== 'admin' && user?.role !== 'support') {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+      
+      const analytics = await storage.getArticleAnalytics(articleId);
+      res.json({ analytics });
+    } catch (error) {
+      console.error('Error fetching article analytics:', error);
+      res.status(500).json({ error: 'Failed to fetch analytics' });
+    }
+  });
+
+  app.get('/api/wiki/search/suggestions', async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      
+      if (!query || query.trim().length < 2) {
+        return res.json({ suggestions: [] });
+      }
+      
+      const suggestions = await storage.getKnowledgeSearchSuggestions(query);
+      res.json({ suggestions });
+    } catch (error) {
+      console.error('Error fetching search suggestions:', error);
+      res.status(500).json({ error: 'Failed to fetch suggestions' });
     }
   });
 

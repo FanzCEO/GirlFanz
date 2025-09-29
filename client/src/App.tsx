@@ -41,6 +41,7 @@ function Router() {
         <Route path="/help" component={HelpCenter} />
         <Route path="/help/tickets" component={SupportTickets} />
         <Route path="/help/contact" component={SupportTickets} />
+        <Route path="/wiki/article/:slug" component={WikiPage} />
         <Route path="/wiki" component={WikiPage} />
         <Route path="/tutorials" component={TutorialsPage} />
         

@@ -146,7 +146,7 @@ export function EnhancedHeader() {
                 </Button>
               </Link>
               <Button 
-                onClick={() => navigate('/login')} 
+                onClick={() => window.location.href = '/api/login'} 
                 className="bg-gradient-to-r from-gf-pink to-gf-purple hover:from-gf-pink/90 hover:to-gf-purple/90"
                 data-testid="button-login"
               >
