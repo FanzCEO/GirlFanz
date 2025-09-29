@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { Bell, Search, Flame, Menu } from "lucide-react";
+import { Bell, Search, Menu } from "lucide-react";
+import logoUrl from "@/assets/logo.jpg";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -28,12 +29,12 @@ export function Header() {
             {/* Logo */}
             <div className="flex items-center space-x-8">
               <Link href="/" className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gf-gradient rounded-lg flex items-center justify-center">
-                  <Flame className="text-gf-snow text-sm" />
-                </div>
-                <h1 className="font-display font-bold text-xl glow-text text-gf-pink">
-                  GirlFanz
-                </h1>
+                <img 
+                  src={logoUrl} 
+                  alt="GirlFanz" 
+                  className="h-30 w-auto" 
+                  data-testid="img-logo"
+                />
               </Link>
               
               {/* Desktop Navigation */}

@@ -67,6 +67,15 @@
   --shadow-glow-pink: 0 0 24px hsla(337, 100%, 59%, 0.4);
   --shadow-glow-violet: 0 0 24px hsla(258, 77%, 51%, 0.4);
   --shadow-glow-cyan: 0 0 24px hsla(191, 100%, 50%, 0.4);
+  
+  /* Neon Text Shadows - Reduced intensity */
+  --neon-pink: 0 0 3px var(--gf-pink), 0 0 6px var(--gf-pink);
+  --neon-violet: 0 0 3px var(--gf-violet), 0 0 6px var(--gf-violet);
+  --neon-cyan: 0 0 3px var(--gf-cyan), 0 0 6px var(--gf-cyan);
+  --neon-snow: 0 0 2px var(--gf-snow), 0 0 4px var(--gf-snow);
+  
+  /* Neon Flicker Animation */
+  --flicker-timing: 1.5s infinite linear alternate;
 }
 
 @layer base {
@@ -81,6 +90,8 @@
   
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: 0.02em;
   }
 }
 
@@ -92,9 +103,73 @@
     border: 1px solid rgba(255, 255, 255, 0.05);
   }
   
-  /* Glow text effect */
+  /* Neon Typography Effects */
+  .neon-text {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    animation: neon-flicker var(--flicker-timing);
+  }
+  
+  .neon-pink {
+    color: var(--gf-pink);
+    text-shadow: var(--neon-pink);
+  }
+  
+  .neon-violet {
+    color: var(--gf-violet);
+    text-shadow: var(--neon-violet);
+  }
+  
+  .neon-cyan {
+    color: var(--gf-cyan);
+    text-shadow: var(--neon-cyan);
+  }
+  
+  .neon-snow {
+    color: var(--gf-snow);
+    text-shadow: var(--neon-snow);
+  }
+  
+  /* Neon Button Styles */
+  .neon-button {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border: 2px solid currentColor;
+    background: transparent;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+  
+  .neon-button:hover {
+    background: currentColor;
+    box-shadow: 0 0 5px currentColor, 0 0 25px currentColor, 0 0 50px currentColor;
+    animation: neon-buzz 0.02s infinite linear alternate;
+  }
+  
+  .neon-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+  }
+  
+  .neon-button:hover::before {
+    left: 100%;
+  }
+  
+  /* Legacy glow text for backwards compatibility */
   .glow-text {
-    text-shadow: 0 0 10px currentColor;
+    text-shadow: var(--neon-pink);
+    color: var(--gf-pink);
   }
   
   /* Transition effects */
@@ -237,6 +312,50 @@
   }
 }
 
+@keyframes neon-flicker {
+  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+    text-shadow: 
+      0 0 3px currentColor,
+      0 0 6px currentColor;
+    filter: brightness(1);
+  }
+  20%, 24%, 55% {
+    text-shadow: none;
+    filter: brightness(0.8);
+  }
+}
+
+@keyframes neon-buzz {
+  0% { transform: translate(0); }
+  20% { transform: translate(-0.5px, 0.5px); }
+  40% { transform: translate(-0.5px, -0.5px); }
+  60% { transform: translate(0.5px, 0.5px); }
+  80% { transform: translate(0.5px, -0.5px); }
+  100% { transform: translate(0); }
+}
+
+@keyframes neon-pulse {
+  0%, 100% {
+    text-shadow: 
+      0 0 3px currentColor,
+      0 0 6px currentColor;
+  }
+  50% {
+    text-shadow: 
+      0 0 2px currentColor,
+      0 0 4px currentColor,
+      0 0 8px currentColor;
+  }
+}
+
 .animate-pulse-glow {
   animation: pulse-glow 2s infinite;
+}
+
+.animate-neon-flicker {
+  animation: neon-flicker 3s infinite;
+}
+
+.animate-neon-pulse {
+  animation: neon-pulse 2s ease-in-out infinite;
 }

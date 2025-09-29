@@ -32,11 +32,20 @@ function Router() {
       <Header />
       <Switch>
         {!isAuthenticated ? (
-          <Route path="/" component={Landing} />
+          <>
+            <Route path="/" component={Landing} />
+            <Route path="/discover" component={Landing} />
+            <Route path="/following" component={Landing} />
+            <Route path="/messages" component={Landing} />
+            <Route path="/live" component={Landing} />
+          </>
         ) : (
           <>
             <Route path="/" component={Dashboard} />
             <Route path="/dashboard" component={Dashboard} />
+            <Route path="/discover" component={Dashboard} />
+            <Route path="/following" component={Dashboard} />
+            <Route path="/live" component={Dashboard} />
             <Route path="/profile" component={CreatorProfile} />
             <Route path="/content" component={Dashboard} />
             <Route path="/messages" component={Messages} />

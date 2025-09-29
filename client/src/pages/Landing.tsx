@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { Footer } from "@/components/layout/Footer";
+import logoUrl from "@/assets/logo.jpg";
 
 export default function Landing() {
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -92,8 +94,15 @@ export default function Landing() {
       {/* Features Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
         <div className="text-center mb-16">
-          <h2 className="font-display font-bold text-4xl text-gf-snow mb-4">
-            Why Choose GirlFanz?
+          <h2 className="font-display font-bold text-4xl text-gf-snow mb-4 flex items-center justify-center gap-4">
+            Why Choose 
+            <img 
+              src={logoUrl} 
+              alt="GirlFanz" 
+              className="h-30 w-auto" 
+              data-testid="img-features-logo"
+            />
+            ?
           </h2>
           <p className="text-xl text-gf-smoke">
             Built specifically for fierce female creators who demand the best
@@ -136,6 +145,7 @@ export default function Landing() {
         </div>
       </section>
 
+      <Footer />
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </>
   );

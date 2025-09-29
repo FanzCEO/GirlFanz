@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import logoUrl from "@/assets/logo.jpg";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,8 +42,14 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md bg-gf-graphite border-gf-smoke/20">
         <DialogHeader>
-          <DialogTitle className="text-center font-display text-2xl text-gf-snow mb-2">
-            Welcome to GirlFanz
+          <DialogTitle className="text-center font-display text-2xl text-gf-snow mb-2 flex flex-col items-center">
+            <img 
+              src={logoUrl} 
+              alt="GirlFanz" 
+              className="h-36 w-auto mb-2" 
+              data-testid="img-auth-logo"
+            />
+            Welcome to the Revolution
           </DialogTitle>
           <p className="text-center text-gf-smoke">Join the cyber-glam creator revolution</p>
         </DialogHeader>
