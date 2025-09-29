@@ -1,9 +1,6 @@
 import React from 'react';
-import { styled } from 'styled-components';
-import { theme } from '../../lib/constants/theme';
 import { useAppStore } from '../../stores/appStore';
 import { useAuth } from '../../hooks/useAuth';
-import { Button } from '../ui/Button';
 
 const HeaderContainer = styled.div`
   display: flex;

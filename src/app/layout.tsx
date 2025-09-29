@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Inter } from "next/font/google";
+import { AppShell } from '../components/AppShell';
 import "./globals.css";
 
 const playfairDisplay = Playfair_Display({
@@ -62,14 +63,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full">
+    <html lang="en" className="h-full" data-theme="dark">
       <body
-        className={`${playfairDisplay.variable} ${inter.variable} antialiased h-full`}
+        className={`${playfairDisplay.variable} ${inter.variable} antialiased h-full fanz-bg-page`}
         data-brand="girlfanz"
         data-platform="girlfanz"
       >
         <div id="girlfanz-app" className="h-full">
-          {children}
+          <AppShell>
+            {children}
+          </AppShell>
         </div>
         
         {/* Age verification and compliance notices */}
