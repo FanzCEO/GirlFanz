@@ -6,6 +6,8 @@ import {
   moderationQueue,
   payoutAccounts,
   payoutRequests,
+  subscriptions,
+  transactions,
   auditLogs,
   type User,
   type UpsertUser,
@@ -18,6 +20,10 @@ import {
   type ModerationItem,
   type PayoutAccount,
   type PayoutRequest,
+  type Subscription,
+  type InsertSubscription,
+  type Transaction,
+  type InsertTransaction,
   type AuditLog,
 } from "@shared/schema";
 import { db } from "./db";
@@ -62,6 +68,18 @@ export interface IStorage {
   getUserStats(userId: string): Promise<any>;
   getSystemHealth(): Promise<any>;
   
+  // Subscription operations
+  getSubscriptionsAsFan(userId: string): Promise<Subscription[]>;
+  getSubscriptionsAsCreator(userId: string): Promise<Subscription[]>;
+  createSubscription(subscription: InsertSubscription): Promise<Subscription>;
+  updateSubscription(id: string, updates: Partial<Subscription>): Promise<Subscription | undefined>;
+  
+  // Transaction operations
+  getTransactionsAsBuyer(userId: string): Promise<Transaction[]>;
+  getTransactionsAsCreator(userId: string): Promise<Transaction[]>;
+  createTransaction(transaction: InsertTransaction): Promise<Transaction>;
+  updateTransaction(id: string, updates: Partial<Transaction>): Promise<Transaction | undefined>;
+
   // Audit operations
   createAuditLog(log: Partial<AuditLog>): Promise<AuditLog>;
 }
@@ -260,7 +278,7 @@ export class DatabaseStorage implements IStorage {
   async createModerationItem(itemData: Partial<ModerationItem>): Promise<ModerationItem> {
     const [item] = await db
       .insert(moderationQueue)
-      .values(itemData)
+      .values(itemData as any)
       .returning();
     return item;
   }
@@ -361,9 +379,77 @@ export class DatabaseStorage implements IStorage {
   async createAuditLog(logData: Partial<AuditLog>): Promise<AuditLog> {
     const [log] = await db
       .insert(auditLogs)
-      .values(logData)
+      .values(logData as any)
       .returning();
     return log;
+  }
+
+  // Subscription operations
+  async getSubscriptionsAsFan(userId: string): Promise<Subscription[]> {
+    return await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.userId, userId))
+      .orderBy(desc(subscriptions.createdAt));
+  }
+
+  async getSubscriptionsAsCreator(userId: string): Promise<Subscription[]> {
+    return await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.creatorId, userId))
+      .orderBy(desc(subscriptions.createdAt));
+  }
+
+  async createSubscription(subscriptionData: InsertSubscription): Promise<Subscription> {
+    const [subscription] = await db
+      .insert(subscriptions)
+      .values(subscriptionData)
+      .returning();
+    return subscription;
+  }
+
+  async updateSubscription(id: string, updates: Partial<Subscription>): Promise<Subscription | undefined> {
+    const [subscription] = await db
+      .update(subscriptions)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(subscriptions.id, id))
+      .returning();
+    return subscription;
+  }
+
+  // Transaction operations
+  async getTransactionsAsBuyer(userId: string): Promise<Transaction[]> {
+    return await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.userId, userId))
+      .orderBy(desc(transactions.createdAt));
+  }
+
+  async getTransactionsAsCreator(userId: string): Promise<Transaction[]> {
+    return await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.creatorId, userId))
+      .orderBy(desc(transactions.createdAt));
+  }
+
+  async createTransaction(transactionData: InsertTransaction): Promise<Transaction> {
+    const [transaction] = await db
+      .insert(transactions)
+      .values(transactionData)
+      .returning();
+    return transaction;
+  }
+
+  async updateTransaction(id: string, updates: Partial<Transaction>): Promise<Transaction | undefined> {
+    const [transaction] = await db
+      .update(transactions)
+      .set(updates)
+      .where(eq(transactions.id, id))
+      .returning();
+    return transaction;
   }
 }
 

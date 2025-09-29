@@ -11,6 +11,7 @@ import { ObjectPermission } from "./objectAcl";
 import { insertMediaAssetSchema, insertMessageSchema, insertProfileSchema } from "@shared/schema";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
+import { createCCBillService } from "./payments/ccbill";
 
 // Rate limiting
 const limiter = rateLimit({
@@ -390,6 +391,151 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ws.send(JSON.stringify(message));
     }
   }
+
+  // Payment routes
+  const ccbillService = createCCBillService();
+
+  // Create subscription checkout
+  app.post('/api/payments/subscription/checkout', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { creatorId, pricePerMonth, planName, description, billingCycle } = req.body;
+
+      if (!creatorId || !pricePerMonth) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      const checkoutUrl = ccbillService.generateSubscriptionCheckoutUrl({
+        userId,
+        creatorId,
+        pricePerMonth,
+        currency: 'USD',
+        planName: planName || 'Monthly Subscription',
+        description: description || 'Creator subscription',
+        billingCycle: billingCycle || 'monthly',
+      });
+
+      // Log checkout creation
+      await storage.createAuditLog({
+        actorId: userId,
+        action: 'checkout_created',
+        targetType: 'subscription',
+        targetId: creatorId,
+        metadata: { pricePerMonth, provider: 'ccbill' },
+      });
+
+      res.json({ checkoutUrl });
+    } catch (error) {
+      console.error('Error creating subscription checkout:', error);
+      res.status(500).json({ error: 'Failed to create checkout' });
+    }
+  });
+
+  // Create one-time purchase checkout
+  app.post('/api/payments/purchase/checkout', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { creatorId, mediaId, amount, description, type } = req.body;
+
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ error: 'Invalid amount' });
+      }
+
+      const checkoutUrl = ccbillService.generatePurchaseCheckoutUrl({
+        userId,
+        creatorId,
+        mediaId,
+        amount,
+        currency: 'USD',
+        description: description || 'Content purchase',
+        type: type || 'purchase',
+      });
+
+      // Log checkout creation
+      await storage.createAuditLog({
+        actorId: userId,
+        action: 'checkout_created',
+        targetType: 'purchase',
+        targetId: mediaId || creatorId,
+        metadata: { amount, provider: 'ccbill', type },
+      });
+
+      res.json({ checkoutUrl });
+    } catch (error) {
+      console.error('Error creating purchase checkout:', error);
+      res.status(500).json({ error: 'Failed to create checkout' });
+    }
+  });
+
+  // CCBill webhook endpoint - handles form-encoded data
+  app.post('/api/webhooks/ccbill', async (req, res) => {
+    try {
+      // CCBill sends form-encoded data, not JSON
+      const formData = req.body;
+
+      // Verify webhook data using CCBill's MD5 verification
+      if (!ccbillService.verifyWebhookData(formData)) {
+        console.error('Invalid CCBill webhook verification');
+        return res.status(401).json({ error: 'Invalid verification' });
+      }
+
+      // Process webhook
+      await ccbillService.processWebhookNotification(formData);
+      
+      res.status(200).json({ status: 'success' });
+    } catch (error) {
+      console.error('Error processing CCBill webhook:', error);
+      res.status(500).json({ error: 'Webhook processing failed' });
+    }
+  });
+
+  // Get user subscriptions
+  app.get('/api/subscriptions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const subscriptions = await storage.getSubscriptionsAsFan(userId);
+      res.json(subscriptions);
+    } catch (error) {
+      console.error('Error fetching subscriptions:', error);
+      res.status(500).json({ error: 'Failed to fetch subscriptions' });
+    }
+  });
+
+  // Get creator subscriptions 
+  app.get('/api/subscriptions/creator', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const subscriptions = await storage.getSubscriptionsAsCreator(userId);
+      res.json(subscriptions);
+    } catch (error) {
+      console.error('Error fetching creator subscriptions:', error);
+      res.status(500).json({ error: 'Failed to fetch subscriptions' });
+    }
+  });
+
+  // Get user transactions
+  app.get('/api/transactions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const transactions = await storage.getTransactionsAsBuyer(userId);
+      res.json(transactions);
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+      res.status(500).json({ error: 'Failed to fetch transactions' });
+    }
+  });
+
+  // Get creator transactions
+  app.get('/api/transactions/creator', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const transactions = await storage.getTransactionsAsCreator(userId);
+      res.json(transactions);
+    } catch (error) {
+      console.error('Error fetching creator transactions:', error);
+      res.status(500).json({ error: 'Failed to fetch transactions' });
+    }
+  });
 
   return httpServer;
 }

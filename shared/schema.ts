@@ -33,6 +33,9 @@ export const kycStatusEnum = pgEnum("kyc_status", ["pending", "verified", "rejec
 export const mediaStatusEnum = pgEnum("media_status", ["pending", "approved", "rejected"]);
 export const payoutStatusEnum = pgEnum("payout_status", ["pending", "processing", "completed", "failed"]);
 export const moderationStatusEnum = pgEnum("moderation_status", ["pending", "approved", "rejected", "flagged"]);
+export const subscriptionStatusEnum = pgEnum("subscription_status", ["active", "cancelled", "expired", "suspended"]);
+export const transactionStatusEnum = pgEnum("transaction_status", ["pending", "completed", "failed", "refunded", "chargeback"]);
+export const paymentProviderEnum = pgEnum("payment_provider", ["ccbill", "segpay", "stripe"]);
 
 // User storage table (required for Replit Auth)
 export const users = pgTable("users", {
@@ -160,6 +163,47 @@ export const webhooks = pgTable("webhooks", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Subscriptions (for creator tiers, content access)
+export const subscriptions = pgTable("subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  provider: paymentProviderEnum("provider").notNull(),
+  providerSubscriptionId: varchar("provider_subscription_id").unique(),
+  status: subscriptionStatusEnum("status").default("active"),
+  pricePerMonth: integer("price_per_month").notNull(), // in cents
+  currency: varchar("currency").default("USD"),
+  billingCycle: varchar("billing_cycle").default("monthly"),
+  nextBillingDate: timestamp("next_billing_date"),
+  cancelledAt: timestamp("cancelled_at"),
+  expiredAt: timestamp("expired_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Transactions (one-time purchases, tips, subscription payments)  
+export const transactions = pgTable("transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }),
+  mediaId: varchar("media_id").references(() => mediaAssets.id),
+  subscriptionId: varchar("subscription_id").references(() => subscriptions.id),
+  provider: paymentProviderEnum("provider").notNull(),
+  providerTransactionId: varchar("provider_transaction_id").unique(),
+  type: varchar("type").notNull(), // subscription, purchase, tip, refund
+  status: transactionStatusEnum("status").default("pending"),
+  amountCents: integer("amount_cents").notNull(),
+  currency: varchar("currency").default("USD"),
+  providerFee: integer("provider_fee"),
+  platformFee: integer("platform_fee"),
+  creatorEarnings: integer("creator_earnings"),
+  metadata: jsonb("metadata"), // provider-specific data
+  ipAddress: varchar("ip_address"),
+  userAgent: varchar("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
+  processedAt: timestamp("processed_at"),
+});
+
 // Messages
 export const messages = pgTable("messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -191,6 +235,10 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   kycVerifications: many(kycVerifications),
   payoutAccounts: many(payoutAccounts),
   payoutRequests: many(payoutRequests),
+  subscriptionsAsFan: many(subscriptions, { relationName: "subscriber" }),
+  subscriptionsAsCreator: many(subscriptions, { relationName: "creator" }),
+  transactionsAsBuyer: many(transactions, { relationName: "buyer" }),
+  transactionsAsCreator: many(transactions, { relationName: "creator" }),
   sentMessages: many(messages, { relationName: "sender" }),
   receivedMessages: many(messages, { relationName: "receiver" }),
 }));
@@ -207,6 +255,18 @@ export const mediaAssetsRelations = relations(mediaAssets, ({ one, many }) => ({
 export const moderationQueueRelations = relations(moderationQueue, ({ one }) => ({
   media: one(mediaAssets, { fields: [moderationQueue.mediaId], references: [mediaAssets.id] }),
   reviewer: one(users, { fields: [moderationQueue.reviewerId], references: [users.id] }),
+}));
+
+export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
+  subscriber: one(users, { fields: [subscriptions.userId], references: [users.id], relationName: "subscriber" }),
+  creator: one(users, { fields: [subscriptions.creatorId], references: [users.id], relationName: "creator" }),
+}));
+
+export const transactionsRelations = relations(transactions, ({ one }) => ({
+  buyer: one(users, { fields: [transactions.userId], references: [users.id], relationName: "buyer" }),
+  creator: one(users, { fields: [transactions.creatorId], references: [users.id], relationName: "creator" }),
+  media: one(mediaAssets, { fields: [transactions.mediaId], references: [mediaAssets.id] }),
+  subscription: one(subscriptions, { fields: [transactions.subscriptionId], references: [subscriptions.id] }),
 }));
 
 export const messagesRelations = relations(messages, ({ one }) => ({
@@ -226,6 +286,10 @@ export type Message = typeof messages.$inferSelect;
 export type InsertMessage = typeof messages.$inferInsert;
 export type PayoutAccount = typeof payoutAccounts.$inferSelect;
 export type PayoutRequest = typeof payoutRequests.$inferSelect;
+export type Subscription = typeof subscriptions.$inferSelect;
+export type InsertSubscription = typeof subscriptions.$inferInsert;
+export type Transaction = typeof transactions.$inferSelect;
+export type InsertTransaction = typeof transactions.$inferInsert;
 export type AuditLog = typeof auditLogs.$inferSelect;
 
 // Zod schemas for validation
@@ -253,6 +317,18 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
   id: true,
   createdAt: true,
   isRead: true,
+});
+
+export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTransactionSchema = createInsertSchema(transactions).omit({
+  id: true,
+  createdAt: true,
+  processedAt: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
