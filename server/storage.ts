@@ -471,6 +471,19 @@ export class DatabaseStorage implements IStorage {
     return verification;
   }
 
+  async getKycVerificationByType(userId: string, documentType: string): Promise<KycVerification | undefined> {
+    const [verification] = await db
+      .select()
+      .from(kycVerifications)
+      .where(and(
+        eq(kycVerifications.userId, userId),
+        eq(kycVerifications.documentType, documentType)
+      ))
+      .orderBy(desc(kycVerifications.createdAt))
+      .limit(1);
+    return verification;
+  }
+
   async createKycVerification(verificationData: InsertKycVerification): Promise<KycVerification> {
     const [verification] = await db
       .insert(kycVerifications)
