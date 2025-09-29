@@ -193,13 +193,23 @@ export class VerifymyService {
       dataJson: { transactionId, confidence, ...data }
     });
 
-    // Update profile age verification status
+    // Update or create profile with age verification status
     const user = await storage.getUser(userId);
     if (user) {
-      await storage.updateProfile(userId, {
-        ageVerified: isVerified,
-        updatedAt: new Date()
-      });
+      const existingProfile = await storage.getProfile(userId);
+      if (existingProfile) {
+        await storage.updateProfile(userId, {
+          ageVerified: isVerified,
+          updatedAt: new Date()
+        });
+      } else {
+        // Create profile if it doesn't exist
+        await storage.createProfile({
+          userId,
+          ageVerified: isVerified,
+          kycStatus: 'pending'
+        });
+      }
     }
 
     // Log the verification attempt
