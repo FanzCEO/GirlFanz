@@ -15,6 +15,7 @@ import Settings from "@/pages/Settings";
 import Moderation from "@/pages/Moderation";
 import SystemHealth from "@/pages/SystemHealth";
 import { Verification } from "@/pages/Verification";
+import { CreatorDashboard } from "@/pages/CreatorDashboard";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -50,8 +51,8 @@ function Router() {
             <Route path="/profile" component={CreatorProfile} />
             <Route path="/content" component={Dashboard} />
             <Route path="/messages" component={Messages} />
-            <Route path="/analytics" component={Dashboard} />
-            <Route path="/earnings" component={Dashboard} />
+            <Route path="/analytics" component={CreatorDashboard} />
+            <Route path="/earnings" component={CreatorDashboard} />
             <Route path="/settings" component={Settings} />
             <Route path="/verification" component={Verification} />
             <Route path="/moderation" component={Moderation} />
