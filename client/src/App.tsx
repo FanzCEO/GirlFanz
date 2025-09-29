@@ -20,6 +20,7 @@ import HelpCenter from "@/pages/HelpCenter";
 import SupportTickets from "@/pages/SupportTickets";
 import WikiPage from "@/pages/WikiPage";
 import TutorialsPage from "@/pages/TutorialsPage";
+import TutorialDetailPage from "@/pages/TutorialDetailPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -43,6 +44,7 @@ function Router() {
         <Route path="/help/contact" component={SupportTickets} />
         <Route path="/wiki/article/:slug" component={WikiPage} />
         <Route path="/wiki" component={WikiPage} />
+        <Route path="/tutorials/:id" component={TutorialDetailPage} />
         <Route path="/tutorials" component={TutorialsPage} />
         
         {!isAuthenticated ? (

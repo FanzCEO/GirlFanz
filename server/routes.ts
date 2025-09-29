@@ -1303,6 +1303,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/tutorials/:id/steps', async (req, res) => {
+    try {
+      const tutorialId = req.params.id;
+      const steps = await storage.getTutorialSteps(tutorialId);
+      res.json({ steps });
+    } catch (error) {
+      console.error('Error fetching tutorial steps:', error);
+      res.status(500).json({ error: 'Failed to fetch tutorial steps' });
+    }
+  });
+
   app.post('/api/tutorials', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

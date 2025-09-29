@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/components/auth/AuthContext';
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,79 +41,35 @@ interface Tutorial {
 }
 
 export default function TutorialsPage() {
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState<string>('all');
   const [roleFilter, setRoleFilter] = useState<string>('all');
 
-  // Mock data for now - would be replaced with API call
-  const mockTutorials: Tutorial[] = [
-    {
-      id: '1',
-      title: 'Creator Profile Setup',
-      summary: 'Complete guide to setting up your creator profile, verification, and first content upload',
-      roleTarget: 'creator',
-      difficulty: 'beginner',
-      estimatedMinutes: 15,
-      stepCount: 8,
-      completedSteps: 3,
-      rating: 4.9,
-      enrollments: 2847
-    },
-    {
-      id: '2',
-      title: 'Maximizing Your Earnings',
-      summary: 'Advanced strategies for pricing, promotions, and engaging with your fanbase',
-      roleTarget: 'creator',
-      difficulty: 'intermediate',
-      estimatedMinutes: 25,
-      stepCount: 12,
-      completedSteps: 0,
-      rating: 4.7,
-      enrollments: 1293
-    },
-    {
-      id: '3',
-      title: 'Fan Engagement Best Practices',
-      summary: 'Learn how to interact with creators, use platform features, and build connections',
-      roleTarget: 'fan',
-      difficulty: 'beginner',
-      estimatedMinutes: 10,
-      stepCount: 6,
-      isCompleted: true,
-      completedSteps: 6,
-      rating: 4.8,
-      enrollments: 5629
-    },
-    {
-      id: '4',
-      title: 'Content Moderation & Safety',
-      summary: 'Understanding community guidelines, reporting tools, and keeping the platform safe',
-      roleTarget: 'all',
-      difficulty: 'beginner',
-      estimatedMinutes: 12,
-      stepCount: 7,
-      completedSteps: 0,
-      rating: 4.6,
-      enrollments: 3847
-    },
-    {
-      id: '5',
-      title: 'Advanced Analytics Dashboard',
-      summary: 'Deep dive into analytics, revenue tracking, and performance optimization',
-      roleTarget: 'creator',
-      difficulty: 'advanced',
-      estimatedMinutes: 35,
-      stepCount: 15,
-      completedSteps: 0,
-      rating: 4.8,
-      enrollments: 672
+  // Fetch tutorials from API
+  const { data: tutorialsData, isLoading } = useQuery<{ tutorials: Tutorial[] }>({
+    queryKey: ['/api/tutorials', roleFilter, difficultyFilter],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (roleFilter !== 'all') params.set('role', roleFilter);
+      if (difficultyFilter !== 'all') params.set('difficulty', difficultyFilter);
+      const queryString = params.toString();
+      const url = `/api/tutorials${queryString ? `?${queryString}` : ''}`;
+      return fetch(url).then(res => res.json());
     }
-  ];
-
-  const { data: tutorials = mockTutorials, isLoading } = useQuery<Tutorial[]>({
-    queryKey: ['/api/tutorials', searchQuery, difficultyFilter, roleFilter],
-    initialData: mockTutorials,
   });
+
+  const tutorials = tutorialsData?.tutorials || [];
+
+  // Mock progress data - in production this would come from API
+  const mockProgress: { [key: string]: { completedSteps: number; isCompleted: boolean } } = {
+    '1': { completedSteps: 3, isCompleted: false },
+    '2': { completedSteps: 0, isCompleted: false },
+    '3': { completedSteps: 6, isCompleted: true },
+    '4': { completedSteps: 0, isCompleted: false },
+    '5': { completedSteps: 8, isCompleted: false }
+  };
 
   const filteredTutorials = tutorials.filter(tutorial => {
     const matchesSearch = searchQuery === '' || 
@@ -286,6 +244,7 @@ export default function TutorialsPage() {
               <Card 
                 key={tutorial.id} 
                 className="bg-gray-900/50 border-gray-800 hover:bg-gray-800/50 transition-colors cursor-pointer group"
+                onClick={() => setLocation(`/tutorials/${tutorial.id}`)}
                 data-testid={`tutorial-${tutorial.id}`}
               >
                 <CardHeader>

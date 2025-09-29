@@ -820,16 +820,16 @@ export class DatabaseStorage implements IStorage {
   // Tutorial operations
   async getTutorials(userRole?: string, category?: string): Promise<Tutorial[]> {
     let query = db.select().from(tutorials);
-    const conditions = [eq(tutorials.isActive, true)];
+    let conditions = [eq(tutorials.status, 'published')];
     
-    if (userRole) conditions.push(eq(tutorials.targetRole, userRole));
-    if (category) conditions.push(eq(tutorials.category, category));
-    
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+    if (userRole && userRole !== 'all') {
+      conditions.push(or(
+        eq(tutorials.roleTarget, userRole),
+        eq(tutorials.roleTarget, 'all')
+      ));
     }
     
-    return await query.orderBy(tutorials.order, tutorials.title);
+    return await query.where(and(...conditions)).orderBy(tutorials.createdAt, tutorials.title);
   }
 
   async getTutorial(id: string): Promise<Tutorial | undefined> {
@@ -848,6 +848,14 @@ export class DatabaseStorage implements IStorage {
     return tutorial;
   }
 
+  async getTutorialSteps(tutorialId: string): Promise<TutorialStep[]> {
+    return await db
+      .select()
+      .from(tutorialSteps)
+      .where(eq(tutorialSteps.tutorialId, tutorialId))
+      .orderBy(tutorialSteps.stepNumber);
+  }
+
   async getTutorialProgress(userId: string, tutorialId: string): Promise<TutorialProgress | undefined> {
     const [progress] = await db
       .select()
@@ -860,15 +868,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateTutorialProgress(userId: string, tutorialId: string, stepIndex: number): Promise<TutorialProgress> {
+    // Get tutorial steps to determine if tutorial is complete
+    const steps = await db
+      .select()
+      .from(tutorialSteps)
+      .where(eq(tutorialSteps.tutorialId, tutorialId))
+      .orderBy(tutorialSteps.stepNumber);
+    
+    const totalSteps = steps.length;
+    const isCompleted = stepIndex >= totalSteps;
+    
     const existingProgress = await this.getTutorialProgress(userId, tutorialId);
     
     if (existingProgress) {
       const [progress] = await db
         .update(tutorialProgress)
         .set({ 
-          currentStep: stepIndex, 
-          updatedAt: new Date(),
-          completedAt: stepIndex >= (existingProgress.totalSteps - 1) ? new Date() : null
+          completedStep: stepIndex,
+          completedAt: isCompleted ? new Date() : null
         })
         .where(and(
           eq(tutorialProgress.userId, userId),
@@ -882,9 +899,8 @@ export class DatabaseStorage implements IStorage {
         .values({
           userId,
           tutorialId,
-          currentStep: stepIndex,
-          totalSteps: 10, // Default, should be calculated from actual tutorial
-          completedAt: stepIndex >= 9 ? new Date() : null
+          completedStep: stepIndex,
+          completedAt: isCompleted ? new Date() : null
         })
         .returning();
       return progress;
