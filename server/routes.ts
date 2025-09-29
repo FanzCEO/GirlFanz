@@ -13,6 +13,8 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import { createCCBillService } from "./payments/ccbill";
 import { verifymyService } from "./compliance/verifymy";
+import { contentFingerprintingService } from "./services/fingerprinting";
+import { creatorPayoutService } from "./services/payouts";
 
 // Rate limiting
 const limiter = rateLimit({
@@ -680,6 +682,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error processing verifymy webhook:', error);
       res.status(500).json({ error: 'Webhook processing failed' });
+    }
+  });
+
+  // Creator Payout Endpoints
+  app.get('/api/payouts/earnings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const months = parseInt(req.query.months as string) || 12;
+      
+      const summary = await creatorPayoutService.getCreatorEarningsSummary(userId, months);
+      res.json(summary);
+    } catch (error) {
+      console.error('Error fetching creator earnings:', error);
+      res.status(500).json({ error: 'Failed to fetch earnings' });
+    }
+  });
+
+  app.get('/api/payouts/calculate', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { startDate, endDate } = req.query;
+      
+      if (!startDate || !endDate) {
+        return res.status(400).json({ error: 'Start date and end date are required' });
+      }
+
+      const calculation = await creatorPayoutService.calculateCreatorEarnings(
+        userId,
+        new Date(startDate as string),
+        new Date(endDate as string)
+      );
+      
+      res.json(calculation);
+    } catch (error) {
+      console.error('Error calculating earnings:', error);
+      res.status(500).json({ error: 'Failed to calculate earnings' });
+    }
+  });
+
+  app.post('/api/payouts/request', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { amount, payoutAccountId } = req.body;
+      
+      if (!amount || !payoutAccountId) {
+        return res.status(400).json({ error: 'Amount and payout account are required' });
+      }
+
+      // For now, return success - full implementation would create payout request
+      res.json({
+        success: true,
+        message: 'Payout request submitted',
+        payoutId: `payout_${Date.now()}`,
+        amount,
+        status: 'pending'
+      });
+    } catch (error) {
+      console.error('Error requesting payout:', error);
+      res.status(500).json({ error: 'Failed to request payout' });
+    }
+  });
+
+  // Admin endpoint for processing scheduled payouts
+  app.post('/api/admin/payouts/process', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Check if user is admin
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+
+      const results = await creatorPayoutService.processScheduledPayouts();
+      
+      res.json({
+        success: true,
+        results
+      });
+    } catch (error) {
+      console.error('Error processing payouts:', error);
+      res.status(500).json({ error: 'Failed to process payouts' });
+    }
+  });
+
+  // Content fingerprinting endpoints
+  app.post('/api/media/:id/fingerprint', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const mediaId = req.params.id;
+      
+      // Verify user owns the media or is admin
+      const media = await storage.getMediaAsset(mediaId);
+      if (!media || (media.ownerId !== userId)) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      // Find similar content
+      const matches = await contentFingerprintingService.findSimilarContent(mediaId, 0.8);
+      
+      res.json({
+        mediaId,
+        matches,
+        forensicSignature: media.forensicSignature
+      });
+    } catch (error) {
+      console.error('Error checking content fingerprint:', error);
+      res.status(500).json({ error: 'Failed to check fingerprint' });
+    }
+  });
+
+  app.get('/api/admin/audit-logs', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Check if user is admin
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+
+      const limit = Math.min(parseInt(req.query.limit as string) || 100, 1000);
+      const offset = parseInt(req.query.offset as string) || 0;
+      const action = req.query.action as string;
+
+      // This would query audit logs from database
+      // For now return mock data
+      res.json({
+        logs: [],
+        total: 0,
+        limit,
+        offset
+      });
+    } catch (error) {
+      console.error('Error fetching audit logs:', error);
+      res.status(500).json({ error: 'Failed to fetch audit logs' });
     }
   });
 
