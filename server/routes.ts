@@ -604,12 +604,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const verification = await storage.getKycVerification(userId);
-      const profile = await storage.getProfile(userId);
+      let profile = await storage.getProfile(userId);
+      
+      // Create profile if it doesn't exist
+      if (!profile) {
+        profile = await storage.createProfile({
+          userId,
+          ageVerified: false,
+          kycStatus: 'pending'
+        });
+      }
+
+      // Get the most recent age and identity verifications
+      const ageVerification = await storage.getKycVerificationByType(userId, 'age_verification');
+      const identityVerification = await storage.getKycVerificationByType(userId, 'identity_verification');
       
       res.json({
-        ageVerified: profile?.ageVerified || false,
-        kycStatus: profile?.kycStatus || 'pending',
-        lastVerification: verification
+        ageVerified: profile.ageVerified,
+        kycStatus: profile.kycStatus,
+        lastVerification: verification,
+        ageVerification: ageVerification ? {
+          status: ageVerification.status,
+          confidence: ageVerification.dataJson?.confidence,
+          verifiedAt: ageVerification.verifiedAt,
+          createdAt: ageVerification.createdAt
+        } : null,
+        identityVerification: identityVerification ? {
+          status: identityVerification.status,
+          confidence: identityVerification.dataJson?.confidence,
+          verifiedAt: identityVerification.verifiedAt,
+          createdAt: identityVerification.createdAt
+        } : null
       });
     } catch (error) {
       console.error('Error fetching verification status:', error);

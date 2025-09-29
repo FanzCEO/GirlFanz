@@ -85,6 +85,7 @@ export interface IStorage {
 
   // KYC operations
   getKycVerification(userId: string): Promise<KycVerification | undefined>;
+  getKycVerificationByType(userId: string, documentType: string): Promise<KycVerification | undefined>;
   createKycVerification(verification: InsertKycVerification): Promise<KycVerification>;
   
   // Audit operations
