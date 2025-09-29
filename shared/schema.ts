@@ -26,7 +26,7 @@ export const sessions = pgTable(
 );
 
 // Enums
-export const userRoleEnum = pgEnum("user_role", ["fan", "creator", "admin"]);
+export const userRoleEnum = pgEnum("user_role", ["fan", "creator", "admin", "support"]);
 export const userStatusEnum = pgEnum("user_status", ["active", "suspended", "banned"]);
 export const authProviderEnum = pgEnum("auth_provider", ["replit", "local"]);
 export const kycStatusEnum = pgEnum("kyc_status", ["pending", "verified", "rejected"]);

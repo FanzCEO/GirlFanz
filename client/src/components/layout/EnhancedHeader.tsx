@@ -134,14 +134,25 @@ export function EnhancedHeader() {
               </div>
             </Link>
             
-            {/* Login button */}
-            <Button 
-              onClick={() => navigate('/login')} 
-              className="bg-gradient-to-r from-gf-pink to-gf-purple hover:from-gf-pink/90 hover:to-gf-purple/90"
-              data-testid="button-login"
-            >
-              Sign In
-            </Button>
+            {/* Help Center and Login */}
+            <div className="flex items-center space-x-4">
+              <Link href="/help">
+                <Button 
+                  variant="ghost"
+                  className="text-gf-snow hover:bg-gf-smoke/20"
+                  data-testid="link-help-center"
+                >
+                  Help Center
+                </Button>
+              </Link>
+              <Button 
+                onClick={() => navigate('/login')} 
+                className="bg-gradient-to-r from-gf-pink to-gf-purple hover:from-gf-pink/90 hover:to-gf-purple/90"
+                data-testid="button-login"
+              >
+                Sign In
+              </Button>
+            </div>
           </div>
         </div>
       </header>

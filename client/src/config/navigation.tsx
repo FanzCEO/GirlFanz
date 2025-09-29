@@ -21,7 +21,7 @@ export interface NavigationItem {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  roles?: ('fan' | 'creator' | 'admin')[];
+  roles?: ('fan' | 'creator' | 'admin' | 'support')[];
   badge?: number | string;
   description?: string;
   children?: NavigationItem[];

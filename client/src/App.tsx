@@ -16,6 +16,10 @@ import Moderation from "@/pages/Moderation";
 import SystemHealth from "@/pages/SystemHealth";
 import { Verification } from "@/pages/Verification";
 import { CreatorDashboard } from "@/pages/CreatorDashboard";
+import HelpCenter from "@/pages/HelpCenter";
+import SupportTickets from "@/pages/SupportTickets";
+import WikiPage from "@/pages/WikiPage";
+import TutorialsPage from "@/pages/TutorialsPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -33,6 +37,13 @@ function Router() {
     <>
       <EnhancedHeader />
       <Switch>
+        {/* Public help pages - accessible to everyone */}
+        <Route path="/help" component={HelpCenter} />
+        <Route path="/help/tickets" component={SupportTickets} />
+        <Route path="/help/contact" component={SupportTickets} />
+        <Route path="/wiki" component={WikiPage} />
+        <Route path="/tutorials" component={TutorialsPage} />
+        
         {!isAuthenticated ? (
           <>
             <Route path="/" component={Landing} />

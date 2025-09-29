@@ -10,6 +10,12 @@ import {
   transactions,
   auditLogs,
   kycVerifications,
+  supportTickets,
+  supportMessages,
+  knowledgeArticles,
+  tutorials,
+  tutorialSteps,
+  tutorialProgress,
   type User,
   type UpsertUser,
   type Profile,
@@ -28,6 +34,16 @@ import {
   type AuditLog,
   type KycVerification,
   type InsertKycVerification,
+  type SupportTicket,
+  type InsertSupportTicket,
+  type SupportMessage,
+  type InsertSupportMessage,
+  type KnowledgeArticle,
+  type InsertKnowledgeArticle,
+  type Tutorial,
+  type InsertTutorial,
+  type TutorialStep,
+  type TutorialProgress,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, sql } from "drizzle-orm";
@@ -90,6 +106,27 @@ export interface IStorage {
   
   // Audit operations
   createAuditLog(log: Partial<AuditLog>): Promise<AuditLog>;
+  
+  // Support Ticket operations
+  getSupportTickets(userId?: string, status?: string): Promise<SupportTicket[]>;
+  getSupportTicket(id: string): Promise<SupportTicket | undefined>;
+  createSupportTicket(ticket: InsertSupportTicket): Promise<SupportTicket>;
+  updateSupportTicket(id: string, updates: Partial<SupportTicket>): Promise<SupportTicket | undefined>;
+  getSupportMessages(ticketId: string): Promise<SupportMessage[]>;
+  createSupportMessage(message: InsertSupportMessage): Promise<SupportMessage>;
+  
+  // Knowledge Base operations
+  getKnowledgeArticles(category?: string, searchQuery?: string): Promise<KnowledgeArticle[]>;
+  getKnowledgeArticle(id: string): Promise<KnowledgeArticle | undefined>;
+  createKnowledgeArticle(article: InsertKnowledgeArticle): Promise<KnowledgeArticle>;
+  updateKnowledgeArticle(id: string, updates: Partial<KnowledgeArticle>): Promise<KnowledgeArticle | undefined>;
+  
+  // Tutorial operations
+  getTutorials(userRole?: string, category?: string): Promise<Tutorial[]>;
+  getTutorial(id: string): Promise<Tutorial | undefined>;
+  createTutorial(tutorial: InsertTutorial): Promise<Tutorial>;
+  getTutorialProgress(userId: string, tutorialId: string): Promise<TutorialProgress | undefined>;
+  updateTutorialProgress(userId: string, tutorialId: string, stepIndex: number): Promise<TutorialProgress>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -499,6 +536,175 @@ export class DatabaseStorage implements IStorage {
       .values(logData)
       .returning();
     return auditLog;
+  }
+
+  // Support Ticket operations
+  async getSupportTickets(userId?: string, status?: string): Promise<SupportTicket[]> {
+    let query = db.select().from(supportTickets);
+    const conditions = [];
+    
+    if (userId) conditions.push(eq(supportTickets.userId, userId));
+    if (status) conditions.push(eq(supportTickets.status, status));
+    
+    if (conditions.length > 0) {
+      query = query.where(conditions.length === 1 ? conditions[0] : and(...conditions));
+    }
+    
+    return await query.orderBy(desc(supportTickets.createdAt));
+  }
+
+  async getSupportTicket(id: string): Promise<SupportTicket | undefined> {
+    const [ticket] = await db
+      .select()
+      .from(supportTickets)
+      .where(eq(supportTickets.id, id));
+    return ticket;
+  }
+
+  async createSupportTicket(ticketData: InsertSupportTicket): Promise<SupportTicket> {
+    const [ticket] = await db
+      .insert(supportTickets)
+      .values(ticketData)
+      .returning();
+    return ticket;
+  }
+
+  async updateSupportTicket(id: string, updates: Partial<SupportTicket>): Promise<SupportTicket | undefined> {
+    const [ticket] = await db
+      .update(supportTickets)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(supportTickets.id, id))
+      .returning();
+    return ticket;
+  }
+
+  async getSupportMessages(ticketId: string): Promise<SupportMessage[]> {
+    return await db
+      .select()
+      .from(supportMessages)
+      .where(eq(supportMessages.ticketId, ticketId))
+      .orderBy(supportMessages.createdAt);
+  }
+
+  async createSupportMessage(messageData: InsertSupportMessage): Promise<SupportMessage> {
+    const [message] = await db
+      .insert(supportMessages)
+      .values(messageData)
+      .returning();
+    return message;
+  }
+
+  // Knowledge Base operations
+  async getKnowledgeArticles(category?: string, searchQuery?: string): Promise<KnowledgeArticle[]> {
+    let query = db.select().from(knowledgeArticles);
+    const conditions = [eq(knowledgeArticles.status, 'published')];
+    
+    if (category) conditions.push(eq(knowledgeArticles.category, category));
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+    
+    return await query.orderBy(desc(knowledgeArticles.updatedAt));
+  }
+
+  async getKnowledgeArticle(id: string): Promise<KnowledgeArticle | undefined> {
+    const [article] = await db
+      .select()
+      .from(knowledgeArticles)
+      .where(eq(knowledgeArticles.id, id));
+    return article;
+  }
+
+  async createKnowledgeArticle(articleData: InsertKnowledgeArticle): Promise<KnowledgeArticle> {
+    const [article] = await db
+      .insert(knowledgeArticles)
+      .values(articleData)
+      .returning();
+    return article;
+  }
+
+  async updateKnowledgeArticle(id: string, updates: Partial<KnowledgeArticle>): Promise<KnowledgeArticle | undefined> {
+    const [article] = await db
+      .update(knowledgeArticles)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(knowledgeArticles.id, id))
+      .returning();
+    return article;
+  }
+
+  // Tutorial operations
+  async getTutorials(userRole?: string, category?: string): Promise<Tutorial[]> {
+    let query = db.select().from(tutorials);
+    const conditions = [eq(tutorials.isActive, true)];
+    
+    if (userRole) conditions.push(eq(tutorials.targetRole, userRole));
+    if (category) conditions.push(eq(tutorials.category, category));
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+    
+    return await query.orderBy(tutorials.order, tutorials.title);
+  }
+
+  async getTutorial(id: string): Promise<Tutorial | undefined> {
+    const [tutorial] = await db
+      .select()
+      .from(tutorials)
+      .where(eq(tutorials.id, id));
+    return tutorial;
+  }
+
+  async createTutorial(tutorialData: InsertTutorial): Promise<Tutorial> {
+    const [tutorial] = await db
+      .insert(tutorials)
+      .values(tutorialData)
+      .returning();
+    return tutorial;
+  }
+
+  async getTutorialProgress(userId: string, tutorialId: string): Promise<TutorialProgress | undefined> {
+    const [progress] = await db
+      .select()
+      .from(tutorialProgress)
+      .where(and(
+        eq(tutorialProgress.userId, userId),
+        eq(tutorialProgress.tutorialId, tutorialId)
+      ));
+    return progress;
+  }
+
+  async updateTutorialProgress(userId: string, tutorialId: string, stepIndex: number): Promise<TutorialProgress> {
+    const existingProgress = await this.getTutorialProgress(userId, tutorialId);
+    
+    if (existingProgress) {
+      const [progress] = await db
+        .update(tutorialProgress)
+        .set({ 
+          currentStep: stepIndex, 
+          updatedAt: new Date(),
+          completedAt: stepIndex >= (existingProgress.totalSteps - 1) ? new Date() : null
+        })
+        .where(and(
+          eq(tutorialProgress.userId, userId),
+          eq(tutorialProgress.tutorialId, tutorialId)
+        ))
+        .returning();
+      return progress;
+    } else {
+      const [progress] = await db
+        .insert(tutorialProgress)
+        .values({
+          userId,
+          tutorialId,
+          currentStep: stepIndex,
+          totalSteps: 10, // Default, should be calculated from actual tutorial
+          completedAt: stepIndex >= 9 ? new Date() : null
+        })
+        .returning();
+      return progress;
+    }
   }
 }
 

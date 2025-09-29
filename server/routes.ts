@@ -8,7 +8,16 @@ import {
   ObjectNotFoundError,
 } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
-import { insertMediaAssetSchema, insertMessageSchema, insertProfileSchema } from "@shared/schema";
+import { 
+  insertMediaAssetSchema, 
+  insertMessageSchema, 
+  insertProfileSchema,
+  insertSupportTicketSchema,
+  insertSupportMessageSchema,
+  insertKnowledgeArticleSchema,
+  insertTutorialSchema
+} from "@shared/schema";
+import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import { createCCBillService } from "./payments/ccbill";
@@ -888,6 +897,310 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching audit logs:', error);
       res.status(500).json({ error: 'Failed to fetch audit logs' });
+    }
+  });
+
+  // Support Ticket Routes
+  app.get('/api/support/tickets', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      let tickets;
+      if (user?.role === 'admin' || user?.role === 'support') {
+        // Admin/Support can see all tickets
+        const status = req.query.status as string;
+        tickets = await storage.getSupportTickets(undefined, status);
+      } else {
+        // Users can only see their own tickets
+        tickets = await storage.getSupportTickets(userId);
+      }
+      
+      res.json({ tickets });
+    } catch (error) {
+      console.error('Error fetching support tickets:', error);
+      res.status(500).json({ error: 'Failed to fetch tickets' });
+    }
+  });
+
+  app.get('/api/support/tickets/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      const ticketId = req.params.id;
+      
+      const ticket = await storage.getSupportTicket(ticketId);
+      if (!ticket) {
+        return res.status(404).json({ error: 'Ticket not found' });
+      }
+      
+      // Check access permissions
+      if (ticket.userId !== userId && user?.role !== 'admin' && user?.role !== 'support') {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+      
+      const messages = await storage.getSupportMessages(ticketId);
+      
+      res.json({ ticket, messages });
+    } catch (error) {
+      console.error('Error fetching support ticket:', error);
+      res.status(500).json({ error: 'Failed to fetch ticket' });
+    }
+  });
+
+  app.post('/api/support/tickets', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const ticketData = insertSupportTicketSchema.parse({
+        ...req.body,
+        userId,
+        status: 'open'
+      });
+      
+      const ticket = await storage.createSupportTicket(ticketData);
+      
+      // Create initial message
+      if (req.body.message) {
+        await storage.createSupportMessage({
+          ticketId: ticket.id,
+          senderId: userId,
+          body: req.body.message,
+          isInternalNote: false
+        });
+      }
+      
+      res.json({ ticket });
+    } catch (error) {
+      console.error('Error creating support ticket:', error);
+      res.status(500).json({ error: 'Failed to create ticket' });
+    }
+  });
+
+  app.put('/api/support/tickets/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      const ticketId = req.params.id;
+      
+      const ticket = await storage.getSupportTicket(ticketId);
+      if (!ticket) {
+        return res.status(404).json({ error: 'Ticket not found' });
+      }
+      
+      // Check permissions
+      if (ticket.userId !== userId && user?.role !== 'admin' && user?.role !== 'support') {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+      
+      // Define allowed updates based on role
+      let allowedUpdates: any = {};
+      
+      if (user?.role === 'admin' || user?.role === 'support') {
+        // Staff can update status, priority, assignment, and category
+        const staffUpdateSchema = z.object({
+          status: z.enum(['open', 'in_progress', 'resolved', 'closed']).optional(),
+          priority: z.enum(['low', 'normal', 'high', 'critical']).optional(),
+          assignedTo: z.string().optional(),
+          category: z.string().optional()
+        });
+        allowedUpdates = staffUpdateSchema.parse(req.body);
+      } else {
+        // Regular users can only update subject and category
+        const userUpdateSchema = z.object({
+          subject: z.string().max(255).optional(),
+          category: z.string().optional()
+        });
+        allowedUpdates = userUpdateSchema.parse(req.body);
+      }
+      
+      const updatedTicket = await storage.updateSupportTicket(ticketId, allowedUpdates);
+      res.json({ ticket: updatedTicket });
+    } catch (error) {
+      console.error('Error updating support ticket:', error);
+      res.status(500).json({ error: 'Failed to update ticket' });
+    }
+  });
+
+  app.post('/api/support/tickets/:id/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      const ticketId = req.params.id;
+      
+      const ticket = await storage.getSupportTicket(ticketId);
+      if (!ticket) {
+        return res.status(404).json({ error: 'Ticket not found' });
+      }
+      
+      // Check access permissions
+      if (ticket.userId !== userId && user?.role !== 'admin' && user?.role !== 'support') {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+      
+      const messageData = insertSupportMessageSchema.parse({
+        ticketId,
+        senderId: userId,
+        body: req.body.message,
+        isInternalNote: user?.role === 'admin' || user?.role === 'support'
+      });
+      
+      const message = await storage.createSupportMessage(messageData);
+      res.json({ message });
+    } catch (error) {
+      console.error('Error creating support message:', error);
+      res.status(500).json({ error: 'Failed to send message' });
+    }
+  });
+
+  // Knowledge Base Routes
+  app.get('/api/wiki/articles', async (req, res) => {
+    try {
+      const category = req.query.category as string;
+      const searchQuery = req.query.search as string;
+      
+      const articles = await storage.getKnowledgeArticles(category, searchQuery);
+      res.json({ articles });
+    } catch (error) {
+      console.error('Error fetching knowledge articles:', error);
+      res.status(500).json({ error: 'Failed to fetch articles' });
+    }
+  });
+
+  app.get('/api/wiki/articles/:id', async (req, res) => {
+    try {
+      const articleId = req.params.id;
+      const article = await storage.getKnowledgeArticle(articleId);
+      
+      if (!article) {
+        return res.status(404).json({ error: 'Article not found' });
+      }
+      
+      res.json({ article });
+    } catch (error) {
+      console.error('Error fetching knowledge article:', error);
+      res.status(500).json({ error: 'Failed to fetch article' });
+    }
+  });
+
+  app.post('/api/wiki/articles', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Check if user has permission to create articles
+      if (user?.role !== 'admin' && user?.role !== 'support') {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+      
+      const articleData = insertKnowledgeArticleSchema.parse({
+        ...req.body,
+        authorId: userId
+      });
+      
+      const article = await storage.createKnowledgeArticle(articleData);
+      res.json({ article });
+    } catch (error) {
+      console.error('Error creating knowledge article:', error);
+      res.status(500).json({ error: 'Failed to create article' });
+    }
+  });
+
+  app.put('/api/wiki/articles/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      const articleId = req.params.id;
+      
+      // Check if user has permission to edit articles
+      if (user?.role !== 'admin' && user?.role !== 'support') {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+      
+      const updatedArticle = await storage.updateKnowledgeArticle(articleId, req.body);
+      res.json({ article: updatedArticle });
+    } catch (error) {
+      console.error('Error updating knowledge article:', error);
+      res.status(500).json({ error: 'Failed to update article' });
+    }
+  });
+
+  // Tutorial Routes
+  app.get('/api/tutorials', async (req, res) => {
+    try {
+      const userRole = req.query.role as string;
+      const category = req.query.category as string;
+      
+      const tutorials = await storage.getTutorials(userRole, category);
+      res.json({ tutorials });
+    } catch (error) {
+      console.error('Error fetching tutorials:', error);
+      res.status(500).json({ error: 'Failed to fetch tutorials' });
+    }
+  });
+
+  app.get('/api/tutorials/:id', async (req, res) => {
+    try {
+      const tutorialId = req.params.id;
+      const tutorial = await storage.getTutorial(tutorialId);
+      
+      if (!tutorial) {
+        return res.status(404).json({ error: 'Tutorial not found' });
+      }
+      
+      res.json({ tutorial });
+    } catch (error) {
+      console.error('Error fetching tutorial:', error);
+      res.status(500).json({ error: 'Failed to fetch tutorial' });
+    }
+  });
+
+  app.get('/api/tutorials/:id/progress', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const tutorialId = req.params.id;
+      
+      const progress = await storage.getTutorialProgress(userId, tutorialId);
+      res.json({ progress });
+    } catch (error) {
+      console.error('Error fetching tutorial progress:', error);
+      res.status(500).json({ error: 'Failed to fetch progress' });
+    }
+  });
+
+  app.put('/api/tutorials/:id/progress', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const tutorialId = req.params.id;
+      const { stepIndex } = req.body;
+      
+      const progress = await storage.updateTutorialProgress(userId, tutorialId, stepIndex);
+      res.json({ progress });
+    } catch (error) {
+      console.error('Error updating tutorial progress:', error);
+      res.status(500).json({ error: 'Failed to update progress' });
+    }
+  });
+
+  app.post('/api/tutorials', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Check if user has permission to create tutorials
+      if (user?.role !== 'admin' && user?.role !== 'support') {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+      
+      const tutorialData = insertTutorialSchema.parse({
+        ...req.body,
+        createdBy: userId
+      });
+      
+      const tutorial = await storage.createTutorial(tutorialData);
+      res.json({ tutorial });
+    } catch (error) {
+      console.error('Error creating tutorial:', error);
+      res.status(500).json({ error: 'Failed to create tutorial' });
     }
   });
 
