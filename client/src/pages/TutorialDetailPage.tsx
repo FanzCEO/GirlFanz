@@ -15,7 +15,7 @@ import {
   PlayCircle,
   Star
 } from "lucide-react";
-import { useAuth } from '@/components/auth/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 
 interface Tutorial {
@@ -83,10 +83,7 @@ export default function TutorialDetailPage() {
   // Update progress mutation
   const updateProgressMutation = useMutation({
     mutationFn: (stepIndex: number) => 
-      apiRequest(`/api/tutorials/${tutorialId}/progress`, {
-        method: 'PUT',
-        body: JSON.stringify({ stepIndex }),
-      }),
+      apiRequest('PUT', `/api/tutorials/${tutorialId}/progress`, { stepIndex }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tutorials', tutorialId, 'progress'] });
     },
