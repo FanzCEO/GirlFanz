@@ -21,7 +21,7 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-8">
-              <h1 className="font-display font-bold text-5xl lg:text-7xl leading-tight">
+              <h1 className="font-display font-bold text-3xl sm:text-4xl md:text-5xl lg:text-7xl leading-tight">
                 <span className="text-gf-snow">Feminine</span>
                 <br />
                 <span className="bg-heatwave bg-clip-text text-transparent glow-text">
@@ -29,7 +29,7 @@ export default function Landing() {
                 </span>
               </h1>
 
-              <p className="text-xl text-gf-smoke leading-relaxed">
+              <p className="text-base sm:text-lg md:text-xl text-gf-smoke leading-relaxed">
                 Join the premier platform where fierce female creators connect with devoted fans.
                 Build your empire in the cyber-glam universe of GirlFanz.
               </p>
@@ -52,10 +52,10 @@ export default function Landing() {
                 </Button>
               </div>
 
-              <div className="flex items-center space-x-8 pt-8">
+              <div className="flex flex-wrap items-center gap-4 sm:gap-6 md:gap-8 pt-8">
                 {stats.map((stat, index) => (
-                  <div key={index} className="text-center">
-                    <div className="font-display font-bold text-2xl text-gf-pink" data-testid={`stat-${stat.label.toLowerCase().replace(/\s+/g, '-')}`}>
+                  <div key={index} className="text-center min-w-[80px]">
+                    <div className="font-display font-bold text-xl sm:text-2xl text-gf-pink" data-testid={`stat-${stat.label.toLowerCase().replace(/\s+/g, '-')}`}>
                       {stat.value}
                     </div>
                     <div className="text-gf-smoke text-sm">{stat.label}</div>
@@ -64,7 +64,7 @@ export default function Landing() {
               </div>
             </div>
 
-            <div className="relative">
+            <div className="relative mt-8 lg:mt-0">
               {/* Hero image placeholder */}
               <div className="relative rounded-2xl overflow-hidden shadow-2xl">
                 <img
@@ -76,12 +76,12 @@ export default function Landing() {
               </div>
 
               {/* Floating elements */}
-              <div className="absolute -top-6 -right-6 glass-overlay rounded-lg p-4" data-testid="card-earnings-preview">
+              <div className="hidden sm:block absolute -top-6 -right-6 glass-overlay rounded-lg p-3 sm:p-4" data-testid="card-earnings-preview">
                 <div className="text-gf-pink font-display font-bold">$12,450</div>
                 <div className="text-gf-smoke text-sm">Monthly earnings</div>
               </div>
 
-              <div className="absolute -bottom-6 -left-6 glass-overlay rounded-lg p-4" data-testid="card-live-status">
+              <div className="hidden sm:block absolute -bottom-6 -left-6 glass-overlay rounded-lg p-3 sm:p-4" data-testid="card-live-status">
                 <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 bg-success rounded-full animate-pulse" />
                   <span className="text-gf-snow text-sm">Live streaming</span>
@@ -95,7 +95,7 @@ export default function Landing() {
       {/* Features Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
         <div className="text-center mb-16">
-          <h2 className="font-display font-bold text-4xl text-gf-snow mb-4 flex items-center justify-center gap-4">
+          <h2 className="font-display font-bold text-2xl sm:text-3xl md:text-4xl text-gf-snow mb-4 flex flex-wrap items-center justify-center gap-2 sm:gap-4">
             Why Choose 
             <img 
               src={logoUrl} 
@@ -105,12 +105,12 @@ export default function Landing() {
             />
             ?
           </h2>
-          <p className="text-xl text-gf-smoke">
+          <p className="text-base sm:text-lg md:text-xl text-gf-smoke">
             Built specifically for fierce female creators who demand the best
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6 md:gap-8">
           <div className="glass-overlay rounded-2xl p-8 text-center">
             <div className="w-16 h-16 bg-gf-gradient rounded-full flex items-center justify-center mx-auto mb-6">
               <span className="text-2xl">💰</span>

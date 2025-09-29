@@ -177,9 +177,9 @@ export default function TutorialDetailPage() {
   const isCompleted = currentStep >= steps.length - 1;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-6 sm:mb-8">
         <Button 
           variant="ghost" 
           onClick={() => setLocation('/tutorials')}
@@ -192,10 +192,10 @@ export default function TutorialDetailPage() {
 
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
-            <h1 className="font-display font-bold text-3xl text-gf-snow mb-2" data-testid="text-tutorial-title">
+            <h1 className="font-display font-bold text-2xl sm:text-3xl text-gf-snow mb-2" data-testid="text-tutorial-title">
               {tutorial.title}
             </h1>
-            <p className="text-gf-smoke text-lg mb-4">{tutorial.summary}</p>
+            <p className="text-gf-smoke text-base sm:text-lg mb-4">{tutorial.summary}</p>
             
             <div className="flex flex-wrap items-center gap-3">
               <Badge 
@@ -223,7 +223,7 @@ export default function TutorialDetailPage() {
           </div>
 
           {/* Progress Overview */}
-          <div className="glass-overlay rounded-lg p-4 min-w-[250px]">
+          <div className="glass-overlay rounded-lg p-4 w-full lg:min-w-[250px] lg:w-auto">
             <div className="text-center mb-3">
               <div className="text-2xl font-bold text-gf-pink" data-testid="text-progress-percentage">
                 {Math.round(progressPercentage)}%
@@ -244,9 +244,9 @@ export default function TutorialDetailPage() {
 
       {/* Tutorial Content */}
       {steps.length > 0 && (
-        <div className="grid lg:grid-cols-4 gap-8">
+        <div className="grid lg:grid-cols-4 gap-6 lg:gap-8">
           {/* Steps Sidebar */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 order-2 lg:order-1">
             <Card className="glass-overlay border-gf-violet/30">
               <CardHeader>
                 <CardTitle className="text-gf-snow flex items-center gap-2">
@@ -260,7 +260,7 @@ export default function TutorialDetailPage() {
                     <button
                       key={step.id}
                       onClick={() => setCurrentStep(index)}
-                      className={`w-full text-left p-3 rounded-lg transition-colors ${
+                      className={`w-full text-left p-2 sm:p-3 rounded-lg transition-colors ${
                         index === currentStep 
                           ? 'bg-gf-gradient text-gf-snow' 
                           : 'bg-gf-dark/30 text-gf-smoke hover:bg-gf-dark/50'
@@ -279,7 +279,7 @@ export default function TutorialDetailPage() {
                             index + 1
                           )}
                         </div>
-                        <span className="text-sm font-medium">{step.title}</span>
+                        <span className="text-xs sm:text-sm font-medium truncate">{step.title}</span>
                       </div>
                     </button>
                   ))}
@@ -289,11 +289,11 @@ export default function TutorialDetailPage() {
           </div>
 
           {/* Main Content */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-3 order-1 lg:order-2">
             <Card className="glass-overlay border-gf-violet/30">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-gf-snow" data-testid="text-current-step-title">
+                  <CardTitle className="text-gf-snow text-base sm:text-lg" data-testid="text-current-step-title">
                     Step {currentStep + 1}: {steps[currentStep]?.title}
                   </CardTitle>
                   <div className="flex items-center gap-2">

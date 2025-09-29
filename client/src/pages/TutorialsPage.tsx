@@ -125,13 +125,13 @@ export default function TutorialsPage() {
         }}
       />
       
-      <div className="relative container mx-auto px-4 py-8">
+      <div className="relative container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-green-400 to-cyan-400 bg-clip-text text-transparent">
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4 bg-gradient-to-r from-green-400 to-cyan-400 bg-clip-text text-transparent">
             Tutorials & Learning
           </h1>
-          <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+          <p className="text-gray-400 text-sm sm:text-base md:text-lg max-w-2xl mx-auto px-4">
             Step-by-step guides to master every aspect of the GirlFanz platform
           </p>
         </div>
@@ -152,9 +152,9 @@ export default function TutorialsPage() {
             </div>
             
             {/* Filters */}
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-3 sm:gap-4">
               <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
-                <SelectTrigger className="w-40 bg-gray-900/50 border-gray-800 text-white">
+                <SelectTrigger className="w-full sm:w-40 bg-gray-900/50 border-gray-800 text-white">
                   <Filter className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="Difficulty" />
                 </SelectTrigger>
@@ -167,7 +167,7 @@ export default function TutorialsPage() {
               </Select>
               
               <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="w-32 bg-gray-900/50 border-gray-800 text-white">
+                <SelectTrigger className="w-full sm:w-32 bg-gray-900/50 border-gray-800 text-white">
                   <Users className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="Role" />
                 </SelectTrigger>
@@ -183,12 +183,12 @@ export default function TutorialsPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
           <Card className="bg-gray-900/50 border-gray-800">
             <CardContent className="p-4 text-center">
-              <GraduationCap className="h-8 w-8 text-green-400 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-white">{tutorials.length}</div>
-              <div className="text-sm text-gray-400">Total Tutorials</div>
+              <GraduationCap className="h-6 w-6 sm:h-8 sm:w-8 text-green-400 mx-auto mb-2" />
+              <div className="text-xl sm:text-2xl font-bold text-white">{tutorials.length}</div>
+              <div className="text-xs sm:text-sm text-gray-400">Total Tutorials</div>
             </CardContent>
           </Card>
           

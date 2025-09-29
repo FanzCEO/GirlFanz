@@ -116,7 +116,7 @@ export default function CreatorProfile() {
           {/* Main Content */}
           <div className="lg:col-span-3">
             <Tabs defaultValue="profile" className="space-y-8">
-              <TabsList className="grid w-full grid-cols-3 bg-gf-graphite">
+              <TabsList className="grid w-full grid-cols-3 bg-gf-graphite text-xs sm:text-sm">
                 <TabsTrigger value="profile" className="data-[state=active]:bg-gf-pink">
                   Profile
                 </TabsTrigger>
@@ -134,7 +134,7 @@ export default function CreatorProfile() {
                   <CardContent className="p-0">
                     <div className="relative">
                       {/* Banner Image */}
-                      <div className="h-48 bg-gradient-to-r from-gf-pink/20 to-gf-violet/20 rounded-t-lg flex items-center justify-center">
+                      <div className="h-32 sm:h-40 md:h-48 bg-gradient-to-r from-gf-pink/20 to-gf-violet/20 rounded-t-lg flex items-center justify-center">
                         {profile?.bannerUrl ? (
                           <img
                             src={profile.bannerUrl}
@@ -143,14 +143,14 @@ export default function CreatorProfile() {
                           />
                         ) : (
                           <div className="text-gf-smoke text-center">
-                            <Camera className="h-12 w-12 mx-auto mb-2" />
+                            <Camera className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 mx-auto mb-2" />
                             <p>Upload a banner image</p>
                           </div>
                         )}
                       </div>
 
                       {/* Banner Upload Button */}
-                      <div className="absolute top-4 right-4">
+                      <div className="absolute top-2 right-2 sm:top-4 sm:right-4">
                         <ObjectUploader
                           maxNumberOfFiles={1}
                           maxFileSize={10 * 1024 * 1024}
@@ -164,12 +164,12 @@ export default function CreatorProfile() {
                       </div>
 
                       {/* Avatar */}
-                      <div className="absolute -bottom-16 left-8">
+                      <div className="absolute -bottom-12 sm:-bottom-16 left-4 sm:left-8">
                         <div className="relative">
                           <img
                             src={profile?.avatarUrl || "/api/placeholder/128/128"}
                             alt="Profile avatar"
-                            className="w-32 h-32 rounded-full border-4 border-gf-graphite"
+                            className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full border-2 sm:border-4 border-gf-graphite"
                             data-testid="img-profile-avatar"
                           />
                           <div className="absolute bottom-2 right-2">
@@ -187,7 +187,7 @@ export default function CreatorProfile() {
                       </div>
                     </div>
 
-                    <div className="pt-20 p-8">
+                    <div className="pt-16 sm:pt-20 p-4 sm:p-6 md:p-8">
                       <div className="space-y-6">
                         <div className="grid md:grid-cols-2 gap-6">
                           <div className="space-y-2">

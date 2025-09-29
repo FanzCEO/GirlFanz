@@ -15,6 +15,7 @@ interface WikiArticle {
   title: string;
   slug: string;
   summary: string;
+  content?: string;
   tags: string[];
   publishedAt: string;
   views?: number;
@@ -78,7 +79,7 @@ export default function WikiPage() {
   // Record article view
   const recordViewMutation = useMutation({
     mutationFn: (articleId: string) => 
-      apiRequest(`/api/wiki/articles/${articleId}/view`, { method: 'POST' }),
+      apiRequest('POST', `/api/wiki/articles/${articleId}/view`, {}),
   });
 
   // Get search suggestions
@@ -121,7 +122,7 @@ export default function WikiPage() {
     return matchesCategory;
   });
 
-  const allTags = [...new Set(displayedArticles.flatMap(article => article.tags || []))];
+  const allTags = Array.from(new Set(displayedArticles.flatMap(article => article.tags || [])));
   const popularTags = ['beginner', 'earnings', 'setup', 'guidelines', 'verification', 'moderation'];
 
   // Article Detail View
@@ -129,7 +130,7 @@ export default function WikiPage() {
     if (articleLoading) {
       return (
         <div className="min-h-screen bg-black text-white">
-          <div className="relative container mx-auto px-4 py-8">
+          <div className="relative container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
             <div className="animate-pulse space-y-4">
               <div className="h-8 bg-gray-700 rounded w-1/3"></div>
               <div className="h-4 bg-gray-700 rounded w-3/4"></div>
@@ -143,7 +144,7 @@ export default function WikiPage() {
     if (!articleDetail) {
       return (
         <div className="min-h-screen bg-black text-white">
-          <div className="relative container mx-auto px-4 py-8">
+          <div className="relative container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
             <div className="text-center py-12">
               <BookOpen className="h-16 w-16 mx-auto text-gray-600 mb-4" />
               <h3 className="text-xl font-semibold text-white mb-2">Article not found</h3>
@@ -162,7 +163,7 @@ export default function WikiPage() {
 
     return (
       <div className="min-h-screen bg-black text-white">
-        <div className="relative container mx-auto px-4 py-8">
+        <div className="relative container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           {/* Back Button */}
           <div className="mb-6">
             <Link href="/wiki">
@@ -176,11 +177,11 @@ export default function WikiPage() {
           {/* Article Content */}
           <article className="max-w-4xl mx-auto">
             <header className="mb-8">
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent mb-4">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent mb-4">
                 {articleDetail.title}
               </h1>
-              <p className="text-gray-400 text-lg mb-4">{articleDetail.summary}</p>
-              <div className="flex items-center gap-4 text-sm text-gray-500">
+              <p className="text-gray-400 text-base sm:text-lg mb-4">{articleDetail.summary}</p>
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-500">
                 <div className="flex items-center">
                   <Clock className="h-4 w-4 mr-1" />
                   {new Date(articleDetail.publishedAt).toLocaleDateString()}
@@ -201,8 +202,8 @@ export default function WikiPage() {
               </div>
             </header>
 
-            <div className="prose prose-invert max-w-none">
-              <div className="text-gray-300 text-lg leading-relaxed whitespace-pre-wrap">
+            <div className="prose prose-sm sm:prose prose-invert max-w-none">
+              <div className="text-gray-300 text-base sm:text-lg leading-relaxed whitespace-pre-wrap break-words">
                 {articleDetail.content}
               </div>
             </div>
@@ -227,12 +228,12 @@ export default function WikiPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <Brain className="h-8 w-8 text-cyan-400" />
+            <Brain className="h-6 w-6 sm:h-8 sm:w-8 text-cyan-400" />
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
               AI Knowledge Base
             </h1>
           </div>
-          <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+          <p className="text-gray-400 text-sm sm:text-base md:text-lg max-w-2xl mx-auto px-4">
             Intelligent search, personalized recommendations, and AI-powered insights to master the GirlFanz platform
           </p>
         </div>
@@ -251,7 +252,7 @@ export default function WikiPage() {
               placeholder="Ask me anything... (AI-powered semantic search)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-12 h-12 bg-gray-900/50 border-gray-800 text-white text-lg"
+              className="pl-10 sm:pl-12 h-11 sm:h-12 bg-gray-900/50 border-gray-800 text-white text-base sm:text-lg"
               data-testid="input-wiki-search"
             />
             

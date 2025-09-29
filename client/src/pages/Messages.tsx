@@ -102,16 +102,16 @@ export default function Messages() {
           {/* Messages Interface */}
           <div className="lg:col-span-3">
             <Card className="glass-overlay border-gf-smoke/20 overflow-hidden">
-              <div className="grid lg:grid-cols-3 h-96">
+              <div className="flex flex-col lg:grid lg:grid-cols-3 min-h-[400px] lg:h-96">
                 {/* Conversations List */}
-                <div className="border-r border-gf-smoke/20 p-6">
-                  <h3 className="font-display font-semibold text-lg mb-4 text-gf-snow">Messages</h3>
-                  <div className="space-y-3">
+                <div className="border-b lg:border-b-0 lg:border-r border-gf-smoke/20 p-4 lg:p-6 max-h-[300px] lg:max-h-none overflow-y-auto">
+                  <h3 className="font-display font-semibold text-base lg:text-lg mb-3 lg:mb-4 text-gf-snow">Messages</h3>
+                  <div className="space-y-2 lg:space-y-3">
                     {conversations?.map((conv: any) => (
                       <div
                         key={conv.otherUserId}
                         onClick={() => setSelectedConversation(conv.otherUserId)}
-                        className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                        className={`flex items-center space-x-2 lg:space-x-3 p-2 lg:p-3 rounded-lg cursor-pointer transition-colors ${
                           selectedConversation === conv.otherUserId
                             ? "bg-gf-pink/10 border border-gf-pink/20"
                             : "hover:bg-gf-pink/5"
@@ -122,7 +122,7 @@ export default function Messages() {
                           <img
                             src="/api/placeholder/40/40"
                             alt="User avatar"
-                            className="w-10 h-10 rounded-full"
+                            className="w-8 h-8 lg:w-10 lg:h-10 rounded-full"
                           />
                           <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-success rounded-full border-2 border-gf-graphite" />
                         </div>
@@ -150,7 +150,7 @@ export default function Messages() {
                 </div>
 
                 {/* Chat Area */}
-                <div className="lg:col-span-2 flex flex-col">
+                <div className="lg:col-span-2 flex flex-col min-h-[400px]">
                   {selectedConversation ? (
                     <>
                       {/* Chat Header */}
@@ -182,21 +182,21 @@ export default function Messages() {
                       </div>
 
                       {/* Messages */}
-                      <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+                      <div className="flex-1 p-3 lg:p-4 space-y-3 lg:space-y-4 overflow-y-auto max-h-[300px] lg:max-h-none">
                         {messages?.map((message: any) => (
                           <div
                             key={message.id}
                             className={`flex ${message.senderId === user?.id ? "justify-end" : "justify-start"}`}
                           >
                             <div
-                              className={`rounded-lg p-3 max-w-xs ${
+                              className={`rounded-lg p-2 lg:p-3 max-w-[200px] sm:max-w-xs ${
                                 message.senderId === user?.id
                                   ? "bg-gf-pink text-gf-snow"
                                   : "bg-gf-graphite text-gf-snow"
                               }`}
                               data-testid={`message-${message.id}`}
                             >
-                              <p className="text-sm">{message.content}</p>
+                              <p className="text-xs sm:text-sm break-words">{message.content}</p>
                               <p className={`text-xs mt-1 ${
                                 message.senderId === user?.id
                                   ? "text-gf-snow/70"
@@ -211,8 +211,8 @@ export default function Messages() {
                       </div>
 
                       {/* Message Input */}
-                      <div className="border-t border-gf-smoke/20 p-4">
-                        <div className="flex items-center space-x-3">
+                      <div className="border-t border-gf-smoke/20 p-3 lg:p-4">
+                        <div className="flex items-center gap-2 lg:gap-3">
                           <Button variant="ghost" size="icon" className="text-gf-smoke hover:text-gf-cyan">
                             <Paperclip className="h-4 w-4" />
                           </Button>
