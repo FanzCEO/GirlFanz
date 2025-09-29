@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { Footer } from "@/components/layout/Footer";
 import logoUrl from "@/assets/logo.jpg";
+import heroImage from "@assets/Girlsbackground_1759151738593.png";
 
 export default function Landing() {
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -67,7 +68,7 @@ export default function Landing() {
               {/* Hero image placeholder */}
               <div className="relative rounded-2xl overflow-hidden shadow-2xl">
                 <img
-                  src="https://images.unsplash.com/photo-1581833971358-2c8b550f87b3?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=400"
+                  src={heroImage}
                   alt="Confident creator in neon cyber-glam setting"
                   className="w-full h-auto"
                 />
