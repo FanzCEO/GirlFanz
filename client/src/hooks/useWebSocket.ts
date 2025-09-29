@@ -25,18 +25,25 @@ export function useWebSocket() {
     wsRef.current = ws;
 
     ws.onopen = () => {
-      setIsConnected(true);
+      console.log('WebSocket connection opened');
       // Authenticate with the server
       ws.send(JSON.stringify({
         type: 'auth',
-        userId: user.id,
+        userId: user.claims.sub,
       }));
     };
 
     ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
-        setLastMessage(message);
+        console.log('WebSocket message received:', message.type);
+        
+        if (message.type === 'auth_success') {
+          setIsConnected(true);
+          console.log('WebSocket authenticated successfully');
+        } else {
+          setLastMessage(message);
+        }
       } catch (error) {
         console.error('Failed to parse WebSocket message:', error);
       }

@@ -333,22 +333,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
   // WebSocket server for real-time features
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  const wss = new WebSocketServer({ 
+    server: httpServer, 
+    path: '/ws',
+    verifyClient: (info) => {
+      // Parse token from query string if present
+      const url = new URL(info.req.url!, `http://${info.req.headers.host}`);
+      const token = url.searchParams.get('token');
+      
+      console.log('WebSocket verification - token present:', !!token);
+      
+      // For now, accept all connections and handle auth later
+      // In production, you would validate the token here
+      return true;
+    }
+  });
   
   // Store active connections
   const connections = new Map<string, WebSocket>();
 
-  wss.on('connection', (ws) => {
+  wss.on('connection', (ws, req) => {
     let userId: string | null = null;
+    console.log('WebSocket connection attempt from:', req.socket.remoteAddress);
+
+    // Try to extract token from query parameters
+    const url = new URL(req.url!, `http://${req.headers.host}`);
+    const token = url.searchParams.get('token');
+    
+    if (token) {
+      console.log('WebSocket connection with token:', token.substring(0, 10) + '...');
+      // For demo purposes, we'll use the token as a user identifier
+      // In production, you would validate the JWT token here
+      userId = token;
+      connections.set(userId, ws);
+      
+      // Send immediate auth success
+      ws.send(JSON.stringify({
+        type: 'auth_success',
+        userId: userId
+      }));
+      console.log('WebSocket authenticated via token');
+    }
 
     ws.on('message', async (data) => {
       try {
         const message = JSON.parse(data.toString());
+        console.log('WebSocket message received:', message.type, userId ? `from user ${userId}` : '(unauthenticated)');
         
         if (message.type === 'auth') {
           userId = message.userId;
           connections.set(userId, ws);
-          console.log(`User ${userId} connected to WebSocket`);
+          console.log(`User ${userId} successfully authenticated via WebSocket`);
+          
+          // Send confirmation back to client
+          ws.send(JSON.stringify({
+            type: 'auth_success',
+            userId: userId
+          }));
         }
         
         if (message.type === 'ping') {
@@ -397,6 +438,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Payment routes
   const ccbillService = createCCBillService();
+
+  // Generic CCBill checkout URL endpoint
+  app.get('/api/ccbill/checkout-url', isAuthenticated, (req: any, res) => {
+    try {
+      const { amount, type = 'purchase' } = req.query;
+      const userId = req.user.claims.sub;
+
+      if (!amount) {
+        return res.status(400).json({ error: 'Amount is required' });
+      }
+
+      const checkoutUrl = ccbillService.generatePurchaseCheckoutUrl({
+        userId,
+        amount: parseInt(amount as string),
+        type: type as string,
+        creatorId: 'demo-creator', // For testing purposes
+      });
+
+      res.json({
+        url: checkoutUrl.url,
+        digest: checkoutUrl.digest,
+        amount: parseInt(amount as string),
+        type
+      });
+    } catch (error) {
+      console.error('Error generating CCBill checkout URL:', error);
+      res.status(500).json({ error: 'Failed to generate checkout URL' });
+    }
+  });
 
   // Create subscription checkout
   app.post('/api/payments/subscription/checkout', isAuthenticated, async (req: any, res) => {
