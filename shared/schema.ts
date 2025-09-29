@@ -228,6 +228,90 @@ export const auditLogs = pgTable("audit_logs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Support Tickets System
+export const supportTickets = pgTable("support_tickets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  category: varchar("category").notNull().default("tech"), // tech, billing, moderation, feature, other
+  priority: varchar("priority").notNull().default("normal"), // low, normal, high, critical
+  status: varchar("status").notNull().default("open"), // open, in_progress, resolved, closed
+  assignedTo: varchar("assigned_to").references(() => users.id),
+  source: varchar("source").notNull().default("web"), // web, ws, email
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const supportMessages = pgTable("support_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ticketId: varchar("ticket_id").references(() => supportTickets.id, { onDelete: "cascade" }).notNull(),
+  senderId: varchar("sender_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  body: text("body").notNull(),
+  attachments: text("attachments").array(),
+  isInternalNote: boolean("is_internal_note").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Knowledge Base / AI Wiki
+export const knowledgeArticles = pgTable("knowledge_articles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 255 }).notNull().unique(),
+  summary: text("summary"),
+  content: text("content").notNull(),
+  tags: text("tags").array(),
+  status: varchar("status").notNull().default("draft"), // draft, published, archived
+  createdBy: varchar("created_by").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  updatedBy: varchar("updated_by").references(() => users.id),
+  publishedAt: timestamp("published_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const knowledgeEmbeddings = pgTable("knowledge_embeddings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  articleId: varchar("article_id").references(() => knowledgeArticles.id, { onDelete: "cascade" }).notNull(),
+  embedding: text("embedding").notNull(), // JSON string of vector embedding
+  chunkIndex: integer("chunk_index").notNull(),
+  chunkContent: text("chunk_content").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Tutorials System
+export const tutorials = pgTable("tutorials", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 255 }).notNull(),
+  roleTarget: varchar("role_target").notNull().default("all"), // fan, creator, admin, all
+  difficulty: varchar("difficulty").notNull().default("beginner"), // beginner, intermediate, advanced
+  estimatedMinutes: integer("estimated_minutes").default(10),
+  coverImageUrl: varchar("cover_image_url"),
+  summary: text("summary"),
+  status: varchar("status").notNull().default("draft"), // draft, published, archived
+  createdBy: varchar("created_by").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const tutorialSteps = pgTable("tutorial_steps", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tutorialId: varchar("tutorial_id").references(() => tutorials.id, { onDelete: "cascade" }).notNull(),
+  stepNumber: integer("step_number").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  body: text("body").notNull(),
+  mediaUrl: varchar("media_url"),
+  checklist: text("checklist"), // JSON string of checklist items
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const tutorialProgress = pgTable("tutorial_progress", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tutorialId: varchar("tutorial_id").references(() => tutorials.id, { onDelete: "cascade" }).notNull(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  completedStep: integer("completed_step").default(0),
+  startedAt: timestamp("started_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   profile: one(profiles, { fields: [users.id], references: [profiles.userId] }),
@@ -292,6 +376,18 @@ export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = typeof transactions.$inferInsert;
 export type AuditLog = typeof auditLogs.$inferSelect;
 
+// New table types
+export type SupportTicket = typeof supportTickets.$inferSelect;
+export type InsertSupportTicket = typeof supportTickets.$inferInsert;
+export type SupportMessage = typeof supportMessages.$inferSelect;
+export type InsertSupportMessage = typeof supportMessages.$inferInsert;
+export type KnowledgeArticle = typeof knowledgeArticles.$inferSelect;
+export type InsertKnowledgeArticle = typeof knowledgeArticles.$inferInsert;
+export type Tutorial = typeof tutorials.$inferSelect;
+export type InsertTutorial = typeof tutorials.$inferInsert;
+export type TutorialStep = typeof tutorialSteps.$inferSelect;
+export type TutorialProgress = typeof tutorialProgress.$inferSelect;
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -331,4 +427,31 @@ export const insertTransactionSchema = createInsertSchema(transactions).omit({
   processedAt: true,
 });
 
+export const insertSupportTicketSchema = createInsertSchema(supportTickets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSupportMessageSchema = createInsertSchema(supportMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertKnowledgeArticleSchema = createInsertSchema(knowledgeArticles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  publishedAt: true,
+});
+
+export const insertTutorialSchema = createInsertSchema(tutorials).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertSupportTicketForm = z.infer<typeof insertSupportTicketSchema>;
+export type InsertKnowledgeArticleForm = z.infer<typeof insertKnowledgeArticleSchema>;
+export type InsertTutorialForm = z.infer<typeof insertTutorialSchema>;

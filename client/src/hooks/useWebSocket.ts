@@ -29,7 +29,7 @@ export function useWebSocket() {
       // Authenticate with the server
       ws.send(JSON.stringify({
         type: 'auth',
-        userId: user.claims.sub,
+        userId: (user as any).claims?.sub || (user as any).id || 'anonymous',
       }));
     };
 
