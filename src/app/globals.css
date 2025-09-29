@@ -2,48 +2,70 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
 
 :root {
-  /* GirlFanz Brand Colors */
-  --gf-pink: #ff69b4;
-  --gf-gold: #d4af37;
-  --gf-cream: #fff6ed;
-  --gf-dark-cream: #f5e6d3;
-  --gf-text-primary: #1d1420;
-  --gf-text-secondary: #6b5b73;
-  --gf-border: #e5d4c1;
+  /* FANZ Brand Colors - GirlFanz Edition */
+  --color-primary: #7C4DFF;
+  --color-primary-dark: #5A2DFF;
+  --color-secondary: #00D1FF;
+  --color-accent: #FF3D71;
   
-  /* Theme Variables */
-  --bg-page: var(--gf-cream);
-  --bg-elevated: #ffffff;
-  --bg-accent: var(--gf-dark-cream);
-  --text-primary: var(--gf-text-primary);
-  --text-secondary: var(--gf-text-secondary);
-  --border-color: var(--gf-border);
-  --primary: var(--gf-pink);
-  --accent: var(--gf-gold);
+  /* FANZ Dark Theme (default) */
+  --bg-page: #000000;
+  --bg-elevated: #0E0E14;
+  --bg-card: #12121A;
+  --bg-overlay: rgba(0, 0, 0, 0.8);
+  
+  --text-primary: #F7F7FB;
+  --text-secondary: rgba(247, 247, 251, 0.72);
+  --text-muted: rgba(247, 247, 251, 0.5);
+  --text-inverse: #000000;
+  
+  --border-muted: rgba(247, 247, 251, 0.1);
+  --border-elevated: rgba(247, 247, 251, 0.2);
+  --border-focus: #7C4DFF;
+  
+  --success: #16D19A;
+  --warning: #FFB020;
+  --danger: #FF5757;
+  --info: #00D1FF;
   
   /* Legacy compatibility */
   --background: var(--bg-page);
   --foreground: var(--text-primary);
+  --primary: var(--color-primary);
+  --accent: var(--color-accent);
 }
 
 @theme inline {
   --color-background: var(--bg-page);
   --color-foreground: var(--text-primary);
-  --color-primary: var(--primary);
-  --color-accent: var(--accent);
+  --color-primary: var(--color-primary);
+  --color-secondary: var(--color-secondary);
+  --color-accent: var(--color-accent);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-serif: 'Playfair Display', serif;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 6px 24px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 12px 48px rgba(0, 0, 0, 0.16);
+  --shadow-glow: 0 0 24px rgba(124, 77, 255, 0.3);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* GirlFanz maintains light theme identity */
-    --bg-page: var(--gf-cream);
-    --bg-elevated: #ffffff;
-    --text-primary: var(--gf-text-primary);
-    --background: var(--bg-page);
-    --foreground: var(--text-primary);
-  }
+/* Light theme override */
+[data-theme="light"] {
+  --bg-page: #0B0B10;
+  --bg-elevated: #12121A;
+  --text-primary: #FFFFFF;
+  --text-secondary: rgba(255, 255, 255, 0.72);
+  --border-muted: rgba(255, 255, 255, 0.08);
+  --background: var(--bg-page);
+  --foreground: var(--text-primary);
 }
 
 body {
@@ -53,25 +75,41 @@ body {
   font-feature-settings: "rlig" 1, "calt" 1;
 }
 
-/* GirlFanz Brand Styles */
-.gf-brand-primary {
-  color: var(--gf-pink);
+/* FANZ Brand Styles - GirlFanz Edition */
+.fanz-brand-primary {
+  color: var(--color-primary);
 }
 
-.gf-brand-accent {
-  color: var(--gf-gold);
+.fanz-brand-secondary {
+  color: var(--color-secondary);
 }
 
-.gf-bg-primary {
-  background-color: var(--gf-pink);
+.fanz-brand-accent {
+  color: var(--color-accent);
 }
 
-.gf-bg-accent {
-  background-color: var(--gf-gold);
+.fanz-bg-primary {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
 }
 
-.gf-bg-cream {
-  background-color: var(--gf-cream);
+.fanz-bg-secondary {
+  background-color: var(--color-secondary);
+}
+
+.fanz-bg-accent {
+  background-color: var(--color-accent);
+}
+
+.fanz-bg-page {
+  background-color: var(--bg-page);
+}
+
+.fanz-bg-elevated {
+  background-color: var(--bg-elevated);
+}
+
+.fanz-bg-card {
+  background-color: var(--bg-card);
 }
 
 /* Accessibility & Motion */
@@ -87,7 +125,7 @@ body {
 
 /* Focus styles for keyboard navigation */
 :focus-visible {
-  outline: 2px solid var(--gf-pink);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
   border-radius: 0.25rem;
 }
@@ -98,14 +136,14 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--gf-cream);
+  background: var(--bg-elevated);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--gf-gold);
+  background: var(--color-primary);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #c4a928;
+  background: var(--color-primary-dark);
 }

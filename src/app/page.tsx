@@ -4,11 +4,11 @@ import Link from "next/link";
 function AdHeader() {
   return (
     <div 
-      className="w-full h-20 bg-gradient-to-r from-pink-50 to-yellow-50 border border-gf-border rounded-lg flex items-center justify-center"
+      className="w-full h-20 bg-gradient-to-r from-gray-900 to-gray-800 border border-gray-700 rounded-lg flex items-center justify-center"
       role="banner"
       aria-label="Advertisement"
     >
-      <span className="text-sm text-gray-500 font-medium">Header Ad Placement - 970x90</span>
+      <span className="text-sm text-gray-400 font-medium">Header Ad Placement - 970x90</span>
       <span className="sr-only">Sponsored content</span>
     </div>
   );
@@ -17,11 +17,11 @@ function AdHeader() {
 function AdHero() {
   return (
     <div 
-      className="w-full h-32 bg-gradient-to-r from-pink-100 to-yellow-100 border border-gf-border rounded-lg flex items-center justify-center mb-8"
+      className="w-full h-32 bg-gradient-to-r from-gray-900 to-gray-800 border border-gray-700 rounded-lg flex items-center justify-center mb-8"
       role="banner"
       aria-label="Advertisement"
     >
-      <span className="text-sm text-gray-600 font-medium">Hero Ad Placement - 1200x400</span>
+      <span className="text-sm text-gray-400 font-medium">Hero Ad Placement - 1200x400</span>
       <span className="sr-only">Sponsored content</span>
     </div>
   );
@@ -55,9 +55,9 @@ function AdSidebar() {
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gf-cream">
+    <div className="min-h-screen fanz-bg-page">
       {/* Header Ad */}
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-sm border-b border-gf-border">
+      <header className="sticky top-0 z-40 fanz-bg-elevated/80 backdrop-blur-sm border-b border-muted">
         <div className="container mx-auto px-4 py-2">
           <AdHeader />
         </div>
@@ -72,13 +72,13 @@ export default function Home() {
           
           {/* Hero Section */}
           <section className="text-center mb-12">
-            <h1 className="font-serif text-6xl md:text-8xl font-bold gf-brand-primary mb-4">
+            <h1 className="font-serif text-6xl md:text-8xl font-bold fanz-brand-primary mb-4">
               GirlFanz
             </h1>
-            <p className="text-2xl md:text-3xl gf-brand-accent font-medium mb-6">
+            <p className="text-2xl md:text-3xl fanz-brand-secondary font-medium mb-6">
               Empowered Expression
             </p>
-            <p className="text-lg text-gf-text-secondary max-w-2xl mx-auto mb-8">
+            <p className="text-lg text-secondary max-w-2xl mx-auto mb-8">
               The premier creator platform where empowerment meets elegance. 
               Connect with your audience, monetize your content, and build your brand 
               in a space designed for sophisticated expression.
@@ -87,19 +87,19 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link
                 href="/auth/register?type=creator"
-                className="gf-bg-primary hover:bg-pink-600 text-white px-8 py-3 rounded-full font-medium transition-colors duration-200 shadow-lg hover:shadow-xl"
+                className="fanz-bg-primary hover:opacity-90 text-white px-8 py-3 rounded-full font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
               >
                 Start Creating
               </Link>
               <Link
                 href="/auth/register?type=fan"
-                className="gf-bg-accent hover:bg-yellow-600 text-white px-8 py-3 rounded-full font-medium transition-colors duration-200 shadow-lg hover:shadow-xl"
+                className="fanz-bg-secondary hover:opacity-90 text-black px-8 py-3 rounded-full font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
               >
                 Join as Fan
               </Link>
               <Link
                 href="/auth/login"
-                className="border-2 border-gf-pink hover:bg-gf-pink hover:text-white text-gf-pink px-8 py-3 rounded-full font-medium transition-all duration-200"
+                className="border-2 border-primary hover:fanz-bg-primary hover:text-white text-primary px-8 py-3 rounded-full font-medium transition-all duration-200"
               >
                 Sign In
               </Link>
