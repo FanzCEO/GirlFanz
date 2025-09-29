@@ -77,7 +77,7 @@ export function MediaUpload() {
   };
 
   const handleUploadComplete = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
-    if (result.successful.length === 0) {
+    if (!result.successful || result.successful.length === 0) {
       toast({
         title: "Error",
         description: "No files were uploaded successfully.",
