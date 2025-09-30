@@ -26,23 +26,24 @@ import {
   AlertTriangle
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { WalletResponse, TrustScoreResponse, TransactionResponse } from "@shared/schema";
 
 export default function FanzMoneyCenter() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
 
   // Fetch wallet data
-  const { data: wallet, isLoading: walletLoading } = useQuery({
+  const { data: wallet, isLoading: walletLoading } = useQuery<WalletResponse | null>({
     queryKey: ['/api/fanztrust/wallet'],
   });
 
   // Fetch transactions
-  const { data: transactions, isLoading: transactionsLoading } = useQuery({
+  const { data: transactions, isLoading: transactionsLoading } = useQuery<TransactionResponse[]>({
     queryKey: ['/api/fanztrust/transactions'],
   });
 
   // Fetch trust score
-  const { data: trustScore } = useQuery({
+  const { data: trustScore } = useQuery<TrustScoreResponse | null>({
     queryKey: ['/api/fanztrust/trust-score'],
   });
 
@@ -150,7 +151,7 @@ export default function FanzMoneyCenter() {
         </div>
 
         {/* Trust Score Banner */}
-        {trustScore && (trustScore as any).level && (
+        {trustScore && (
           <Card className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 border-purple-500/30" data-testid="card-trust-score">
             <CardContent className="p-4 md:p-6">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -160,29 +161,29 @@ export default function FanzMoneyCenter() {
                   </div>
                   <div>
                     <h3 className="text-lg md:text-xl font-bold" data-testid="text-trust-level">
-                      Trust Level: {(trustScore as any).level}
+                      Trust Level: {trustScore.level}
                     </h3>
                     <p className="text-sm text-gray-400" data-testid="text-trust-score">
-                      Score: {(trustScore as any).score}/1000
+                      Score: {trustScore.score}/1000
                     </p>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4 w-full md:w-auto">
                   <div className="text-center">
                     <p className="text-xl md:text-2xl font-bold text-green-500" data-testid="text-successful-transactions">
-                      {(trustScore as any).successfulTransactions}
+                      {trustScore.successfulTransactions}
                     </p>
                     <p className="text-xs text-gray-400">Successful</p>
                   </div>
                   <div className="text-center">
                     <p className="text-xl md:text-2xl font-bold text-yellow-500" data-testid="text-refunds-initiated">
-                      {(trustScore as any).refundsInitiated}
+                      {trustScore.refundsInitiated}
                     </p>
                     <p className="text-xs text-gray-400">Refunds</p>
                   </div>
                   <div className="text-center">
                     <p className="text-xl md:text-2xl font-bold text-red-500" data-testid="text-fraud-flags">
-                      {(trustScore as any).fraudFlags}
+                      {trustScore.fraudFlags}
                     </p>
                     <p className="text-xs text-gray-400">Flags</p>
                   </div>
@@ -228,9 +229,9 @@ export default function FanzMoneyCenter() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-2xl font-bold text-cyan-500" data-testid="text-fanzcoin-amount">
-                        {(wallet as any)?.fanzCoin?.toFixed(2) || '0.00'}
+                        {wallet?.fanzCoin?.toFixed(2) || '0.00'}
                       </p>
-                      <p className="text-xs text-gray-500">≈ ${(wallet as any)?.fanzCoin ? ((wallet as any).fanzCoin * 0.01).toFixed(2) : '0.00'}</p>
+                      <p className="text-xs text-gray-500">≈ ${wallet?.fanzCoin ? (wallet.fanzCoin * 0.01).toFixed(2) : '0.00'}</p>
                     </div>
                     <Coins className="h-8 w-8 text-cyan-500" />
                   </div>
@@ -245,7 +246,7 @@ export default function FanzMoneyCenter() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-2xl font-bold text-purple-500" data-testid="text-fanztoken-amount">
-                        {(wallet as any)?.fanzToken?.toFixed(2) || '0.00'}
+                        {wallet?.fanzToken?.toFixed(2) || '0.00'}
                       </p>
                       <p className="text-xs text-gray-500">Platform Currency</p>
                     </div>
@@ -262,7 +263,7 @@ export default function FanzMoneyCenter() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-2xl font-bold text-pink-500" data-testid="text-fanzcredit-amount">
-                        ${(wallet as any)?.fanzCredit?.toFixed(2) || '0.00'}
+                        ${wallet?.fanzCredit?.toFixed(2) || '0.00'}
                       </p>
                       <p className="text-xs text-gray-500">Available Credit</p>
                     </div>
@@ -279,7 +280,7 @@ export default function FanzMoneyCenter() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-2xl font-bold text-green-500" data-testid="text-total-amount">
-                        ${(((wallet as any)?.fanzCoin || 0) * 0.01 + ((wallet as any)?.fanzCredit || 0)).toFixed(2)}
+                        ${((wallet?.fanzCoin || 0) * 0.01 + (wallet?.fanzCredit || 0)).toFixed(2)}
                       </p>
                       <p className="text-xs text-gray-500">USD Value</p>
                     </div>
