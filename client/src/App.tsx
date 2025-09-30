@@ -21,6 +21,7 @@ import SupportTickets from "@/pages/SupportTickets";
 import WikiPage from "@/pages/WikiPage";
 import TutorialsPage from "@/pages/TutorialsPage";
 import TutorialDetailPage from "@/pages/TutorialDetailPage";
+import FanzMoneyCenter from "@/pages/FanzMoneyCenter";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -71,6 +72,8 @@ function Router() {
             <Route path="/verification" component={Verification} />
             <Route path="/moderation" component={Moderation} />
             <Route path="/health" component={SystemHealth} />
+            <Route path="/money" component={FanzMoneyCenter} />
+            <Route path="/wallet" component={FanzMoneyCenter} />
           </>
         )}
         <Route component={NotFound} />
