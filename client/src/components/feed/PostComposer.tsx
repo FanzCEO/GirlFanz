@@ -110,10 +110,53 @@ export function PostComposer() {
     });
   };
 
+  const uploadMedia = async (file: File): Promise<string> => {
+    // Get upload URL from backend
+    const uploadResponse = await apiRequest("POST", "/api/objects/upload", {});
+    const { uploadURL } = await uploadResponse.json();
+    
+    // Upload file to object storage
+    await fetch(uploadURL, {
+      method: "PUT",
+      body: file,
+      headers: {
+        'Content-Type': file.type,
+      }
+    });
+    
+    return uploadURL.split('?')[0]; // Return URL without query params
+  };
+
   const createPostMutation = useMutation({
     mutationFn: async (data: PostFormValues) => {
+      setIsUploading(true);
+      
+      // Upload media files first
+      const mediaUrls: string[] = [];
+      for (const mediaFile of mediaFiles) {
+        try {
+          const url = await uploadMedia(mediaFile.file);
+          mediaUrls.push(url);
+        } catch (error) {
+          console.error('Failed to upload media:', error);
+          throw new Error(`Failed to upload ${mediaFile.file.name}`);
+        }
+      }
+      
+      // Create post
       const response = await apiRequest("POST", "/api/posts", data);
-      return response.json();
+      const { post } = await response.json();
+      
+      // Attach media to post
+      for (let i = 0; i < mediaUrls.length; i++) {
+        await apiRequest("POST", `/api/posts/${post.id}/media`, {
+          mediaUrl: mediaUrls[i],
+          mediaType: mediaFiles[i].type,
+          sortOrder: i,
+        });
+      }
+      
+      return post;
     },
     onSuccess: () => {
       toast({
@@ -121,10 +164,13 @@ export function PostComposer() {
         description: "Your post has been published successfully",
       });
       form.reset();
+      setMediaFiles([]);
       setIsExpanded(false);
+      setIsUploading(false);
       queryClient.invalidateQueries({ queryKey: ["/api/feed"] });
     },
     onError: (error: Error) => {
+      setIsUploading(false);
       toast({
         title: "Error",
         description: error.message || "Failed to create post",
@@ -134,6 +180,7 @@ export function PostComposer() {
   });
 
   const onSubmit = (data: PostFormValues) => {
+    if (isUploading) return;
     createPostMutation.mutate(data);
   };
 
@@ -310,6 +357,65 @@ export function PostComposer() {
                   )}
                 />
 
+                {/* Media Preview Grid */}
+                {mediaFiles.length > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {mediaFiles.map((media) => (
+                      <div
+                        key={media.id}
+                        className="relative group rounded-lg overflow-hidden bg-gf-ink border border-gf-steel/20"
+                      >
+                        {media.type === 'image' ? (
+                          <img
+                            src={media.preview}
+                            alt="Preview"
+                            className="w-full h-32 object-cover"
+                          />
+                        ) : (
+                          <video
+                            src={media.preview}
+                            className="w-full h-32 object-cover"
+                          />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeMedia(media.id)}
+                          className="absolute top-2 right-2 bg-red-500/90 hover:bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                          <p className="text-xs text-white truncate">
+                            {media.file.name}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Drag and Drop Zone */}
+                <div
+                  {...getRootProps()}
+                  className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
+                    isDragActive
+                      ? 'border-gf-cyber bg-gf-cyber/5'
+                      : 'border-gf-steel/20 hover:border-gf-cyber/50'
+                  }`}
+                  data-testid="div-media-dropzone"
+                >
+                  <input {...getInputProps()} />
+                  <ImagePlus className="h-8 w-8 text-gf-steel mx-auto mb-2" />
+                  <p className="text-sm text-gf-steel">
+                    {isDragActive
+                      ? 'Drop files here...'
+                      : 'Drag & drop media, or click to browse'}
+                  </p>
+                  <p className="text-xs text-gf-steel/70 mt-1">
+                    Images & videos up to 100MB
+                  </p>
+                </div>
+
                 {/* Action Buttons */}
                 <div className="flex items-center justify-between pt-2">
                   <div className="flex gap-2">
@@ -317,6 +423,7 @@ export function PostComposer() {
                       type="button"
                       variant="ghost"
                       size="icon"
+                      onClick={() => document.querySelector<HTMLInputElement>('input[type="file"]')?.click()}
                       className="text-gf-steel hover:text-gf-cyber hover:bg-gf-cyber/10"
                       data-testid="button-add-image"
                     >
@@ -326,6 +433,7 @@ export function PostComposer() {
                       type="button"
                       variant="ghost"
                       size="icon"
+                      onClick={() => document.querySelector<HTMLInputElement>('input[type="file"]')?.click()}
                       className="text-gf-steel hover:text-gf-cyber hover:bg-gf-cyber/10"
                       data-testid="button-add-video"
                     >
