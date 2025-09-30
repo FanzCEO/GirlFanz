@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { Footer } from "@/components/layout/Footer";
-import logoUrl from "@/assets/logo.jpg";
+import logoUrl from "@assets/Girlsbackgroud2_1759228216281.png";
 import heroImage from "@assets/Girlsbackground_1759151738593.png";
 
 export default function Landing() {
@@ -100,7 +100,7 @@ export default function Landing() {
             <img 
               src={logoUrl} 
               alt="GirlFanz" 
-              className="h-30 w-auto" 
+              className="h-24 sm:h-32 md:h-40 w-auto rounded-lg object-cover" 
               data-testid="img-features-logo"
             />
             ?
