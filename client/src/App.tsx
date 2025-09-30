@@ -22,6 +22,7 @@ import WikiPage from "@/pages/WikiPage";
 import TutorialsPage from "@/pages/TutorialsPage";
 import TutorialDetailPage from "@/pages/TutorialDetailPage";
 import FanzMoneyCenter from "@/pages/FanzMoneyCenter";
+import Feed from "@/pages/Feed";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -58,7 +59,8 @@ function Router() {
           </>
         ) : (
           <>
-            <Route path="/" component={Dashboard} />
+            <Route path="/" component={Feed} />
+            <Route path="/feed" component={Feed} />
             <Route path="/dashboard" component={Dashboard} />
             <Route path="/discover" component={Dashboard} />
             <Route path="/following" component={Dashboard} />
