@@ -16,6 +16,13 @@ import {
   tutorials,
   tutorialSteps,
   tutorialProgress,
+  fanzTransactions,
+  refundRequests,
+  fanzWallets,
+  walletTransactions,
+  fanTrustScores,
+  trustAuditLogs,
+  creatorRefundPolicies,
   type User,
   type UpsertUser,
   type Profile,
@@ -44,6 +51,11 @@ import {
   type InsertTutorial,
   type TutorialStep,
   type TutorialProgress,
+  type FanzTransaction,
+  type RefundRequest,
+  type FanzWallet,
+  type FanTrustScore,
+  type WalletTransaction,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, sql } from "drizzle-orm";
@@ -136,6 +148,28 @@ export interface IStorage {
   createTutorial(tutorial: InsertTutorial): Promise<Tutorial>;
   getTutorialProgress(userId: string, tutorialId: string): Promise<TutorialProgress | undefined>;
   updateTutorialProgress(userId: string, tutorialId: string, stepIndex: number): Promise<TutorialProgress>;
+  getTutorialSteps(tutorialId: string): Promise<TutorialStep[]>;
+  
+  // FanzTrust operations
+  verifyTransaction(params: any): Promise<any>;
+  getTransaction(id: string): Promise<any>;
+  getRefundByTransaction(transactionId: string): Promise<any>;
+  getCreatorRefundPolicy(creatorId: string): Promise<any>;
+  createRefundRequest(request: any): Promise<any>;
+  createTrustAuditLog(log: any): Promise<any>;
+  getCreatorRefundRequests(creatorId: string): Promise<any[]>;
+  getRefundRequest(id: string): Promise<any>;
+  updateRefundRequest(id: string, updates: any): Promise<any>;
+  getFanzWallet(userId: string): Promise<any>;
+  createFanzWallet(data: any): Promise<any>;
+  getWalletTransactions(walletId: string): Promise<any[]>;
+  createWalletTransaction(transaction: any): Promise<any>;
+  updateFanzWallet(id: string, updates: any): Promise<any>;
+  getFanTrustScore(fanId: string): Promise<any>;
+  createFanTrustScore(data: any): Promise<any>;
+  getAllRefundRequests(): Promise<any[]>;
+  createCreatorRefundPolicy(data: any): Promise<any>;
+  updateCreatorRefundPolicy(creatorId: string, updates: any): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -905,6 +939,177 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return progress;
     }
+  }
+
+  // ====================================
+  // FanzTrust™ Storage Methods
+  // ====================================
+
+  async verifyTransaction(params: any): Promise<FanzTransaction | undefined> {
+    const conditions = [];
+    
+    if (params.fanId) conditions.push(eq(fanzTransactions.fanId, params.fanId));
+    if (params.creatorId) conditions.push(eq(fanzTransactions.creatorId, params.creatorId));
+    if (params.gateway) conditions.push(eq(fanzTransactions.gateway, params.gateway));
+    if (params.txid) conditions.push(eq(fanzTransactions.txid, params.txid));
+    if (params.email) conditions.push(eq(fanzTransactions.email, params.email));
+    if (params.walletAddress) conditions.push(eq(fanzTransactions.walletAddress, params.walletAddress));
+    if (params.last4) conditions.push(eq(fanzTransactions.last4, params.last4));
+    
+    const [transaction] = await db
+      .select()
+      .from(fanzTransactions)
+      .where(and(...conditions))
+      .orderBy(desc(fanzTransactions.createdAt))
+      .limit(1);
+    
+    return transaction;
+  }
+
+  async getTransaction(id: string): Promise<FanzTransaction | undefined> {
+    const [transaction] = await db
+      .select()
+      .from(fanzTransactions)
+      .where(eq(fanzTransactions.id, id));
+    return transaction;
+  }
+
+  async getRefundByTransaction(transactionId: string): Promise<RefundRequest | undefined> {
+    const [refund] = await db
+      .select()
+      .from(refundRequests)
+      .where(eq(refundRequests.transactionId, transactionId));
+    return refund;
+  }
+
+  async getCreatorRefundPolicy(creatorId: string): Promise<any> {
+    const [policy] = await db
+      .select()
+      .from(creatorRefundPolicies)
+      .where(eq(creatorRefundPolicies.creatorId, creatorId));
+    return policy;
+  }
+
+  async createRefundRequest(requestData: any): Promise<RefundRequest> {
+    const [refund] = await db
+      .insert(refundRequests)
+      .values(requestData)
+      .returning();
+    return refund;
+  }
+
+  async createTrustAuditLog(logData: any): Promise<any> {
+    const [log] = await db
+      .insert(trustAuditLogs)
+      .values(logData)
+      .returning();
+    return log;
+  }
+
+  async getCreatorRefundRequests(creatorId: string): Promise<RefundRequest[]> {
+    return await db
+      .select()
+      .from(refundRequests)
+      .where(eq(refundRequests.creatorId, creatorId))
+      .orderBy(desc(refundRequests.createdAt));
+  }
+
+  async getRefundRequest(id: string): Promise<RefundRequest | undefined> {
+    const [refund] = await db
+      .select()
+      .from(refundRequests)
+      .where(eq(refundRequests.id, id));
+    return refund;
+  }
+
+  async updateRefundRequest(id: string, updates: any): Promise<RefundRequest> {
+    const [refund] = await db
+      .update(refundRequests)
+      .set(updates)
+      .where(eq(refundRequests.id, id))
+      .returning();
+    return refund;
+  }
+
+  async getFanzWallet(userId: string): Promise<FanzWallet | undefined> {
+    const [wallet] = await db
+      .select()
+      .from(fanzWallets)
+      .where(eq(fanzWallets.userId, userId));
+    return wallet;
+  }
+
+  async createFanzWallet(data: any): Promise<FanzWallet> {
+    const [wallet] = await db
+      .insert(fanzWallets)
+      .values(data)
+      .returning();
+    return wallet;
+  }
+
+  async getWalletTransactions(walletId: string): Promise<WalletTransaction[]> {
+    return await db
+      .select()
+      .from(walletTransactions)
+      .where(eq(walletTransactions.walletId, walletId))
+      .orderBy(desc(walletTransactions.createdAt));
+  }
+
+  async createWalletTransaction(transactionData: any): Promise<WalletTransaction> {
+    const [transaction] = await db
+      .insert(walletTransactions)
+      .values(transactionData)
+      .returning();
+    return transaction;
+  }
+
+  async updateFanzWallet(id: string, updates: any): Promise<FanzWallet> {
+    const [wallet] = await db
+      .update(fanzWallets)
+      .set(updates)
+      .where(eq(fanzWallets.id, id))
+      .returning();
+    return wallet;
+  }
+
+  async getFanTrustScore(fanId: string): Promise<FanTrustScore | undefined> {
+    const [score] = await db
+      .select()
+      .from(fanTrustScores)
+      .where(eq(fanTrustScores.fanId, fanId));
+    return score;
+  }
+
+  async createFanTrustScore(data: any): Promise<FanTrustScore> {
+    const [score] = await db
+      .insert(fanTrustScores)
+      .values(data)
+      .returning();
+    return score;
+  }
+
+  async getAllRefundRequests(): Promise<RefundRequest[]> {
+    return await db
+      .select()
+      .from(refundRequests)
+      .orderBy(desc(refundRequests.createdAt));
+  }
+
+  async createCreatorRefundPolicy(data: any): Promise<any> {
+    const [policy] = await db
+      .insert(creatorRefundPolicies)
+      .values(data)
+      .returning();
+    return policy;
+  }
+
+  async updateCreatorRefundPolicy(creatorId: string, updates: any): Promise<any> {
+    const [policy] = await db
+      .update(creatorRefundPolicies)
+      .set(updates)
+      .where(eq(creatorRefundPolicies.creatorId, creatorId))
+      .returning();
+    return policy;
   }
 }
 
