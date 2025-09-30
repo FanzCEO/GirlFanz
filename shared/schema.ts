@@ -428,6 +428,125 @@ export const postUnlocks = pgTable("post_unlocks", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Post Comments (threaded comments system)
+export const postComments = pgTable("post_comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  postId: varchar("post_id").references(() => feedPosts.id, { onDelete: "cascade" }).notNull(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  parentId: varchar("parent_id"), // For threaded replies
+  content: text("content").notNull(),
+  likes: integer("likes").default(0),
+  isEdited: boolean("is_edited").default(false),
+  isPinned: boolean("is_pinned").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Comment Likes
+export const commentLikes = pgTable("comment_likes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  commentId: varchar("comment_id").references(() => postComments.id, { onDelete: "cascade" }).notNull(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Live Streams
+export const liveStreams = pgTable("live_streams", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  thumbnailUrl: varchar("thumbnail_url"),
+  streamKey: varchar("stream_key").notNull().unique(),
+  playbackUrl: varchar("playback_url"),
+  status: varchar("status").default("scheduled"), // scheduled, live, ended
+  visibility: postVisibilityEnum("visibility").default("subscriber"),
+  priceInCents: integer("price_in_cents"),
+  viewerCount: integer("viewer_count").default(0),
+  totalViews: integer("total_views").default(0),
+  scheduledAt: timestamp("scheduled_at"),
+  startedAt: timestamp("started_at"),
+  endedAt: timestamp("ended_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Stream Views (tracking who watched)
+export const streamViews = pgTable("stream_views", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  streamId: varchar("stream_id").references(() => liveStreams.id, { onDelete: "cascade" }).notNull(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  watchTimeSeconds: integer("watch_time_seconds").default(0),
+  tippedAmount: integer("tipped_amount").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// AI Recommendation Engine
+export const userPreferences = pgTable("user_preferences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
+  preferredCategories: text("preferred_categories").array(),
+  blockedCreators: text("blocked_creators").array(),
+  blockedKeywords: text("blocked_keywords").array(),
+  contentPreferences: jsonb("content_preferences"), // Detailed preferences JSON
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Content Interactions (for AI recommendations)
+export const contentInteractions = pgTable("content_interactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  postId: varchar("post_id").references(() => feedPosts.id, { onDelete: "cascade" }),
+  streamId: varchar("stream_id").references(() => liveStreams.id, { onDelete: "cascade" }),
+  interactionType: varchar("interaction_type").notNull(), // view, like, comment, share, skip, hide
+  watchTimeSeconds: integer("watch_time_seconds"),
+  engagementScore: integer("engagement_score"), // 0-100 calculated score
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// VR/AR Content Metadata
+export const vrContent = pgTable("vr_content", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  postId: varchar("post_id").references(() => feedPosts.id, { onDelete: "cascade" }),
+  mediaId: varchar("media_id").references(() => mediaAssets.id, { onDelete: "cascade" }),
+  vrType: varchar("vr_type").notNull(), // 360_video, 180_video, 3d_model, ar_filter
+  resolution: varchar("resolution"), // 4K, 8K, etc.
+  stereoscopicMode: varchar("stereoscopic_mode"), // mono, stereo_lr, stereo_tb
+  projectionType: varchar("projection_type"), // equirectangular, cubemap
+  modelFormat: varchar("model_format"), // gltf, fbx, obj
+  arTrackingType: varchar("ar_tracking_type"), // face, world, image
+  metadata: jsonb("metadata"), // Additional VR/AR specific data
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Creator Payouts
+export const payoutAccounts = pgTable("payout_accounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  provider: varchar("provider").notNull(), // stripe, paypal, crypto
+  accountId: varchar("account_id").notNull(),
+  isDefault: boolean("is_default").default(false),
+  isVerified: boolean("is_verified").default(false),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const payoutRequests = pgTable("payout_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  accountId: varchar("account_id").references(() => payoutAccounts.id),
+  status: payoutStatusEnum("status").default("pending"),
+  amountCents: integer("amount_cents").notNull(),
+  currency: varchar("currency").default("USD"),
+  provider: varchar("provider").notNull(),
+  providerPayoutId: varchar("provider_payout_id"),
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   profile: one(profiles, { fields: [users.id], references: [profiles.userId] }),
@@ -808,6 +927,54 @@ export type AgeVerification = typeof ageVerifications.$inferSelect;
 export type InsertAgeVerification = z.infer<typeof insertAgeVerificationSchema>;
 export type PostLike = typeof postLikes.$inferSelect;
 export type PostUnlock = typeof postUnlocks.$inferSelect;
+
+// Comments, Streams, AI, VR Zod Schemas
+export const insertPostCommentSchema = createInsertSchema(postComments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  likes: true,
+  isEdited: true,
+});
+
+export const insertLiveStreamSchema = createInsertSchema(liveStreams).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  viewerCount: true,
+  totalViews: true,
+  streamKey: true,
+  playbackUrl: true,
+});
+
+export const insertUserPreferencesSchema = createInsertSchema(userPreferences).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertContentInteractionSchema = createInsertSchema(contentInteractions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertVrContentSchema = createInsertSchema(vrContent).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Extended Type Exports
+export type PostComment = typeof postComments.$inferSelect;
+export type InsertPostComment = z.infer<typeof insertPostCommentSchema>;
+export type CommentLike = typeof commentLikes.$inferSelect;
+export type LiveStream = typeof liveStreams.$inferSelect;
+export type InsertLiveStream = z.infer<typeof insertLiveStreamSchema>;
+export type StreamView = typeof streamViews.$inferSelect;
+export type UserPreferences = typeof userPreferences.$inferSelect;
+export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;
+export type ContentInteraction = typeof contentInteractions.$inferSelect;
+export type VrContent = typeof vrContent.$inferSelect;
+export type InsertVrContent = z.infer<typeof insertVrContentSchema>;
 
 // ====================================
 // FanzTrust™ API Response Types

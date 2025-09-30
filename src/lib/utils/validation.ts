@@ -187,5 +187,10 @@ export const validateContent = (content: string): { isValid: boolean; errors: st
 };
 
 // Simplified exports for RegisterModal compatibility
-export const validateEmail = (email: string): boolean => isValidEmail(email);
-export const validateUsername = (username: string): boolean => isValidUsername(username);
+export { isValidEmail as validateEmail };
+export { isValidUsername as validateUsername };
+
+// Simple boolean validator for password (compatibility)
+export function validatePasswordSimple(password: string): boolean {
+  return validatePassword(password).isValid;
+}

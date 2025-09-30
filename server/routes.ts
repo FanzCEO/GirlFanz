@@ -2038,6 +2038,227 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ====================================
+  // COMMENTS API
+  // ====================================
+
+  // Get Post Comments
+  app.get('/api/posts/:postId/comments', isAuthenticated, async (req: any, res) => {
+    try {
+      const postId = req.params.postId;
+      const userId = req.user.claims.sub;
+
+      // Mock comments data - would fetch from storage
+      const comments = [
+        {
+          id: '1',
+          postId,
+          userId: 'user1',
+          content: 'Great content!',
+          likes: 5,
+          isLiked: false,
+          isPinned: false,
+          isEdited: false,
+          parentId: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          author: {
+            id: 'user1',
+            username: 'user1',
+            displayName: 'User One',
+            avatarUrl: '/avatar1.jpg',
+          },
+          replies: [],
+        },
+      ];
+
+      res.json(comments);
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+      res.status(500).json({ error: 'Failed to fetch comments' });
+    }
+  });
+
+  // Add Comment
+  app.post('/api/posts/:postId/comments', isAuthenticated, async (req: any, res) => {
+    try {
+      const postId = req.params.postId;
+      const userId = req.user.claims.sub;
+      const { content, parentId } = req.body;
+
+      const comment = {
+        id: Math.random().toString(36),
+        postId,
+        userId,
+        content,
+        parentId,
+        likes: 0,
+        isEdited: false,
+        isPinned: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      res.json({ comment });
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      res.status(500).json({ error: 'Failed to add comment' });
+    }
+  });
+
+  // Like Comment
+  app.post('/api/comments/:commentId/like', isAuthenticated, async (req: any, res) => {
+    try {
+      const commentId = req.params.commentId;
+      const userId = req.user.claims.sub;
+
+      res.json({ success: true, liked: true });
+    } catch (error) {
+      console.error('Error liking comment:', error);
+      res.status(500).json({ error: 'Failed to like comment' });
+    }
+  });
+
+  // ====================================
+  // LIVE STREAMS API
+  // ====================================
+
+  // Get All Streams
+  app.get('/api/streams', isAuthenticated, async (req: any, res) => {
+    try {
+      const filter = req.query.filter || 'all';
+
+      const streams = [
+        {
+          id: '1',
+          creatorId: 'creator1',
+          title: 'Live Coding Session',
+          description: 'Building a React app',
+          thumbnailUrl: '/stream1.jpg',
+          streamKey: 'key123',
+          playbackUrl: '/play/stream1',
+          status: 'live',
+          visibility: 'free',
+          priceInCents: 0,
+          viewerCount: 150,
+          totalViews: 500,
+          scheduledAt: null,
+          startedAt: new Date(),
+          endedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          creator: {
+            id: 'creator1',
+            username: 'creator1',
+            displayName: 'Creator One',
+            avatarUrl: '/avatar1.jpg',
+          },
+        },
+      ];
+
+      res.json(streams);
+    } catch (error) {
+      console.error('Error fetching streams:', error);
+      res.status(500).json({ error: 'Failed to fetch streams' });
+    }
+  });
+
+  // Create Stream
+  app.post('/api/streams', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { title, description, visibility, priceInCents, scheduledAt } = req.body;
+
+      const stream = {
+        id: Math.random().toString(36),
+        creatorId: userId,
+        title,
+        description,
+        thumbnailUrl: null,
+        streamKey: `stream_${Math.random().toString(36)}`,
+        playbackUrl: null,
+        status: 'scheduled',
+        visibility,
+        priceInCents,
+        viewerCount: 0,
+        totalViews: 0,
+        scheduledAt,
+        startedAt: null,
+        endedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      res.json({ stream });
+    } catch (error) {
+      console.error('Error creating stream:', error);
+      res.status(500).json({ error: 'Failed to create stream' });
+    }
+  });
+
+  // ====================================
+  // AI RECOMMENDATIONS API
+  // ====================================
+
+  // Get Personalized Recommendations
+  app.get('/api/discover', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const recommendations = {
+        posts: [],
+        categories: ['Photography', 'Fitness', 'Art', 'Fashion', 'Gaming'],
+        trendingCreators: [],
+        personalizedScore: 85,
+      };
+
+      res.json(recommendations);
+    } catch (error) {
+      console.error('Error fetching recommendations:', error);
+      res.status(500).json({ error: 'Failed to fetch recommendations' });
+    }
+  });
+
+  // Track Content Interaction (for AI learning)
+  app.post('/api/interactions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { postId, streamId, interactionType, watchTimeSeconds, engagementScore } = req.body;
+
+      // Store interaction for AI recommendations
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error tracking interaction:', error);
+      res.status(500).json({ error: 'Failed to track interaction' });
+    }
+  });
+
+  // ====================================
+  // CREATOR ANALYTICS API
+  // ====================================
+
+  // Get Creator Analytics
+  app.get('/api/creator/analytics', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const analytics = {
+        totalEarnings: 12450,
+        activeSubscribers: 1234,
+        totalViews: 45200,
+        engagementRate: 78,
+        earningsData: [],
+        contentPerformance: [],
+        topPosts: [],
+      };
+
+      res.json(analytics);
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+      res.status(500).json({ error: 'Failed to fetch analytics' });
+    }
+  });
+
   // Helper function to check post access
   async function checkPostAccess(userId: string, post: any): Promise<boolean> {
     // Creator can always access their own posts

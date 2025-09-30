@@ -23,6 +23,9 @@ import TutorialsPage from "@/pages/TutorialsPage";
 import TutorialDetailPage from "@/pages/TutorialDetailPage";
 import FanzMoneyCenter from "@/pages/FanzMoneyCenter";
 import Feed from "@/pages/Feed";
+import LiveStreams from "@/pages/LiveStreams";
+import Discover from "@/pages/Discover";
+import CreatorAnalytics from "@/pages/CreatorAnalytics";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -62,13 +65,15 @@ function Router() {
             <Route path="/" component={Feed} />
             <Route path="/feed" component={Feed} />
             <Route path="/dashboard" component={Dashboard} />
-            <Route path="/discover" component={Dashboard} />
+            <Route path="/discover" component={Discover} />
             <Route path="/following" component={Dashboard} />
-            <Route path="/live" component={Dashboard} />
+            <Route path="/live" component={LiveStreams} />
+            <Route path="/streams" component={LiveStreams} />
             <Route path="/profile" component={CreatorProfile} />
             <Route path="/content" component={Dashboard} />
             <Route path="/messages" component={Messages} />
-            <Route path="/analytics" component={CreatorDashboard} />
+            <Route path="/analytics" component={CreatorAnalytics} />
+            <Route path="/creator-analytics" component={CreatorAnalytics} />
             <Route path="/earnings" component={CreatorDashboard} />
             <Route path="/settings" component={Settings} />
             <Route path="/verification" component={Verification} />

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useAppStore } from '../../stores/appStore';
 import { useAuth } from '../../hooks/useAuth';
-import { validateEmail, validatePassword, validateUsername } from '../../lib/utils/validation';
+import { validateEmail, validatePasswordSimple as validatePassword, validateUsername } from '../../lib/utils/validation';
 
 export const RegisterModal: React.FC = () => {
   const { activeModal, closeModal, addNotification } = useAppStore();
