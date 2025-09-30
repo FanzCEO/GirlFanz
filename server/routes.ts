@@ -15,7 +15,9 @@ import {
   insertSupportTicketSchema,
   insertSupportMessageSchema,
   insertKnowledgeArticleSchema,
-  insertTutorialSchema
+  insertTutorialSchema,
+  insertFeedPostSchema,
+  insertPostMediaSchema
 } from "@shared/schema";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
@@ -1663,6 +1665,409 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: 'Failed to update policy' });
     }
   });
+
+  // ========================================
+  // INFINITY SCROLL FEED API ROUTES
+  // ========================================
+
+  // Get Feed with Pagination
+  app.get('/api/feed', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const cursor = req.query.cursor as string | undefined;
+      const limit = parseInt(req.query.limit as string) || 20;
+
+      // Get age verification status
+      const ageVerification = await storage.getAgeVerification(userId);
+      
+      if (!ageVerification?.isVerified) {
+        return res.status(403).json({ 
+          error: 'Age verification required',
+          code: 'AGE_VERIFICATION_REQUIRED'
+        });
+      }
+
+      const result = await storage.getFeedPosts({ userId, cursor, limit });
+      
+      // Get sponsored posts for ad injection
+      const sponsoredPosts = await storage.getSponsoredPosts({ isActive: true, limit: 5 });
+      
+      // Inject sponsored posts every 4th position
+      const postsWithAds = [];
+      let adIndex = 0;
+      
+      for (let i = 0; i < result.posts.length; i++) {
+        postsWithAds.push(result.posts[i]);
+        
+        if ((i + 1) % 4 === 0 && adIndex < sponsoredPosts.length) {
+          postsWithAds.push({
+            ...sponsoredPosts[adIndex],
+            isSponsored: true
+          });
+          
+          // Track ad impression
+          await storage.incrementAdImpression(sponsoredPosts[adIndex].id);
+          adIndex++;
+        }
+      }
+
+      res.json({
+        posts: postsWithAds,
+        nextCursor: result.nextCursor,
+        hasMore: !!result.nextCursor
+      });
+    } catch (error) {
+      console.error('Error fetching feed:', error);
+      res.status(500).json({ error: 'Failed to fetch feed' });
+    }
+  });
+
+  // Create Post
+  app.post('/api/posts', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const postData = insertFeedPostSchema.parse({
+        ...req.body,
+        creatorId: userId
+      });
+
+      const post = await storage.createPost(postData);
+      res.json({ post });
+    } catch (error) {
+      console.error('Error creating post:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid post data', details: error.errors });
+      }
+      res.status(500).json({ error: 'Failed to create post' });
+    }
+  });
+
+  // Get Single Post
+  app.get('/api/posts/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const postId = req.params.id;
+
+      const post = await storage.getPost(postId);
+      
+      if (!post) {
+        return res.status(404).json({ error: 'Post not found' });
+      }
+
+      // Check if user can access this post
+      const canAccess = await checkPostAccess(userId, post);
+      
+      if (!canAccess) {
+        return res.status(403).json({ 
+          error: 'Access denied',
+          requiresUnlock: post.visibility === 'paid',
+          priceInCents: post.priceInCents
+        });
+      }
+
+      // Get media
+      const media = await storage.getPostMedia(postId);
+      
+      // Get engagement
+      const engagement = await storage.getPostEngagement(postId);
+
+      res.json({
+        post,
+        media,
+        engagement
+      });
+    } catch (error) {
+      console.error('Error fetching post:', error);
+      res.status(500).json({ error: 'Failed to fetch post' });
+    }
+  });
+
+  // Update Post
+  app.put('/api/posts/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const postId = req.params.id;
+
+      const post = await storage.getPost(postId);
+      
+      if (!post) {
+        return res.status(404).json({ error: 'Post not found' });
+      }
+
+      if (post.creatorId !== userId) {
+        return res.status(403).json({ error: 'Not authorized to edit this post' });
+      }
+
+      const updatedPost = await storage.updatePost(postId, req.body);
+      res.json({ post: updatedPost });
+    } catch (error) {
+      console.error('Error updating post:', error);
+      res.status(500).json({ error: 'Failed to update post' });
+    }
+  });
+
+  // Delete Post
+  app.delete('/api/posts/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const postId = req.params.id;
+
+      const post = await storage.getPost(postId);
+      
+      if (!post) {
+        return res.status(404).json({ error: 'Post not found' });
+      }
+
+      if (post.creatorId !== userId) {
+        return res.status(403).json({ error: 'Not authorized to delete this post' });
+      }
+
+      await storage.deletePost(postId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      res.status(500).json({ error: 'Failed to delete post' });
+    }
+  });
+
+  // Add Media to Post
+  app.post('/api/posts/:id/media', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const postId = req.params.id;
+
+      const post = await storage.getPost(postId);
+      
+      if (!post) {
+        return res.status(404).json({ error: 'Post not found' });
+      }
+
+      if (post.creatorId !== userId) {
+        return res.status(403).json({ error: 'Not authorized to add media to this post' });
+      }
+
+      const mediaData = insertPostMediaSchema.parse({
+        ...req.body,
+        postId
+      });
+
+      const media = await storage.createPostMedia(mediaData);
+      res.json({ media });
+    } catch (error) {
+      console.error('Error adding media:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid media data', details: error.errors });
+      }
+      res.status(500).json({ error: 'Failed to add media' });
+    }
+  });
+
+  // Like Post
+  app.post('/api/posts/:id/like', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const postId = req.params.id;
+
+      await storage.likePost(postId, userId);
+      
+      const engagement = await storage.getPostEngagement(postId);
+      res.json({ engagement });
+    } catch (error) {
+      console.error('Error liking post:', error);
+      res.status(500).json({ error: 'Failed to like post' });
+    }
+  });
+
+  // Unlike Post
+  app.delete('/api/posts/:id/like', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const postId = req.params.id;
+
+      await storage.unlikePost(postId, userId);
+      
+      const engagement = await storage.getPostEngagement(postId);
+      res.json({ engagement });
+    } catch (error) {
+      console.error('Error unliking post:', error);
+      res.status(500).json({ error: 'Failed to unlike post' });
+    }
+  });
+
+  // Track Post View
+  app.post('/api/posts/:id/view', isAuthenticated, async (req: any, res) => {
+    try {
+      const postId = req.params.id;
+      await storage.incrementPostView(postId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error tracking view:', error);
+      res.status(500).json({ error: 'Failed to track view' });
+    }
+  });
+
+  // Unlock Paid Post
+  app.post('/api/posts/:id/unlock', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const postId = req.params.id;
+
+      const post = await storage.getPost(postId);
+      
+      if (!post) {
+        return res.status(404).json({ error: 'Post not found' });
+      }
+
+      if (post.visibility !== 'paid') {
+        return res.status(400).json({ error: 'Post is not a paid post' });
+      }
+
+      // Check if already unlocked
+      const isUnlocked = await storage.isPostUnlocked(postId, userId);
+      if (isUnlocked) {
+        return res.status(400).json({ error: 'Post already unlocked' });
+      }
+
+      // Process payment (integrate with FanzTrust wallet)
+      const wallet = await storage.getFanzWallet(userId);
+      const priceInTokens = (post.priceInCents || 0) * 10; // 1 cent = 10 FanzTokens
+      
+      if (!wallet || (wallet.fanzTokenBalance || 0) < priceInTokens) {
+        return res.status(402).json({ 
+          error: 'Insufficient funds',
+          required: priceInTokens,
+          available: wallet?.fanzTokenBalance || 0
+        });
+      }
+
+      // Deduct from wallet
+      const newBalance = (wallet.fanzTokenBalance || 0) - priceInTokens;
+      await storage.updateFanzWallet(wallet.id, { fanzTokenBalance: newBalance });
+
+      // Create transaction record
+      const transaction = await storage.createWalletTransaction({
+        walletId: wallet.id,
+        type: 'debit',
+        amount: priceInTokens,
+        currency: 'FanzToken',
+        description: `Unlocked post: ${post.content?.substring(0, 50) || 'Untitled'}`,
+        status: 'completed'
+      });
+
+      // Unlock post
+      const unlock = await storage.unlockPost(postId, userId, transaction.id, priceInTokens);
+
+      res.json({ 
+        success: true,
+        unlock,
+        newBalance 
+      });
+    } catch (error) {
+      console.error('Error unlocking post:', error);
+      res.status(500).json({ error: 'Failed to unlock post' });
+    }
+  });
+
+  // Follow Creator
+  app.post('/api/follow/:creatorId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const creatorId = req.params.creatorId;
+
+      if (userId === creatorId) {
+        return res.status(400).json({ error: 'Cannot follow yourself' });
+      }
+
+      const follow = await storage.followCreator(userId, creatorId);
+      res.json({ follow });
+    } catch (error) {
+      console.error('Error following creator:', error);
+      res.status(500).json({ error: 'Failed to follow creator' });
+    }
+  });
+
+  // Unfollow Creator
+  app.delete('/api/follow/:creatorId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const creatorId = req.params.creatorId;
+
+      await storage.unfollowCreator(userId, creatorId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error unfollowing creator:', error);
+      res.status(500).json({ error: 'Failed to unfollow creator' });
+    }
+  });
+
+  // Check Following Status
+  app.get('/api/follow/:creatorId/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const creatorId = req.params.creatorId;
+
+      const isFollowing = await storage.isFollowing(userId, creatorId);
+      res.json({ isFollowing });
+    } catch (error) {
+      console.error('Error checking follow status:', error);
+      res.status(500).json({ error: 'Failed to check follow status' });
+    }
+  });
+
+  // Get User's Following List
+  app.get('/api/following', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const following = await storage.getFollowing(userId);
+      res.json({ following });
+    } catch (error) {
+      console.error('Error fetching following:', error);
+      res.status(500).json({ error: 'Failed to fetch following list' });
+    }
+  });
+
+  // Track Ad Click
+  app.post('/api/ads/:id/click', isAuthenticated, async (req: any, res) => {
+    try {
+      const adId = req.params.id;
+      await storage.incrementAdClick(adId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error tracking ad click:', error);
+      res.status(500).json({ error: 'Failed to track ad click' });
+    }
+  });
+
+  // Helper function to check post access
+  async function checkPostAccess(userId: string, post: any): Promise<boolean> {
+    // Creator can always access their own posts
+    if (post.creatorId === userId) {
+      return true;
+    }
+
+    // Free previews are accessible to all
+    if (post.isFreePreview || post.visibility === 'free') {
+      return true;
+    }
+
+    // Check subscription status
+    if (post.visibility === 'subscriber') {
+      const subscription = await storage.getSubscription(userId, post.creatorId);
+      return subscription?.status === 'active';
+    }
+
+    // Check if paid post is unlocked
+    if (post.visibility === 'paid') {
+      return await storage.isPostUnlocked(post.id, userId);
+    }
+
+    // Followers-only content
+    if (post.visibility === 'followers') {
+      return await storage.isFollowing(userId, post.creatorId);
+    }
+
+    return false;
+  }
 
   return httpServer;
 }

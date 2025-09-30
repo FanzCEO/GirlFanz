@@ -118,6 +118,7 @@ export interface IStorage {
   getSystemHealth(): Promise<any>;
   
   // Subscription operations
+  getSubscription(userId: string, creatorId: string): Promise<Subscription | undefined>;
   getSubscriptionsAsFan(userId: string): Promise<Subscription[]>;
   getSubscriptionsAsCreator(userId: string): Promise<Subscription[]>;
   createSubscription(subscription: InsertSubscription): Promise<Subscription>;
@@ -532,6 +533,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Subscription operations
+  async getSubscription(userId: string, creatorId: string): Promise<Subscription | undefined> {
+    const [subscription] = await db
+      .select()
+      .from(subscriptions)
+      .where(and(
+        eq(subscriptions.userId, userId),
+        eq(subscriptions.creatorId, creatorId)
+      ));
+    return subscription;
+  }
+
   async getSubscriptionsAsFan(userId: string): Promise<Subscription[]> {
     return await db
       .select()
