@@ -3,7 +3,7 @@
 import React from 'react';
 import { SimpleAppLayout } from './layout/SimpleAppLayout';
 import { LoginModal } from './modals/LoginModal';
-// import { RegisterModal } from './modals/RegisterModal'; // We'll create this next
+import { RegisterModal } from './modals/RegisterModal';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -23,7 +23,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         
         {/* Global Modals */}
         <LoginModal />
-        {/* <RegisterModal /> */}
+        <RegisterModal />
       </>
     );
   }
@@ -35,7 +35,7 @@ export const AppShell: React.FC<AppShellProps> = ({
       
       {/* Global Modals */}
       <LoginModal />
-      {/* <RegisterModal /> */}
+      <RegisterModal />
     </SimpleAppLayout>
   );
 };
