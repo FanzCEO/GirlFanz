@@ -1,6 +1,8 @@
 import React from 'react';
+import styled from 'styled-components';
 import { useAppStore } from '../../stores/appStore';
 import { useAuth } from '../../hooks/useAuth';
+import { theme } from '../../styles/theme';
 
 const HeaderContainer = styled.div`
   display: flex;
@@ -165,6 +167,26 @@ const NotificationBadge = styled.button`
   }
 `;
 
+const LoginButton = styled.button`
+  padding: 8px 16px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  
+  &:hover {
+    opacity: 0.9;
+  }
+  
+  &:focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+  }
+`;
+
 // Mock SVG icons - replace with your icon library
 const MenuIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -249,12 +271,11 @@ export const Header: React.FC = () => {
               {!user?.avatar && getUserInitials()}
             </UserAvatar>
           ) : (
-            <Button
-              size="sm"
+            <LoginButton
               onClick={() => openModal('loginModal')}
             >
               Login
-            </Button>
+            </LoginButton>
           )}
         </UserSection>
       </RightSection>

@@ -180,7 +180,7 @@ export const LoginModal: React.FC = () => {
           {/* Register Link */}
           <div className="text-center">
             <p className="text-gray-400 text-sm">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <button
                 onClick={() => {
                   handleClose();

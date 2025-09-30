@@ -1,7 +1,7 @@
 // API configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   data?: T;
   error?: string;
   success: boolean;
@@ -70,21 +70,21 @@ class ApiClient {
     return this.request<T>(endpoint, { method: 'GET' });
   }
   
-  async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async post<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined,
     });
   }
   
-  async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async put<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'PUT',
       body: data ? JSON.stringify(data) : undefined,
     });
   }
   
-  async patch<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async patch<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'PATCH',
       body: data ? JSON.stringify(data) : undefined,
@@ -96,7 +96,7 @@ class ApiClient {
   }
   
   // File upload
-  async uploadFile<T>(endpoint: string, file: File, additionalData?: Record<string, any>): Promise<ApiResponse<T>> {
+  async uploadFile<T>(endpoint: string, file: File, additionalData?: Record<string, unknown>): Promise<ApiResponse<T>> {
     const formData = new FormData();
     formData.append('file', file);
     
@@ -144,17 +144,33 @@ export const apiClient = new ApiClient();
 
 // Convenience functions
 export const get = <T>(endpoint: string) => apiClient.get<T>(endpoint);
-export const post = <T>(endpoint: string, data?: any) => apiClient.post<T>(endpoint, data);
-export const put = <T>(endpoint: string, data?: any) => apiClient.put<T>(endpoint, data);
-export const patch = <T>(endpoint: string, data?: any) => apiClient.patch<T>(endpoint, data);
+export const post = <T>(endpoint: string, data?: unknown) => apiClient.post<T>(endpoint, data);
+export const put = <T>(endpoint: string, data?: unknown) => apiClient.put<T>(endpoint, data);
+export const patch = <T>(endpoint: string, data?: unknown) => apiClient.patch<T>(endpoint, data);
 export const del = <T>(endpoint: string) => apiClient.delete<T>(endpoint);
-export const uploadFile = <T>(endpoint: string, file: File, data?: Record<string, any>) => 
+export const uploadFile = <T>(endpoint: string, file: File, data?: Record<string, unknown>) => 
   apiClient.uploadFile<T>(endpoint, file, data);
+
+// User type definitions
+export interface User {
+  id: string;
+  email: string;
+  username: string;
+  displayName: string;
+  avatar?: string;
+  role: string;
+  isCreator?: boolean;
+}
+
+export interface AuthResponse {
+  user: User;
+  token: string;
+}
 
 // Auth API endpoints
 export const authAPI = {
   login: (email: string, password: string) =>
-    post<{ user: any; token: string }>('/auth/login', { email, password }),
+    post<AuthResponse>('/auth/login', { email, password }),
     
   register: (userData: {
     email: string;
@@ -162,7 +178,7 @@ export const authAPI = {
     username: string;
     displayName: string;
     isCreator?: boolean;
-  }) => post<{ user: any; token: string }>('/auth/register', userData),
+  }) => post<AuthResponse>('/auth/register', userData),
   
   logout: () => post('/auth/logout'),
   
@@ -175,14 +191,14 @@ export const authAPI = {
     
   verifyEmail: (token: string) => post('/auth/verify-email', { token }),
   
-  getCurrentUser: () => get<any>('/auth/me'),
+  getCurrentUser: () => get<User>('/auth/me'),
 };
 
 // User API endpoints
 export const userAPI = {
-  getProfile: (userId: string) => get<any>(`/users/${userId}`),
+  getProfile: (userId: string) => get<User>(`/users/${userId}`),
   
-  updateProfile: (updates: Partial<any>) => patch<any>('/users/me', updates),
+  updateProfile: (updates: Partial<User>) => patch<User>('/users/me', updates),
   
   uploadAvatar: (file: File) => uploadFile<{ avatarUrl: string }>('/users/me/avatar', file),
   
@@ -190,22 +206,42 @@ export const userAPI = {
   
   unfollowUser: (userId: string) => del(`/users/${userId}/follow`),
   
-  getFollowing: (userId?: string) => get<any[]>(`/users/${userId || 'me'}/following`),
+  getFollowing: (userId?: string) => get<User[]>(`/users/${userId || 'me'}/following`),
   
-  getFollowers: (userId?: string) => get<any[]>(`/users/${userId || 'me'}/followers`),
+  getFollowers: (userId?: string) => get<User[]>(`/users/${userId || 'me'}/followers`),
 };
+
+// Content type definitions
+export interface Content {
+  id: string;
+  creatorId: string;
+  title: string;
+  description?: string;
+  mediaUrl?: string;
+  likes: number;
+  comments: number;
+  createdAt: string;
+}
+
+export interface Comment {
+  id: string;
+  userId: string;
+  contentId: string;
+  comment: string;
+  createdAt: string;
+}
 
 // Content API endpoints
 export const contentAPI = {
   getFeed: (params?: { page?: number; limit?: number }) => 
-    get<any>(`/content/feed?${new URLSearchParams(params as any).toString()}`),
+    get<Content[]>(`/content/feed?${new URLSearchParams(params as Record<string, string>).toString()}`),
     
-  getContent: (contentId: string) => get<any>(`/content/${contentId}`),
+  getContent: (contentId: string) => get<Content>(`/content/${contentId}`),
   
-  createContent: (contentData: any) => post<any>('/content', contentData),
+  createContent: (contentData: Partial<Content>) => post<Content>('/content', contentData),
   
-  updateContent: (contentId: string, updates: Partial<any>) =>
-    patch<any>(`/content/${contentId}`, updates),
+  updateContent: (contentId: string, updates: Partial<Content>) =>
+    patch<Content>(`/content/${contentId}`, updates),
     
   deleteContent: (contentId: string) => del(`/content/${contentId}`),
   
@@ -213,31 +249,44 @@ export const contentAPI = {
   
   unlikeContent: (contentId: string) => del(`/content/${contentId}/like`),
   
-  getComments: (contentId: string) => get<any[]>(`/content/${contentId}/comments`),
+  getComments: (contentId: string) => get<Comment[]>(`/content/${contentId}/comments`),
   
   addComment: (contentId: string, comment: string) =>
     post(`/content/${contentId}/comments`, { comment }),
 };
 
 // Error handler for async operations
-export const handleApiError = (error: any): ApiError => {
-  if (error.response) {
-    return {
-      message: error.response.data?.message || 'Server error',
-      status: error.response.status,
-      code: error.response.data?.code
-    };
-  }
-  
-  if (error.request) {
-    return {
-      message: 'Network error - please check your connection',
-      status: 0
-    };
+export const handleApiError = (error: unknown): ApiError => {
+  if (typeof error === 'object' && error !== null) {
+    const err = error as Record<string, unknown>;
+    
+    if (err.response && typeof err.response === 'object') {
+      const response = err.response as Record<string, unknown>;
+      const data = response.data as Record<string, unknown> | undefined;
+      return {
+        message: (data?.message as string) || 'Server error',
+        status: (response.status as number) || 500,
+        code: data?.code as string | undefined
+      };
+    }
+    
+    if (err.request) {
+      return {
+        message: 'Network error - please check your connection',
+        status: 0
+      };
+    }
+    
+    if (err.message && typeof err.message === 'string') {
+      return {
+        message: err.message,
+        status: 500
+      };
+    }
   }
   
   return {
-    message: error.message || 'Unknown error occurred',
+    message: error instanceof Error ? error.message : 'Unknown error occurred',
     status: 500
   };
 };
