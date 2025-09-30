@@ -451,6 +451,191 @@ export const insertTutorialSchema = createInsertSchema(tutorials).omit({
   updatedAt: true,
 });
 
+// FanzTrust™ Payment & Refund System
+export const paymentGatewayEnum = pgEnum("payment_gateway", [
+  "metamask", "solana", "tronlink",  // Crypto wallets
+  "rocketgate", "segpay", "ccbill",   // Adult-friendly processors
+  "fanzpay", "fanztoken", "fanzcoin"  // Fanz native systems
+]);
+
+export const refundStatusEnum = pgEnum("refund_status", [
+  "pending", "auto_approved", "manual_review", "approved", "denied", "completed"
+]);
+
+export const trustScoreEnum = pgEnum("trust_level", [
+  "new", "trusted", "verified", "flagged", "banned"
+]);
+
+// FanzTrust Transactions
+export const fanzTransactions = pgTable("fanz_transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fanId: varchar("fan_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  gateway: paymentGatewayEnum("gateway").notNull(),
+  txid: varchar("txid"), // Transaction ID from gateway or blockchain
+  amount: integer("amount").notNull(), // in cents or smallest unit
+  currency: varchar("currency").default("USD"), // USD, SOL, TRX, FANZ, etc.
+  walletAddress: varchar("wallet_address"),
+  email: varchar("email"),
+  last4: varchar("last_4"), // Last 4 digits for card transactions
+  status: transactionStatusEnum("status").default("pending"),
+  ipAddress: varchar("ip_address"),
+  deviceFingerprint: varchar("device_fingerprint"),
+  contentAccessed: boolean("content_accessed").default(false),
+  subscriptionId: varchar("subscription_id"),
+  metadata: jsonb("metadata"), // Additional gateway-specific data
+  createdAt: timestamp("created_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+// Refund Requests
+export const refundRequests = pgTable("refund_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  transactionId: varchar("transaction_id").references(() => fanzTransactions.id, { onDelete: "cascade" }).notNull(),
+  fanId: varchar("fan_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  reason: text("reason").notNull(),
+  status: refundStatusEnum("status").default("pending"),
+  verificationResult: jsonb("verification_result"), // Auto-verification data
+  isAutoApproved: boolean("is_auto_approved").default(false),
+  reviewedBy: varchar("reviewed_by").references(() => users.id),
+  reviewNotes: text("review_notes"),
+  amount: integer("amount").notNull(),
+  ipAddress: varchar("ip_address"),
+  deviceFingerprint: varchar("device_fingerprint"),
+  fraudScore: integer("fraud_score").default(0), // 0-100
+  createdAt: timestamp("created_at").defaultNow(),
+  reviewedAt: timestamp("reviewed_at"),
+  completedAt: timestamp("completed_at"),
+});
+
+// FanzPay/FanzToken System
+export const fanzWallets = pgTable("fanz_wallets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
+  fanzTokenBalance: integer("fanz_token_balance").default(0), // FanzToken balance
+  fanzCoinBalance: integer("fanz_coin_balance").default(0), // FanzCoin (rewards)
+  fanzCreditBalance: integer("fanz_credit_balance").default(0), // Store credit
+  totalDeposited: integer("total_deposited").default(0),
+  totalSpent: integer("total_spent").default(0),
+  totalEarned: integer("total_earned").default(0),
+  walletAddress: varchar("wallet_address").unique(), // For crypto withdrawals
+  isVerified: boolean("is_verified").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// FanzCard Virtual Cards
+export const fanzCards = pgTable("fanz_cards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  cardNumber: varchar("card_number").notNull().unique(), // Encrypted/masked
+  cardType: varchar("card_type").default("virtual"), // virtual, physical
+  balance: integer("balance").default(0),
+  currency: varchar("currency").default("USD"),
+  status: varchar("status").default("active"), // active, frozen, cancelled
+  expiryDate: varchar("expiry_date"),
+  cvv: varchar("cvv"), // Encrypted
+  isDefault: boolean("is_default").default(false),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+  lastUsedAt: timestamp("last_used_at"),
+});
+
+// Wallet Transactions
+export const walletTransactions = pgTable("wallet_transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  walletId: varchar("wallet_id").references(() => fanzWallets.id, { onDelete: "cascade" }).notNull(),
+  type: varchar("type").notNull(), // deposit, withdrawal, purchase, earning, refund, transfer
+  amount: integer("amount").notNull(),
+  currency: varchar("currency").default("FANZ"),
+  fromUser: varchar("from_user").references(() => users.id),
+  toUser: varchar("to_user").references(() => users.id),
+  relatedTransactionId: varchar("related_transaction_id"),
+  description: text("description"),
+  status: varchar("status").default("completed"), // pending, completed, failed
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Fan Trust Scores
+export const fanTrustScores = pgTable("fan_trust_scores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fanId: varchar("fan_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
+  score: integer("score").default(100), // 0-100
+  level: trustScoreEnum("level").default("new"),
+  totalTransactions: integer("total_transactions").default(0),
+  totalRefunds: integer("total_refunds").default(0),
+  falseClaimsCount: integer("false_claims_count").default(0),
+  successfulPurchases: integer("successful_purchases").default(0),
+  accountAge: integer("account_age").default(0), // days
+  lastReviewedAt: timestamp("last_reviewed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Audit Logs for FanzTrust
+export const trustAuditLogs = pgTable("trust_audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  action: varchar("action").notNull(), // verify_transaction, request_refund, approve_refund, deny_refund, flag_user
+  performedBy: varchar("performed_by").references(() => users.id),
+  targetUserId: varchar("target_user_id").references(() => users.id),
+  transactionId: varchar("transaction_id").references(() => fanzTransactions.id),
+  refundId: varchar("refund_id").references(() => refundRequests.id),
+  result: varchar("result"), // success, failure, flagged
+  details: jsonb("details"),
+  ipAddress: varchar("ip_address"),
+  userAgent: varchar("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Creator Refund Policies
+export const creatorRefundPolicies = pgTable("creator_refund_policies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
+  autoApproveEnabled: boolean("auto_approve_enabled").default(true),
+  autoApproveTimeLimit: integer("auto_approve_time_limit").default(60), // minutes
+  requireContentAccess: boolean("require_content_access").default(true),
+  customMessage: text("custom_message"),
+  payoutDelayHours: integer("payout_delay_hours").default(24), // Delay for high-risk purchases
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Zod Schemas
+export const insertFanzTransactionSchema = createInsertSchema(fanzTransactions).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true,
+});
+
+export const insertRefundRequestSchema = createInsertSchema(refundRequests).omit({
+  id: true,
+  createdAt: true,
+  reviewedAt: true,
+  completedAt: true,
+});
+
+export const insertFanzWalletSchema = createInsertSchema(fanzWallets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertWalletTransactionSchema = createInsertSchema(walletTransactions).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Type Exports
+export type FanzTransaction = typeof fanzTransactions.$inferSelect;
+export type InsertFanzTransaction = z.infer<typeof insertFanzTransactionSchema>;
+export type RefundRequest = typeof refundRequests.$inferSelect;
+export type InsertRefundRequest = z.infer<typeof insertRefundRequestSchema>;
+export type FanzWallet = typeof fanzWallets.$inferSelect;
+export type FanTrustScore = typeof fanTrustScores.$inferSelect;
+export type WalletTransaction = typeof walletTransactions.$inferSelect;
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertSupportTicketForm = z.infer<typeof insertSupportTicketSchema>;
 export type InsertKnowledgeArticleForm = z.infer<typeof insertKnowledgeArticleSchema>;
