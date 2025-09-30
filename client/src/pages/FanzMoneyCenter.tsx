@@ -228,9 +228,9 @@ export default function FanzMoneyCenter() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-2xl font-bold text-cyan-500" data-testid="text-fanzcoin-amount">
-                        {wallet?.fanzCoin?.toFixed(2) || '0.00'}
+                        {(wallet as any)?.fanzCoin?.toFixed(2) || '0.00'}
                       </p>
-                      <p className="text-xs text-gray-500">≈ ${wallet?.fanzCoin ? (wallet.fanzCoin * 0.01).toFixed(2) : '0.00'}</p>
+                      <p className="text-xs text-gray-500">≈ ${(wallet as any)?.fanzCoin ? ((wallet as any).fanzCoin * 0.01).toFixed(2) : '0.00'}</p>
                     </div>
                     <Coins className="h-8 w-8 text-cyan-500" />
                   </div>
@@ -245,7 +245,7 @@ export default function FanzMoneyCenter() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-2xl font-bold text-purple-500" data-testid="text-fanztoken-amount">
-                        {wallet?.fanzToken?.toFixed(2) || '0.00'}
+                        {(wallet as any)?.fanzToken?.toFixed(2) || '0.00'}
                       </p>
                       <p className="text-xs text-gray-500">Platform Currency</p>
                     </div>
@@ -262,7 +262,7 @@ export default function FanzMoneyCenter() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-2xl font-bold text-pink-500" data-testid="text-fanzcredit-amount">
-                        ${wallet?.fanzCredit?.toFixed(2) || '0.00'}
+                        ${(wallet as any)?.fanzCredit?.toFixed(2) || '0.00'}
                       </p>
                       <p className="text-xs text-gray-500">Available Credit</p>
                     </div>
@@ -279,7 +279,7 @@ export default function FanzMoneyCenter() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-2xl font-bold text-green-500" data-testid="text-total-amount">
-                        ${((wallet?.fanzCoin || 0) * 0.01 + (wallet?.fanzCredit || 0)).toFixed(2)}
+                        ${(((wallet as any)?.fanzCoin || 0) * 0.01 + ((wallet as any)?.fanzCredit || 0)).toFixed(2)}
                       </p>
                       <p className="text-xs text-gray-500">USD Value</p>
                     </div>
@@ -339,7 +339,7 @@ export default function FanzMoneyCenter() {
                     <div className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 p-6 rounded-lg border border-purple-500/30">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-bold" data-testid="text-wallet-type">
-                          {wallet.type.toUpperCase()} Wallet
+                          {(wallet as any).type?.toUpperCase() || 'MAIN'} Wallet
                         </h3>
                         <Badge variant="default" data-testid="badge-wallet-status">Active</Badge>
                       </div>
@@ -347,30 +347,30 @@ export default function FanzMoneyCenter() {
                         <div>
                           <p className="text-xs text-gray-400">FanzCoin</p>
                           <p className="text-xl font-bold text-cyan-500" data-testid="text-wallet-fanzcoin">
-                            {wallet.fanzCoin?.toFixed(2) || '0.00'}
+                            {(wallet as any).fanzCoin?.toFixed(2) || '0.00'}
                           </p>
                         </div>
                         <div>
                           <p className="text-xs text-gray-400">FanzToken</p>
                           <p className="text-xl font-bold text-purple-500" data-testid="text-wallet-fanztoken">
-                            {wallet.fanzToken?.toFixed(2) || '0.00'}
+                            {(wallet as any).fanzToken?.toFixed(2) || '0.00'}
                           </p>
                         </div>
                         <div>
                           <p className="text-xs text-gray-400">FanzCredit</p>
                           <p className="text-xl font-bold text-pink-500" data-testid="text-wallet-fanzcredit">
-                            ${wallet.fanzCredit?.toFixed(2) || '0.00'}
+                            ${(wallet as any).fanzCredit?.toFixed(2) || '0.00'}
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    {wallet.walletAddress && (
+                    {(wallet as any).walletAddress && (
                       <div className="bg-gray-800/50 p-4 rounded-lg">
                         <p className="text-xs text-gray-400 mb-1">Wallet Address</p>
                         <div className="flex items-center gap-2">
                           <code className="text-sm font-mono" data-testid="text-wallet-address">
-                            {wallet.walletAddress}
+                            {(wallet as any).walletAddress}
                           </code>
                           <Button size="sm" variant="ghost" data-testid="button-copy-address">
                             <ExternalLink className="h-3 w-3" />
@@ -409,9 +409,9 @@ export default function FanzMoneyCenter() {
                     <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2" />
                     <p className="text-gray-400">Loading transactions...</p>
                   </div>
-                ) : transactions && transactions.length > 0 ? (
+                ) : transactions && Array.isArray(transactions) && transactions.length > 0 ? (
                   <div className="space-y-3">
-                    {transactions.map((tx: any) => (
+                    {(transactions as any[]).map((tx: any) => (
                       <div 
                         key={tx.id} 
                         className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg hover:bg-gray-800 transition-colors"
@@ -498,10 +498,10 @@ export default function FanzMoneyCenter() {
                   </Button>
                 </div>
 
-                {wallet?.cryptoWallets && wallet.cryptoWallets.length > 0 ? (
+                {(wallet as any)?.cryptoWallets && Array.isArray((wallet as any).cryptoWallets) && (wallet as any).cryptoWallets.length > 0 ? (
                   <div className="space-y-3 mt-6">
                     <h4 className="font-medium">Connected Wallets</h4>
-                    {wallet.cryptoWallets.map((crypto: any, index: number) => (
+                    {((wallet as any).cryptoWallets as any[]).map((crypto: any, index: number) => (
                       <div 
                         key={index}
                         className="p-4 bg-gray-800/50 rounded-lg flex items-center justify-between"

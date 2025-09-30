@@ -640,3 +640,55 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertSupportTicketForm = z.infer<typeof insertSupportTicketSchema>;
 export type InsertKnowledgeArticleForm = z.infer<typeof insertKnowledgeArticleSchema>;
 export type InsertTutorialForm = z.infer<typeof insertTutorialSchema>;
+
+// ====================================
+// FanzTrust™ API Response Types
+// ====================================
+
+// Wallet API Response
+export const walletResponseSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  type: z.string(),
+  fanzCoin: z.number().default(0),
+  fanzToken: z.number().default(0),
+  fanzCredit: z.number().default(0),
+  walletAddress: z.string().nullable().optional(),
+  cryptoWallets: z.array(z.object({
+    provider: z.string(),
+    walletAddress: z.string(),
+    network: z.string(),
+  })).optional(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
+export type WalletResponse = z.infer<typeof walletResponseSchema>;
+
+// Trust Score API Response
+export const trustScoreResponseSchema = z.object({
+  id: z.string(),
+  fanId: z.string(),
+  score: z.number(),
+  level: z.string(),
+  successfulTransactions: z.number(),
+  refundsInitiated: z.number(),
+  fraudFlags: z.number(),
+  lastCalculated: z.date(),
+});
+
+export type TrustScoreResponse = z.infer<typeof trustScoreResponseSchema>;
+
+// Transaction List API Response
+export const transactionResponseSchema = z.object({
+  id: z.string(),
+  amount: z.number(),
+  currency: z.string(),
+  gateway: z.string(),
+  status: z.string(),
+  type: z.enum(['deposit', 'withdrawal', 'purchase', 'refund']),
+  createdAt: z.date(),
+  completedAt: z.date().nullable().optional(),
+});
+
+export type TransactionResponse = z.infer<typeof transactionResponseSchema>;
