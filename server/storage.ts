@@ -23,6 +23,14 @@ import {
   fanTrustScores,
   trustAuditLogs,
   creatorRefundPolicies,
+  feedPosts,
+  postMedia,
+  postEngagement,
+  userFollows,
+  ageVerifications,
+  sponsoredPosts,
+  postLikes,
+  postUnlocks,
   type User,
   type UpsertUser,
   type Profile,
@@ -56,6 +64,16 @@ import {
   type FanzWallet,
   type FanTrustScore,
   type WalletTransaction,
+  type FeedPost,
+  type InsertFeedPost,
+  type PostMedia,
+  type InsertPostMedia,
+  type PostEngagement,
+  type UserFollow,
+  type AgeVerification,
+  type SponsoredPost,
+  type PostLike,
+  type PostUnlock,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, sql } from "drizzle-orm";
@@ -170,6 +188,47 @@ export interface IStorage {
   getAllRefundRequests(): Promise<any[]>;
   createCreatorRefundPolicy(data: any): Promise<any>;
   updateCreatorRefundPolicy(creatorId: string, updates: any): Promise<any>;
+  
+  // Infinity Scroll Feed operations
+  getFeedPosts(params: { userId: string; cursor?: string; limit?: number }): Promise<{ posts: any[]; nextCursor: string | null }>;
+  getPost(id: string): Promise<any | undefined>;
+  createPost(post: any): Promise<any>;
+  updatePost(id: string, updates: any): Promise<any>;
+  deletePost(id: string): Promise<void>;
+  
+  // Post Media operations
+  getPostMedia(postId: string): Promise<any[]>;
+  createPostMedia(media: any): Promise<any>;
+  deletePostMedia(id: string): Promise<void>;
+  
+  // Post Engagement operations
+  getPostEngagement(postId: string): Promise<any | undefined>;
+  incrementPostView(postId: string): Promise<void>;
+  likePost(postId: string, userId: string): Promise<void>;
+  unlikePost(postId: string, userId: string): Promise<void>;
+  
+  // User Follows operations
+  followCreator(followerId: string, creatorId: string): Promise<any>;
+  unfollowCreator(followerId: string, creatorId: string): Promise<void>;
+  getFollowing(userId: string): Promise<any[]>;
+  getFollowers(creatorId: string): Promise<any[]>;
+  isFollowing(followerId: string, creatorId: string): Promise<boolean>;
+  
+  // Age Verification operations
+  getAgeVerification(userId: string): Promise<any | undefined>;
+  createAgeVerification(verification: any): Promise<any>;
+  updateAgeVerification(userId: string, updates: any): Promise<any>;
+  
+  // Sponsored Posts operations
+  getSponsoredPosts(params: { isActive?: boolean; limit?: number }): Promise<any[]>;
+  createSponsoredPost(post: any): Promise<any>;
+  incrementAdImpression(adId: string): Promise<void>;
+  incrementAdClick(adId: string): Promise<void>;
+  
+  // Post Unlocks operations
+  unlockPost(postId: string, userId: string, transactionId?: string, amount?: number): Promise<any>;
+  isPostUnlocked(postId: string, userId: string): Promise<boolean>;
+  getUserUnlockedPosts(userId: string): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1110,6 +1169,344 @@ export class DatabaseStorage implements IStorage {
       .where(eq(creatorRefundPolicies.creatorId, creatorId))
       .returning();
     return policy;
+  }
+
+  // ========================================
+  // INFINITY SCROLL FEED OPERATIONS
+  // ========================================
+
+  async getFeedPosts(params: { userId: string; cursor?: string; limit?: number }): Promise<{ posts: any[]; nextCursor: string | null }> {
+    const limit = params.limit || 20;
+    const userId = params.userId;
+
+    // Get user's subscriptions
+    const userSubs = await db
+      .select({ creatorId: subscriptions.creatorId })
+      .from(subscriptions)
+      .where(and(
+        eq(subscriptions.userId, userId),
+        eq(subscriptions.status, 'active')
+      ));
+    
+    const subscribedCreatorIds = userSubs.map(s => s.creatorId);
+
+    // Get user's follows
+    const userFollows_result = await db
+      .select({ creatorId: userFollows.creatorId })
+      .from(userFollows)
+      .where(eq(userFollows.followerId, userId));
+    
+    const followedCreatorIds = userFollows_result.map(f => f.creatorId);
+
+    // Build query for mixed feed
+    const conditions = [];
+    
+    // Include posts from subscribed creators
+    if (subscribedCreatorIds.length > 0) {
+      conditions.push(sql`${feedPosts.creatorId} IN (${sql.join(subscribedCreatorIds.map(id => sql`${id}`), sql`, `)})`);
+    }
+    
+    // Include posts from followed creators
+    if (followedCreatorIds.length > 0) {
+      conditions.push(sql`${feedPosts.creatorId} IN (${sql.join(followedCreatorIds.map(id => sql`${id}`), sql`, `)})`);
+    }
+    
+    // Include free preview posts
+    conditions.push(and(
+      eq(feedPosts.isFreePreview, true),
+      eq(feedPosts.isPublished, true)
+    ));
+
+    // Build final where clause with cursor if provided
+    let finalWhereClause;
+    if (params.cursor) {
+      const cursorCondition = sql`${feedPosts.createdAt} < (SELECT created_at FROM feed_posts WHERE id = ${params.cursor})`;
+      finalWhereClause = conditions.length > 0 ? and(or(...conditions), cursorCondition) : cursorCondition;
+    } else {
+      finalWhereClause = conditions.length > 0 ? or(...conditions) : undefined;
+    }
+    
+    const posts = await db
+      .select()
+      .from(feedPosts)
+      .where(finalWhereClause)
+      .orderBy(desc(feedPosts.createdAt))
+      .limit(limit + 1);
+    const hasMore = posts.length > limit;
+    const returnPosts = hasMore ? posts.slice(0, limit) : posts;
+    const nextCursor = hasMore && returnPosts.length > 0 ? returnPosts[returnPosts.length - 1].id : null;
+
+    return { posts: returnPosts, nextCursor };
+  }
+
+  async getPost(id: string): Promise<FeedPost | undefined> {
+    const [post] = await db
+      .select()
+      .from(feedPosts)
+      .where(eq(feedPosts.id, id));
+    return post;
+  }
+
+  async createPost(postData: InsertFeedPost): Promise<FeedPost> {
+    const [post] = await db
+      .insert(feedPosts)
+      .values(postData)
+      .returning();
+    
+    // Create engagement record
+    await db.insert(postEngagement).values({ postId: post.id });
+    
+    return post;
+  }
+
+  async updatePost(id: string, updates: Partial<FeedPost>): Promise<FeedPost> {
+    const [post] = await db
+      .update(feedPosts)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(feedPosts.id, id))
+      .returning();
+    return post;
+  }
+
+  async deletePost(id: string): Promise<void> {
+    await db.delete(feedPosts).where(eq(feedPosts.id, id));
+  }
+
+  // Post Media operations
+  async getPostMedia(postId: string): Promise<PostMedia[]> {
+    return await db
+      .select()
+      .from(postMedia)
+      .where(eq(postMedia.postId, postId))
+      .orderBy(postMedia.sortOrder);
+  }
+
+  async createPostMedia(mediaData: InsertPostMedia): Promise<PostMedia> {
+    const [media] = await db
+      .insert(postMedia)
+      .values(mediaData)
+      .returning();
+    return media;
+  }
+
+  async deletePostMedia(id: string): Promise<void> {
+    await db.delete(postMedia).where(eq(postMedia.id, id));
+  }
+
+  // Post Engagement operations
+  async getPostEngagement(postId: string): Promise<PostEngagement | undefined> {
+    const [engagement] = await db
+      .select()
+      .from(postEngagement)
+      .where(eq(postEngagement.postId, postId));
+    return engagement;
+  }
+
+  async incrementPostView(postId: string): Promise<void> {
+    await db
+      .update(postEngagement)
+      .set({ 
+        views: sql`${postEngagement.views} + 1`,
+        updatedAt: new Date()
+      })
+      .where(eq(postEngagement.postId, postId));
+  }
+
+  async likePost(postId: string, userId: string): Promise<void> {
+    // Check if already liked
+    const [existing] = await db
+      .select()
+      .from(postLikes)
+      .where(and(
+        eq(postLikes.postId, postId),
+        eq(postLikes.userId, userId)
+      ));
+    
+    if (!existing) {
+      await db.insert(postLikes).values({ postId, userId });
+      await db
+        .update(postEngagement)
+        .set({ 
+          likes: sql`${postEngagement.likes} + 1`,
+          updatedAt: new Date()
+        })
+        .where(eq(postEngagement.postId, postId));
+    }
+  }
+
+  async unlikePost(postId: string, userId: string): Promise<void> {
+    const deleted = await db
+      .delete(postLikes)
+      .where(and(
+        eq(postLikes.postId, postId),
+        eq(postLikes.userId, userId)
+      ))
+      .returning();
+    
+    if (deleted.length > 0) {
+      await db
+        .update(postEngagement)
+        .set({ 
+          likes: sql`${postEngagement.likes} - 1`,
+          updatedAt: new Date()
+        })
+        .where(eq(postEngagement.postId, postId));
+    }
+  }
+
+  // User Follows operations
+  async followCreator(followerId: string, creatorId: string): Promise<UserFollow> {
+    const [follow] = await db
+      .insert(userFollows)
+      .values({ followerId, creatorId })
+      .returning();
+    return follow;
+  }
+
+  async unfollowCreator(followerId: string, creatorId: string): Promise<void> {
+    await db
+      .delete(userFollows)
+      .where(and(
+        eq(userFollows.followerId, followerId),
+        eq(userFollows.creatorId, creatorId)
+      ));
+  }
+
+  async getFollowing(userId: string): Promise<UserFollow[]> {
+    return await db
+      .select()
+      .from(userFollows)
+      .where(eq(userFollows.followerId, userId));
+  }
+
+  async getFollowers(creatorId: string): Promise<UserFollow[]> {
+    return await db
+      .select()
+      .from(userFollows)
+      .where(eq(userFollows.creatorId, creatorId));
+  }
+
+  async isFollowing(followerId: string, creatorId: string): Promise<boolean> {
+    const [result] = await db
+      .select()
+      .from(userFollows)
+      .where(and(
+        eq(userFollows.followerId, followerId),
+        eq(userFollows.creatorId, creatorId)
+      ));
+    return !!result;
+  }
+
+  // Age Verification operations
+  async getAgeVerification(userId: string): Promise<AgeVerification | undefined> {
+    const [verification] = await db
+      .select()
+      .from(ageVerifications)
+      .where(eq(ageVerifications.userId, userId));
+    return verification;
+  }
+
+  async createAgeVerification(verificationData: Partial<AgeVerification>): Promise<AgeVerification> {
+    const [verification] = await db
+      .insert(ageVerifications)
+      .values(verificationData as any)
+      .returning();
+    return verification;
+  }
+
+  async updateAgeVerification(userId: string, updates: Partial<AgeVerification>): Promise<AgeVerification> {
+    const [verification] = await db
+      .update(ageVerifications)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(ageVerifications.userId, userId))
+      .returning();
+    return verification;
+  }
+
+  // Sponsored Posts operations
+  async getSponsoredPosts(params: { isActive?: boolean; limit?: number }): Promise<SponsoredPost[]> {
+    const limit = params.limit || 10;
+    
+    if (params.isActive !== undefined) {
+      return await db
+        .select()
+        .from(sponsoredPosts)
+        .where(eq(sponsoredPosts.isActive, params.isActive))
+        .limit(limit);
+    }
+    
+    return await db.select().from(sponsoredPosts).limit(limit);
+  }
+
+  async createSponsoredPost(postData: Partial<SponsoredPost>): Promise<SponsoredPost> {
+    const [ad] = await db
+      .insert(sponsoredPosts)
+      .values(postData as any)
+      .returning();
+    return ad;
+  }
+
+  async incrementAdImpression(adId: string): Promise<void> {
+    await db
+      .update(sponsoredPosts)
+      .set({ 
+        impressions: sql`${sponsoredPosts.impressions} + 1`,
+        updatedAt: new Date()
+      })
+      .where(eq(sponsoredPosts.id, adId));
+  }
+
+  async incrementAdClick(adId: string): Promise<void> {
+    await db
+      .update(sponsoredPosts)
+      .set({ 
+        clicks: sql`${sponsoredPosts.clicks} + 1`,
+        updatedAt: new Date()
+      })
+      .where(eq(sponsoredPosts.id, adId));
+  }
+
+  // Post Unlocks operations
+  async unlockPost(postId: string, userId: string, transactionId?: string, amount?: number): Promise<PostUnlock> {
+    const [unlock] = await db
+      .insert(postUnlocks)
+      .values({
+        postId,
+        userId,
+        transactionId,
+        paidAmount: amount
+      })
+      .returning();
+    
+    // Increment unlock count
+    await db
+      .update(postEngagement)
+      .set({ 
+        unlocks: sql`${postEngagement.unlocks} + 1`,
+        updatedAt: new Date()
+      })
+      .where(eq(postEngagement.postId, postId));
+    
+    return unlock;
+  }
+
+  async isPostUnlocked(postId: string, userId: string): Promise<boolean> {
+    const [unlock] = await db
+      .select()
+      .from(postUnlocks)
+      .where(and(
+        eq(postUnlocks.postId, postId),
+        eq(postUnlocks.userId, userId)
+      ));
+    return !!unlock;
+  }
+
+  async getUserUnlockedPosts(userId: string): Promise<PostUnlock[]> {
+    return await db
+      .select()
+      .from(postUnlocks)
+      .where(eq(postUnlocks.userId, userId))
+      .orderBy(desc(postUnlocks.createdAt));
   }
 }
 

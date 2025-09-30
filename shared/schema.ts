@@ -312,6 +312,122 @@ export const tutorialProgress = pgTable("tutorial_progress", {
   completedAt: timestamp("completed_at"),
 });
 
+// ====================================
+// INFINITY SCROLL FEED SYSTEM
+// ====================================
+
+// Feed-specific enums
+export const postTypeEnum = pgEnum("post_type", ["text", "image", "video", "mixed"]);
+export const postVisibilityEnum = pgEnum("post_visibility", ["free", "subscriber", "paid", "followers"]);
+export const contentRatingEnum = pgEnum("content_rating", ["safe", "suggestive", "explicit"]);
+
+// Feed Posts
+export const feedPosts = pgTable("feed_posts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  type: postTypeEnum("type").default("text"),
+  content: text("content"), // Text content or caption
+  visibility: postVisibilityEnum("visibility").default("subscriber"),
+  priceInCents: integer("price_in_cents"), // For paid posts
+  isFreePreview: boolean("is_free_preview").default(false), // Creator allows free preview
+  requiresAgeVerification: boolean("requires_age_verification").default(true),
+  contentRating: contentRatingEnum("content_rating").default("explicit"),
+  isPinned: boolean("is_pinned").default(false),
+  isPublished: boolean("is_published").default(true),
+  scheduledAt: timestamp("scheduled_at"), // For scheduled posts
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Post Media (ordered media items)
+export const postMedia = pgTable("post_media", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  postId: varchar("post_id").references(() => feedPosts.id, { onDelete: "cascade" }).notNull(),
+  mediaUrl: varchar("media_url").notNull(),
+  thumbnailUrl: varchar("thumbnail_url"),
+  mediaType: varchar("media_type").notNull(), // image, video
+  mimeType: varchar("mime_type"),
+  duration: integer("duration"), // For videos (seconds)
+  width: integer("width"),
+  height: integer("height"),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Post Engagement Metrics
+export const postEngagement = pgTable("post_engagement", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  postId: varchar("post_id").references(() => feedPosts.id, { onDelete: "cascade" }).notNull(),
+  views: integer("views").default(0),
+  likes: integer("likes").default(0),
+  comments: integer("comments").default(0),
+  shares: integer("shares").default(0),
+  unlocks: integer("unlocks").default(0), // For paid posts
+  watchTimeSeconds: integer("watch_time_seconds").default(0), // For videos
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// User Follows (for following creators without subscribing)
+export const userFollows = pgTable("user_follows", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  followerId: varchar("follower_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  notificationsEnabled: boolean("notifications_enabled").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Age Verifications (VerifyMy integration cache)
+export const ageVerifications = pgTable("age_verifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
+  provider: varchar("provider").default("verifymyage"), // verifymyage, manual, etc.
+  isVerified: boolean("is_verified").default(false),
+  verifiedAt: timestamp("verified_at"),
+  verificationToken: varchar("verification_token"),
+  dateOfBirth: timestamp("date_of_birth"),
+  documentType: varchar("document_type"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Sponsored Posts / Ads
+export const sponsoredPosts = pgTable("sponsored_posts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  mediaUrl: varchar("media_url"),
+  clickUrl: varchar("click_url").notNull(),
+  isActive: boolean("is_active").default(true),
+  impressions: integer("impressions").default(0),
+  clicks: integer("clicks").default(0),
+  budget: integer("budget"), // in cents
+  spent: integer("spent").default(0), // in cents
+  targetAudience: jsonb("target_audience"), // Demographics, interests, etc.
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Post Likes (for tracking individual likes)
+export const postLikes = pgTable("post_likes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  postId: varchar("post_id").references(() => feedPosts.id, { onDelete: "cascade" }).notNull(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Post Unlocks (tracking paid post purchases)
+export const postUnlocks = pgTable("post_unlocks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  postId: varchar("post_id").references(() => feedPosts.id, { onDelete: "cascade" }).notNull(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  transactionId: varchar("transaction_id").references(() => transactions.id),
+  paidAmount: integer("paid_amount"), // in cents
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   profile: one(profiles, { fields: [users.id], references: [profiles.userId] }),
@@ -387,6 +503,8 @@ export type Tutorial = typeof tutorials.$inferSelect;
 export type InsertTutorial = typeof tutorials.$inferInsert;
 export type TutorialStep = typeof tutorialSteps.$inferSelect;
 export type TutorialProgress = typeof tutorialProgress.$inferSelect;
+export type KycVerification = typeof kycVerifications.$inferSelect;
+export type InsertKycVerification = typeof kycVerifications.$inferInsert;
 
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -640,6 +758,56 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertSupportTicketForm = z.infer<typeof insertSupportTicketSchema>;
 export type InsertKnowledgeArticleForm = z.infer<typeof insertKnowledgeArticleSchema>;
 export type InsertTutorialForm = z.infer<typeof insertTutorialSchema>;
+
+// ====================================
+// INFINITY SCROLL FEED - Zod Schemas
+// ====================================
+
+export const insertFeedPostSchema = createInsertSchema(feedPosts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPostMediaSchema = createInsertSchema(postMedia).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSponsoredPostSchema = createInsertSchema(sponsoredPosts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  impressions: true,
+  clicks: true,
+  spent: true,
+});
+
+export const insertUserFollowSchema = createInsertSchema(userFollows).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAgeVerificationSchema = createInsertSchema(ageVerifications).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Feed Type Exports
+export type FeedPost = typeof feedPosts.$inferSelect;
+export type InsertFeedPost = z.infer<typeof insertFeedPostSchema>;
+export type PostMedia = typeof postMedia.$inferSelect;
+export type InsertPostMedia = z.infer<typeof insertPostMediaSchema>;
+export type PostEngagement = typeof postEngagement.$inferSelect;
+export type SponsoredPost = typeof sponsoredPosts.$inferSelect;
+export type InsertSponsoredPost = z.infer<typeof insertSponsoredPostSchema>;
+export type UserFollow = typeof userFollows.$inferSelect;
+export type InsertUserFollow = z.infer<typeof insertUserFollowSchema>;
+export type AgeVerification = typeof ageVerifications.$inferSelect;
+export type InsertAgeVerification = z.infer<typeof insertAgeVerificationSchema>;
+export type PostLike = typeof postLikes.$inferSelect;
+export type PostUnlock = typeof postUnlocks.$inferSelect;
 
 // ====================================
 // FanzTrust™ API Response Types
