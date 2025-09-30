@@ -1337,5 +1337,332 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ====================================
+  // FanzTrust™ API Routes
+  // ====================================
+
+  // Transaction Verification
+  app.post('/api/fanztrust/verify-transaction', async (req, res) => {
+    try {
+      const { fanId, creatorId, gateway, txid, email, walletAddress, last4 } = req.body;
+      
+      // Verify transaction exists in database
+      const transaction = await storage.verifyTransaction({
+        fanId,
+        creatorId,
+        gateway,
+        txid,
+        email,
+        walletAddress,
+        last4
+      });
+      
+      if (transaction) {
+        res.json({
+          status: 'verified',
+          active: transaction.status === 'completed',
+          transaction: {
+            id: transaction.id,
+            amount: transaction.amount,
+            currency: transaction.currency,
+            createdAt: transaction.createdAt,
+            subscriptionId: transaction.subscriptionId
+          }
+        });
+      } else {
+        res.json({
+          status: 'not_found',
+          active: false
+        });
+      }
+    } catch (error) {
+      console.error('Error verifying transaction:', error);
+      res.status(500).json({ error: 'Failed to verify transaction' });
+    }
+  });
+
+  // Request Refund
+  app.post('/api/fanztrust/request-refund', isAuthenticated, async (req: any, res) => {
+    try {
+      const fanId = req.user.claims.sub;
+      const { transactionId, creatorId, reason } = req.body;
+      
+      // Verify transaction belongs to fan
+      const transaction = await storage.getTransaction(transactionId);
+      if (!transaction || transaction.fanId !== fanId) {
+        return res.status(403).json({ error: 'Invalid transaction' });
+      }
+      
+      // Check if refund already exists
+      const existingRefund = await storage.getRefundByTransaction(transactionId);
+      if (existingRefund) {
+        return res.status(400).json({ error: 'Refund already requested' });
+      }
+      
+      // Get creator's refund policy
+      const policy = await storage.getCreatorRefundPolicy(creatorId);
+      
+      // Auto-approve logic
+      const minutesSincePurchase = (Date.now() - new Date(transaction.createdAt!).getTime()) / (1000 * 60);
+      const timeLimit = policy?.autoApproveTimeLimit || 60;
+      const shouldAutoApprove = 
+        policy?.autoApproveEnabled !== false &&
+        minutesSincePurchase < timeLimit &&
+        !transaction.contentAccessed;
+      
+      // Create refund request
+      const refundRequest = await storage.createRefundRequest({
+        transactionId,
+        fanId,
+        creatorId,
+        reason,
+        amount: transaction.amount,
+        status: shouldAutoApprove ? 'auto_approved' : 'pending',
+        isAutoApproved: shouldAutoApprove,
+        ipAddress: req.ip,
+        deviceFingerprint: req.headers['user-agent']
+      });
+      
+      // Log audit
+      await storage.createTrustAuditLog({
+        action: 'request_refund',
+        performedBy: fanId,
+        transactionId,
+        refundId: refundRequest.id,
+        result: shouldAutoApprove ? 'auto_approved' : 'pending',
+        ipAddress: req.ip
+      });
+      
+      res.json({ 
+        refund: refundRequest,
+        autoApproved: shouldAutoApprove
+      });
+    } catch (error) {
+      console.error('Error requesting refund:', error);
+      res.status(500).json({ error: 'Failed to request refund' });
+    }
+  });
+
+  // Get Refund Requests (Creator)
+  app.get('/api/fanztrust/refunds/creator', isAuthenticated, async (req: any, res) => {
+    try {
+      const creatorId = req.user.claims.sub;
+      const refunds = await storage.getCreatorRefundRequests(creatorId);
+      res.json({ refunds });
+    } catch (error) {
+      console.error('Error fetching creator refunds:', error);
+      res.status(500).json({ error: 'Failed to fetch refunds' });
+    }
+  });
+
+  // Approve/Deny Refund (Creator)
+  app.put('/api/fanztrust/refunds/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const creatorId = req.user.claims.sub;
+      const refundId = req.params.id;
+      const { action, reviewNotes } = req.body; // action: 'approve' | 'deny'
+      
+      const refund = await storage.getRefundRequest(refundId);
+      if (!refund || refund.creatorId !== creatorId) {
+        return res.status(403).json({ error: 'Invalid refund request' });
+      }
+      
+      const updatedRefund = await storage.updateRefundRequest(refundId, {
+        status: action === 'approve' ? 'approved' : 'denied',
+        reviewedBy: creatorId,
+        reviewNotes,
+        reviewedAt: new Date()
+      });
+      
+      // Log audit
+      await storage.createTrustAuditLog({
+        action: action === 'approve' ? 'approve_refund' : 'deny_refund',
+        performedBy: creatorId,
+        refundId,
+        result: action,
+        ipAddress: req.ip
+      });
+      
+      res.json({ refund: updatedRefund });
+    } catch (error) {
+      console.error('Error updating refund:', error);
+      res.status(500).json({ error: 'Failed to update refund' });
+    }
+  });
+
+  // FanzWallet - Get Wallet
+  app.get('/api/fanzwallet', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      let wallet = await storage.getFanzWallet(userId);
+      
+      // Create wallet if doesn't exist
+      if (!wallet) {
+        wallet = await storage.createFanzWallet({ userId });
+      }
+      
+      res.json({ wallet });
+    } catch (error) {
+      console.error('Error fetching wallet:', error);
+      res.status(500).json({ error: 'Failed to fetch wallet' });
+    }
+  });
+
+  // FanzWallet - Get Transactions
+  app.get('/api/fanzwallet/transactions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const wallet = await storage.getFanzWallet(userId);
+      
+      if (!wallet) {
+        return res.status(404).json({ error: 'Wallet not found' });
+      }
+      
+      const transactions = await storage.getWalletTransactions(wallet.id);
+      res.json({ transactions });
+    } catch (error) {
+      console.error('Error fetching wallet transactions:', error);
+      res.status(500).json({ error: 'Failed to fetch transactions' });
+    }
+  });
+
+  // FanzWallet - Deposit/Withdrawal
+  app.post('/api/fanzwallet/transaction', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { type, amount, currency, description } = req.body;
+      
+      const wallet = await storage.getFanzWallet(userId);
+      if (!wallet) {
+        return res.status(404).json({ error: 'Wallet not found' });
+      }
+      
+      // Create wallet transaction
+      const transaction = await storage.createWalletTransaction({
+        walletId: wallet.id,
+        type,
+        amount,
+        currency: currency || 'FANZ',
+        description,
+        status: 'pending'
+      });
+      
+      // Update wallet balances based on type
+      if (type === 'deposit' && transaction.status === 'completed') {
+        await storage.updateFanzWallet(wallet.id, {
+          fanzTokenBalance: wallet.fanzTokenBalance + amount,
+          totalDeposited: wallet.totalDeposited + amount
+        });
+      }
+      
+      res.json({ transaction });
+    } catch (error) {
+      console.error('Error processing wallet transaction:', error);
+      res.status(500).json({ error: 'Failed to process transaction' });
+    }
+  });
+
+  // Trust Score - Get Fan Trust Score
+  app.get('/api/fanztrust/score/:fanId', async (req, res) => {
+    try {
+      const fanId = req.params.fanId;
+      let trustScore = await storage.getFanTrustScore(fanId);
+      
+      // Create trust score if doesn't exist
+      if (!trustScore) {
+        trustScore = await storage.createFanTrustScore({ fanId });
+      }
+      
+      res.json({ trustScore });
+    } catch (error) {
+      console.error('Error fetching trust score:', error);
+      res.status(500).json({ error: 'Failed to fetch trust score' });
+    }
+  });
+
+  // Admin - Get All Refunds
+  app.get('/api/fanztrust/admin/refunds', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+      
+      const refunds = await storage.getAllRefundRequests();
+      res.json({ refunds });
+    } catch (error) {
+      console.error('Error fetching all refunds:', error);
+      res.status(500).json({ error: 'Failed to fetch refunds' });
+    }
+  });
+
+  // Admin - Override Refund
+  app.post('/api/fanztrust/admin/refunds/:id/override', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const user = await storage.getUser(adminId);
+      
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+      
+      const refundId = req.params.id;
+      const { action, notes } = req.body;
+      
+      const updatedRefund = await storage.updateRefundRequest(refundId, {
+        status: action === 'approve' ? 'approved' : 'denied',
+        reviewedBy: adminId,
+        reviewNotes: `[ADMIN OVERRIDE] ${notes}`,
+        reviewedAt: new Date()
+      });
+      
+      // Log audit
+      await storage.createTrustAuditLog({
+        action: 'admin_override_refund',
+        performedBy: adminId,
+        refundId,
+        result: action,
+        ipAddress: req.ip,
+        details: { notes }
+      });
+      
+      res.json({ refund: updatedRefund });
+    } catch (error) {
+      console.error('Error overriding refund:', error);
+      res.status(500).json({ error: 'Failed to override refund' });
+    }
+  });
+
+  // Creator Refund Policy
+  app.get('/api/fanztrust/policy', isAuthenticated, async (req: any, res) => {
+    try {
+      const creatorId = req.user.claims.sub;
+      let policy = await storage.getCreatorRefundPolicy(creatorId);
+      
+      if (!policy) {
+        policy = await storage.createCreatorRefundPolicy({ creatorId });
+      }
+      
+      res.json({ policy });
+    } catch (error) {
+      console.error('Error fetching refund policy:', error);
+      res.status(500).json({ error: 'Failed to fetch policy' });
+    }
+  });
+
+  app.put('/api/fanztrust/policy', isAuthenticated, async (req: any, res) => {
+    try {
+      const creatorId = req.user.claims.sub;
+      const policyData = req.body;
+      
+      const policy = await storage.updateCreatorRefundPolicy(creatorId, policyData);
+      res.json({ policy });
+    } catch (error) {
+      console.error('Error updating refund policy:', error);
+      res.status(500).json({ error: 'Failed to update policy' });
+    }
+  });
+
   return httpServer;
 }
