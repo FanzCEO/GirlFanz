@@ -38,9 +38,18 @@ const postFormSchema = insertFeedPostSchema.omit({
 
 type PostFormValues = z.infer<typeof postFormSchema>;
 
+interface MediaFile {
+  id: string;
+  file: File;
+  preview: string;
+  type: 'image' | 'video';
+}
+
 export function PostComposer() {
   const { toast } = useToast();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   const form = useForm<PostFormValues>({
     resolver: zodResolver(postFormSchema),
@@ -56,6 +65,50 @@ export function PostComposer() {
       isPublished: true,
     },
   });
+
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    const newFiles = acceptedFiles.map(file => ({
+      id: Math.random().toString(36).substring(7),
+      file,
+      preview: URL.createObjectURL(file),
+      type: file.type.startsWith('video/') ? 'video' as const : 'image' as const
+    }));
+    
+    setMediaFiles(prev => [...prev, ...newFiles]);
+    
+    // Auto-set post type based on media
+    if (newFiles.length > 0) {
+      const hasVideo = newFiles.some(f => f.type === 'video');
+      const hasImage = newFiles.some(f => f.type === 'image');
+      if (hasVideo && hasImage) {
+        form.setValue('type', 'mixed');
+      } else if (hasVideo) {
+        form.setValue('type', 'video');
+      } else {
+        form.setValue('type', 'image');
+      }
+    }
+  }, [form]);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'],
+      'video/*': ['.mp4', '.webm', '.mov']
+    },
+    maxSize: 100 * 1024 * 1024, // 100MB
+    multiple: true
+  });
+
+  const removeMedia = (id: string) => {
+    setMediaFiles(prev => {
+      const filtered = prev.filter(f => f.id !== id);
+      // Revoke object URL to free memory
+      const removed = prev.find(f => f.id === id);
+      if (removed) URL.revokeObjectURL(removed.preview);
+      return filtered;
+    });
+  };
 
   const createPostMutation = useMutation({
     mutationFn: async (data: PostFormValues) => {
