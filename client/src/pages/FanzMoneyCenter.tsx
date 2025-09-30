@@ -340,7 +340,7 @@ export default function FanzMoneyCenter() {
                     <div className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 p-6 rounded-lg border border-purple-500/30">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-bold" data-testid="text-wallet-type">
-                          {(wallet as any).type?.toUpperCase() || 'MAIN'} Wallet
+                          {wallet.type?.toUpperCase() || 'MAIN'} Wallet
                         </h3>
                         <Badge variant="default" data-testid="badge-wallet-status">Active</Badge>
                       </div>
@@ -348,30 +348,30 @@ export default function FanzMoneyCenter() {
                         <div>
                           <p className="text-xs text-gray-400">FanzCoin</p>
                           <p className="text-xl font-bold text-cyan-500" data-testid="text-wallet-fanzcoin">
-                            {(wallet as any).fanzCoin?.toFixed(2) || '0.00'}
+                            {wallet.fanzCoin?.toFixed(2) || '0.00'}
                           </p>
                         </div>
                         <div>
                           <p className="text-xs text-gray-400">FanzToken</p>
                           <p className="text-xl font-bold text-purple-500" data-testid="text-wallet-fanztoken">
-                            {(wallet as any).fanzToken?.toFixed(2) || '0.00'}
+                            {wallet.fanzToken?.toFixed(2) || '0.00'}
                           </p>
                         </div>
                         <div>
                           <p className="text-xs text-gray-400">FanzCredit</p>
                           <p className="text-xl font-bold text-pink-500" data-testid="text-wallet-fanzcredit">
-                            ${(wallet as any).fanzCredit?.toFixed(2) || '0.00'}
+                            ${wallet.fanzCredit?.toFixed(2) || '0.00'}
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    {(wallet as any).walletAddress && (
+                    {wallet.walletAddress && (
                       <div className="bg-gray-800/50 p-4 rounded-lg">
                         <p className="text-xs text-gray-400 mb-1">Wallet Address</p>
                         <div className="flex items-center gap-2">
                           <code className="text-sm font-mono" data-testid="text-wallet-address">
-                            {(wallet as any).walletAddress}
+                            {wallet.walletAddress}
                           </code>
                           <Button size="sm" variant="ghost" data-testid="button-copy-address">
                             <ExternalLink className="h-3 w-3" />
@@ -410,9 +410,9 @@ export default function FanzMoneyCenter() {
                     <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2" />
                     <p className="text-gray-400">Loading transactions...</p>
                   </div>
-                ) : transactions && Array.isArray(transactions) && transactions.length > 0 ? (
+                ) : transactions && transactions.length > 0 ? (
                   <div className="space-y-3">
-                    {(transactions as any[]).map((tx: any) => (
+                    {transactions.map((tx) => (
                       <div 
                         key={tx.id} 
                         className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg hover:bg-gray-800 transition-colors"
@@ -499,10 +499,10 @@ export default function FanzMoneyCenter() {
                   </Button>
                 </div>
 
-                {(wallet as any)?.cryptoWallets && Array.isArray((wallet as any).cryptoWallets) && (wallet as any).cryptoWallets.length > 0 ? (
+                {wallet?.cryptoWallets && wallet.cryptoWallets.length > 0 ? (
                   <div className="space-y-3 mt-6">
                     <h4 className="font-medium">Connected Wallets</h4>
-                    {((wallet as any).cryptoWallets as any[]).map((crypto: any, index: number) => (
+                    {wallet.cryptoWallets.map((crypto, index) => (
                       <div 
                         key={index}
                         className="p-4 bg-gray-800/50 rounded-lg flex items-center justify-between"
