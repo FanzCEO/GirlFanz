@@ -133,8 +133,8 @@ export const validateFile = (file: File, options: {
 };
 
 // Form validation helper
-export const createValidator = <T extends Record<string, any>>(
-  rules: Record<keyof T, (value: any) => string | null>
+export const createValidator = <T extends Record<string, unknown>>(
+  rules: Record<keyof T, (value: unknown) => string | null>
 ) => {
   return (data: T): { isValid: boolean; errors: Partial<Record<keyof T, string>> } => {
     const errors: Partial<Record<keyof T, string>> = {};

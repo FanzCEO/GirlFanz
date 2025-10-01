@@ -549,32 +549,6 @@ export const vrContent = pgTable("vr_content", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Creator Payouts
-export const payoutAccounts = pgTable("payout_accounts", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
-  provider: varchar("provider").notNull(), // stripe, paypal, crypto
-  accountId: varchar("account_id").notNull(),
-  isDefault: boolean("is_default").default(false),
-  isVerified: boolean("is_verified").default(false),
-  metadata: jsonb("metadata"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-export const payoutRequests = pgTable("payout_requests", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
-  accountId: varchar("account_id").references(() => payoutAccounts.id),
-  status: payoutStatusEnum("status").default("pending"),
-  amountCents: integer("amount_cents").notNull(),
-  currency: varchar("currency").default("USD"),
-  provider: varchar("provider").notNull(),
-  providerPayoutId: varchar("provider_payout_id"),
-  processedAt: timestamp("processed_at"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   profile: one(profiles, { fields: [users.id], references: [profiles.userId] }),

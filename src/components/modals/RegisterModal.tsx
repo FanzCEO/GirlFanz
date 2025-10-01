@@ -371,7 +371,7 @@ export const RegisterModal: React.FC = () => {
                   disabled={isLoading}
                 />
                 <span className="text-sm text-gray-300">
-                  I'd like to receive updates and marketing communications (optional)
+                  I&apos;d like to receive updates and marketing communications (optional)
                 </span>
               </label>
             </div>
