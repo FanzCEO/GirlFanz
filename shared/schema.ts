@@ -43,6 +43,14 @@ export const distributionStatusEnum = pgEnum("distribution_status", ["scheduled"
 export const socialPlatformEnum = pgEnum("social_platform", ["instagram", "tiktok", "twitter", "snapchat", "youtube"]);
 export const aspectRatioEnum = pgEnum("aspect_ratio", ["9:16", "16:9", "1:1", "4:5"]);
 
+// NFT-related enums
+export const nftStandardEnum = pgEnum("nft_standard", ["ERC721", "ERC1155"]);
+export const nftStatusEnum = pgEnum("nft_status", ["draft", "minting", "minted", "listed", "sold", "transferred", "burned"]);
+export const blockchainEnum = pgEnum("blockchain", ["ethereum", "polygon", "solana", "binance"]);
+export const royaltyTypeEnum = pgEnum("royalty_type", ["fixed", "decaying", "tiered"]);
+export const nftTransactionTypeEnum = pgEnum("nft_transaction_type", ["mint", "sale", "transfer", "royalty", "burn"]);
+export const marketplaceEnum = pgEnum("marketplace", ["internal", "opensea", "rarible", "looksrare", "x2y2"]);
+
 // User storage table
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1126,6 +1134,180 @@ export const liveStreamCoStars = pgTable("live_stream_co_stars", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// ====================================
+// NFT & BLOCKCHAIN SYSTEM
+// ====================================
+
+// Blockchain Wallets
+export const blockchainWallets = pgTable("blockchain_wallets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  address: varchar("address").notNull().unique(),
+  blockchain: blockchainEnum("blockchain").default("ethereum"),
+  isDefault: boolean("is_default").default(false),
+  nonce: varchar("nonce"), // For signature verification
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// NFT Collections
+export const nftCollections = pgTable("nft_collections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  name: varchar("name").notNull(),
+  symbol: varchar("symbol"),
+  description: text("description"),
+  contractAddress: varchar("contract_address").unique(),
+  blockchain: blockchainEnum("blockchain").default("ethereum"),
+  standard: nftStandardEnum("standard").default("ERC721"),
+  maxSupply: integer("max_supply"),
+  mintedSupply: integer("minted_supply").default(0),
+  baseUri: varchar("base_uri"), // IPFS base URI for metadata
+  coverImageUrl: varchar("cover_image_url"),
+  bannerImageUrl: varchar("banner_image_url"),
+  royaltyBasisPoints: integer("royalty_basis_points").default(750), // 7.5% default
+  royaltyReceiver: varchar("royalty_receiver"), // Wallet address for royalties
+  isDeployed: boolean("is_deployed").default(false),
+  deployedAt: timestamp("deployed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// NFT Tokens
+export const nftTokens = pgTable("nft_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  collectionId: varchar("collection_id").references(() => nftCollections.id, { onDelete: "cascade" }).notNull(),
+  ownerId: varchar("owner_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  contentId: varchar("content_id").references(() => mediaAssets.id), // Link to existing content
+  tokenId: integer("token_id"), // On-chain token ID
+  name: varchar("name").notNull(),
+  description: text("description"),
+  status: nftStatusEnum("status").default("draft"),
+  metadataUri: varchar("metadata_uri"), // IPFS URI for metadata
+  imageUri: varchar("image_uri"), // IPFS URI for image/video
+  attributes: jsonb("attributes"), // NFT attributes/traits
+  priceInWei: varchar("price_in_wei"), // BigInt as string
+  priceInUsd: integer("price_in_usd"), // USD cents for display
+  isListedForSale: boolean("is_listed_for_sale").default(false),
+  listingPrice: varchar("listing_price"), // Wei as string
+  marketplaces: text("marketplaces").array(), // ["opensea", "rarible", etc]
+  txHash: varchar("tx_hash"), // Minting transaction hash
+  views: integer("views").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  mintedAt: timestamp("minted_at"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// NFT Transactions
+export const nftTransactions = pgTable("nft_transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tokenId: varchar("token_id").references(() => nftTokens.id, { onDelete: "cascade" }).notNull(),
+  fromUserId: varchar("from_user_id").references(() => users.id),
+  toUserId: varchar("to_user_id").references(() => users.id),
+  fromAddress: varchar("from_address").notNull(),
+  toAddress: varchar("to_address").notNull(),
+  type: nftTransactionTypeEnum("type").notNull(),
+  priceInWei: varchar("price_in_wei"), // Transaction amount in wei
+  priceInUsd: integer("price_in_usd"), // USD cents at time of transaction
+  gasUsed: varchar("gas_used"),
+  gasPrice: varchar("gas_price"),
+  txHash: varchar("tx_hash").notNull().unique(),
+  blockNumber: integer("block_number"),
+  blockchain: blockchainEnum("blockchain").default("ethereum"),
+  marketplace: marketplaceEnum("marketplace"),
+  metadata: jsonb("metadata"), // Additional transaction data
+  status: varchar("status").default("pending"), // pending, confirmed, failed
+  createdAt: timestamp("created_at").defaultNow(),
+  confirmedAt: timestamp("confirmed_at"),
+});
+
+// Royalty Distributions
+export const royaltyDistributions = pgTable("royalty_distributions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  transactionId: varchar("transaction_id").references(() => nftTransactions.id, { onDelete: "cascade" }).notNull(),
+  tokenId: varchar("token_id").references(() => nftTokens.id, { onDelete: "cascade" }).notNull(),
+  recipientId: varchar("recipient_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  recipientAddress: varchar("recipient_address").notNull(),
+  recipientType: varchar("recipient_type").notNull(), // creator, co-star, platform
+  amountInWei: varchar("amount_in_wei").notNull(),
+  amountInUsd: integer("amount_in_usd"), // USD cents
+  percentage: integer("percentage"), // Basis points (e.g., 250 = 2.5%)
+  royaltyType: royaltyTypeEnum("royalty_type").default("fixed"),
+  distributedAt: timestamp("distributed_at"),
+  txHash: varchar("tx_hash"),
+  status: varchar("status").default("pending"), // pending, distributed, failed
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// NFT Royalty Rules (for complex royalty structures)
+export const nftRoyaltyRules = pgTable("nft_royalty_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  collectionId: varchar("collection_id").references(() => nftCollections.id, { onDelete: "cascade" }),
+  tokenId: varchar("token_id").references(() => nftTokens.id, { onDelete: "cascade" }),
+  recipientId: varchar("recipient_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  recipientAddress: varchar("recipient_address").notNull(),
+  recipientType: varchar("recipient_type").notNull(), // creator, co-star, platform
+  percentage: integer("percentage").notNull(), // Basis points
+  royaltyType: royaltyTypeEnum("royalty_type").default("fixed"),
+  decayRate: integer("decay_rate"), // For decaying royalties (basis points per transfer)
+  minPercentage: integer("min_percentage"), // Minimum percentage after decay
+  maxTransfers: integer("max_transfers"), // Max transfers before royalty expires
+  tierThreshold: integer("tier_threshold"), // For tiered royalties (e.g., after X sales)
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// IPFS Storage Records
+export const ipfsRecords = pgTable("ipfs_records", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  tokenId: varchar("token_id").references(() => nftTokens.id),
+  ipfsHash: varchar("ipfs_hash").notNull().unique(),
+  fileName: varchar("file_name"),
+  fileType: varchar("file_type"),
+  fileSize: integer("file_size"),
+  contentType: varchar("content_type"), // metadata, image, video, etc.
+  gateway: varchar("gateway").default("ipfs.io"), // Gateway used
+  isEncrypted: boolean("is_encrypted").default(false),
+  isPinned: boolean("is_pinned").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Marketplace Integration Settings
+export const marketplaceIntegrations = pgTable("marketplace_integrations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  marketplace: marketplaceEnum("marketplace").notNull(),
+  apiKey: varchar("api_key"), // Encrypted
+  apiSecret: varchar("api_secret"), // Encrypted
+  walletAddress: varchar("wallet_address"),
+  isActive: boolean("is_active").default(true),
+  autoList: boolean("auto_list").default(false),
+  defaultRoyaltyPercentage: integer("default_royalty_percentage").default(750), // Basis points
+  metadata: jsonb("metadata"), // Marketplace-specific settings
+  lastSyncedAt: timestamp("last_synced_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Blockchain Event Logs (for tracking blockchain events)
+export const blockchainEvents = pgTable("blockchain_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventName: varchar("event_name").notNull(), // Transfer, Sale, Mint, etc.
+  contractAddress: varchar("contract_address").notNull(),
+  tokenId: varchar("token_id"),
+  fromAddress: varchar("from_address"),
+  toAddress: varchar("to_address"),
+  txHash: varchar("tx_hash").notNull(),
+  blockNumber: integer("block_number").notNull(),
+  blockchain: blockchainEnum("blockchain").default("ethereum"),
+  eventData: jsonb("event_data"), // Raw event data
+  processed: boolean("processed").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Zod Schemas
 export const insertFanzTransactionSchema = createInsertSchema(fanzTransactions).omit({
   id: true,
@@ -1331,6 +1513,87 @@ export type GeneratedAsset = typeof generatedAssets.$inferSelect;
 export type InsertGeneratedAsset = z.infer<typeof insertGeneratedAssetSchema>;
 export type ContentAnalytics = typeof contentAnalytics.$inferSelect;
 export type InsertContentAnalytics = z.infer<typeof insertContentAnalyticsSchema>;
+
+// ====================================
+// NFT & BLOCKCHAIN - Zod Schemas & Types
+// ====================================
+
+export const insertBlockchainWalletSchema = createInsertSchema(blockchainWallets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertNftCollectionSchema = createInsertSchema(nftCollections).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  deployedAt: true,
+  mintedSupply: true,
+});
+
+export const insertNftTokenSchema = createInsertSchema(nftTokens).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  mintedAt: true,
+  views: true,
+});
+
+export const insertNftTransactionSchema = createInsertSchema(nftTransactions).omit({
+  id: true,
+  createdAt: true,
+  confirmedAt: true,
+});
+
+export const insertRoyaltyDistributionSchema = createInsertSchema(royaltyDistributions).omit({
+  id: true,
+  createdAt: true,
+  distributedAt: true,
+});
+
+export const insertNftRoyaltyRuleSchema = createInsertSchema(nftRoyaltyRules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertIpfsRecordSchema = createInsertSchema(ipfsRecords).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertMarketplaceIntegrationSchema = createInsertSchema(marketplaceIntegrations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastSyncedAt: true,
+});
+
+export const insertBlockchainEventSchema = createInsertSchema(blockchainEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+// NFT Type Exports
+export type BlockchainWallet = typeof blockchainWallets.$inferSelect;
+export type InsertBlockchainWallet = z.infer<typeof insertBlockchainWalletSchema>;
+export type NftCollection = typeof nftCollections.$inferSelect;
+export type InsertNftCollection = z.infer<typeof insertNftCollectionSchema>;
+export type NftToken = typeof nftTokens.$inferSelect;
+export type InsertNftToken = z.infer<typeof insertNftTokenSchema>;
+export type NftTransaction = typeof nftTransactions.$inferSelect;
+export type InsertNftTransaction = z.infer<typeof insertNftTransactionSchema>;
+export type RoyaltyDistribution = typeof royaltyDistributions.$inferSelect;
+export type InsertRoyaltyDistribution = z.infer<typeof insertRoyaltyDistributionSchema>;
+export type NftRoyaltyRule = typeof nftRoyaltyRules.$inferSelect;
+export type InsertNftRoyaltyRule = z.infer<typeof insertNftRoyaltyRuleSchema>;
+export type IpfsRecord = typeof ipfsRecords.$inferSelect;
+export type InsertIpfsRecord = z.infer<typeof insertIpfsRecordSchema>;
+export type MarketplaceIntegration = typeof marketplaceIntegrations.$inferSelect;
+export type InsertMarketplaceIntegration = z.infer<typeof insertMarketplaceIntegrationSchema>;
+export type BlockchainEvent = typeof blockchainEvents.$inferSelect;
+export type InsertBlockchainEvent = z.infer<typeof insertBlockchainEventSchema>;
 
 // ====================================
 // FanzTrust™ API Response Types

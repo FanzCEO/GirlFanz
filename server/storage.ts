@@ -49,6 +49,13 @@ import {
   streamRecordings,
   streamViewers,
   streamAnalytics,
+  nftCollections,
+  nftTokens,
+  nftTransactions,
+  royaltyDistributions,
+  blockchainWallets,
+  ipfsRecords,
+  marketplaceIntegrations,
   type User,
   type UpsertUser,
   type Profile,
@@ -372,6 +379,49 @@ export interface IStorage {
   createStreamAnalytics(analytics: any): Promise<any>;
   updateStreamAnalytics(streamId: string, updates: any): Promise<any>;
   getStreamAnalytics(streamId: string): Promise<any | undefined>;
+
+  // NFT Collection operations
+  getNftCollection(id: string): Promise<NftCollection | undefined>;
+  getNftCollectionsByCreator(creatorId: string): Promise<NftCollection[]>;
+  createNftCollection(collection: InsertNftCollection): Promise<NftCollection>;
+  updateNftCollection(id: string, updates: Partial<NftCollection>): Promise<NftCollection | undefined>;
+
+  // NFT Token operations  
+  getNftToken(id: string): Promise<NftToken | undefined>;
+  getNftTokensByOwner(ownerId: string): Promise<NftToken[]>;
+  getNftTokensByCollection(collectionId: string): Promise<NftToken[]>;
+  createNftToken(token: InsertNftToken): Promise<NftToken>;
+  updateNftToken(id: string, updates: Partial<NftToken>): Promise<NftToken | undefined>;
+
+  // NFT Transaction operations
+  getNftTransactionsByToken(tokenId: string): Promise<NftTransaction[]>;
+  getNftTransactionsByUser(userId: string): Promise<NftTransaction[]>;
+  createNftTransaction(transaction: InsertNftTransaction): Promise<NftTransaction>;
+  updateNftTransaction(id: string, updates: Partial<NftTransaction>): Promise<NftTransaction | undefined>;
+
+  // Blockchain Wallet operations
+  getBlockchainWallet(userId: string, blockchain?: string): Promise<BlockchainWallet | undefined>;
+  getBlockchainWalletsByUser(userId: string): Promise<BlockchainWallet[]>;
+  createBlockchainWallet(wallet: InsertBlockchainWallet): Promise<BlockchainWallet>;
+  updateBlockchainWallet(id: string, updates: Partial<BlockchainWallet>): Promise<BlockchainWallet | undefined>;
+
+  // Royalty Distribution operations
+  getRoyaltyDistributionsByToken(tokenId: string): Promise<RoyaltyDistribution[]>;
+  getRoyaltyDistributionsByRecipient(recipientId: string): Promise<RoyaltyDistribution[]>;
+  createRoyaltyDistribution(distribution: InsertRoyaltyDistribution): Promise<RoyaltyDistribution>;
+  updateRoyaltyDistribution(id: string, updates: Partial<RoyaltyDistribution>): Promise<RoyaltyDistribution | undefined>;
+
+  // IPFS Record operations
+  getIpfsRecordsByUser(userId: string): Promise<IpfsRecord[]>;
+  getIpfsRecordByHash(ipfsHash: string): Promise<IpfsRecord | undefined>;
+  createIpfsRecord(record: InsertIpfsRecord): Promise<IpfsRecord>;
+  updateIpfsRecord(id: string, updates: Partial<IpfsRecord>): Promise<IpfsRecord | undefined>;
+
+  // Marketplace Integration operations
+  getMarketplaceIntegration(userId: string, marketplace: string): Promise<MarketplaceIntegration | undefined>;
+  getMarketplaceIntegrationsByUser(userId: string): Promise<MarketplaceIntegration[]>;
+  createMarketplaceIntegration(integration: InsertMarketplaceIntegration): Promise<MarketplaceIntegration>;
+  updateMarketplaceIntegration(id: string, updates: Partial<MarketplaceIntegration>): Promise<MarketplaceIntegration | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
