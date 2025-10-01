@@ -36,6 +36,12 @@ export const moderationStatusEnum = pgEnum("moderation_status", ["pending", "app
 export const subscriptionStatusEnum = pgEnum("subscription_status", ["active", "cancelled", "expired", "suspended"]);
 export const transactionStatusEnum = pgEnum("transaction_status", ["pending", "completed", "failed", "refunded", "chargeback"]);
 export const paymentProviderEnum = pgEnum("payment_provider", ["ccbill", "segpay", "stripe"]);
+export const contentStatusEnum = pgEnum("content_status", ["draft", "processing", "ready", "published", "archived"]);
+export const contentTypeEnum = pgEnum("content_type", ["video", "image", "live_stream", "audio", "gif"]);
+export const editingStatusEnum = pgEnum("editing_status", ["pending", "processing", "completed", "failed"]);
+export const distributionStatusEnum = pgEnum("distribution_status", ["scheduled", "publishing", "published", "failed", "cancelled"]);
+export const socialPlatformEnum = pgEnum("social_platform", ["instagram", "tiktok", "twitter", "snapchat", "youtube"]);
+export const aspectRatioEnum = pgEnum("aspect_ratio", ["9:16", "16:9", "1:1", "4:5"]);
 
 // User storage table
 export const users = pgTable("users", {
@@ -841,6 +847,156 @@ export const creatorRefundPolicies = pgTable("creator_refund_policies", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// ====================================
+// CONTENT CREATION & DISTRIBUTION SYSTEM
+// ====================================
+
+// Content Creation Sessions
+export const contentCreationSessions = pgTable("content_creation_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  title: varchar("title"),
+  description: text("description"),
+  type: contentTypeEnum("type").notNull(),
+  status: contentStatusEnum("status").default("draft"),
+  sourceType: varchar("source_type").notNull(), // camera, upload, live_stream, screen_record
+  originalFileUrl: varchar("original_file_url"),
+  originalFileSize: integer("original_file_size"),
+  originalDuration: integer("original_duration"), // in seconds
+  originalDimensions: jsonb("original_dimensions"), // {width, height}
+  metadata: jsonb("metadata"), // camera settings, filters applied, etc.
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// AI Editing Tasks
+export const editingTasks = pgTable("editing_tasks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").references(() => contentCreationSessions.id, { onDelete: "cascade" }).notNull(),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  status: editingStatusEnum("status").default("pending"),
+  editingOptions: jsonb("editing_options"), // {autoCut, addBranding, addIntro, addOutro, stabilize, etc.}
+  aiSuggestions: jsonb("ai_suggestions"), // AI-suggested edits
+  progress: integer("progress").default(0), // 0-100
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+});
+
+// Generated Content Versions (multiple aspect ratios, formats)
+export const contentVersions = pgTable("content_versions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").references(() => contentCreationSessions.id, { onDelete: "cascade" }).notNull(),
+  editingTaskId: varchar("editing_task_id").references(() => editingTasks.id),
+  aspectRatio: aspectRatioEnum("aspect_ratio").notNull(),
+  format: varchar("format").notNull(), // mp4, webm, gif, jpg
+  resolution: varchar("resolution"), // 1080p, 720p, etc.
+  fileUrl: varchar("file_url").notNull(),
+  thumbnailUrl: varchar("thumbnail_url"),
+  fileSize: integer("file_size"),
+  duration: integer("duration"), // in seconds
+  dimensions: jsonb("dimensions"), // {width, height}
+  isProcessed: boolean("is_processed").default(false),
+  metadata: jsonb("metadata"), // encoding details, bitrate, etc.
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Distribution Campaigns
+export const distributionCampaigns = pgTable("distribution_campaigns", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").references(() => contentCreationSessions.id, { onDelete: "cascade" }).notNull(),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  name: varchar("name"),
+  status: distributionStatusEnum("status").default("scheduled"),
+  platforms: text("platforms").array(), // ["instagram", "tiktok", "twitter"]
+  publishSchedule: jsonb("publish_schedule"), // {immediate: true, scheduledTime: date, timezone: string}
+  distributionSettings: jsonb("distribution_settings"), // {autoHashtags, captions, mentions, etc.}
+  qrCodeUrl: varchar("qr_code_url"),
+  smartLinkUrl: varchar("smart_link_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  scheduledAt: timestamp("scheduled_at"),
+  publishedAt: timestamp("published_at"),
+});
+
+// Platform Distribution Tasks
+export const platformDistributions = pgTable("platform_distributions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  campaignId: varchar("campaign_id").references(() => distributionCampaigns.id, { onDelete: "cascade" }).notNull(),
+  contentVersionId: varchar("content_version_id").references(() => contentVersions.id).notNull(),
+  platform: socialPlatformEnum("platform").notNull(),
+  status: varchar("status").default("pending"), // pending, publishing, published, failed
+  platformPostId: varchar("platform_post_id"), // ID from the social platform
+  platformUrl: varchar("platform_url"), // Link to the post on the platform
+  caption: text("caption"),
+  hashtags: text("hashtags").array(),
+  mentions: text("mentions").array(),
+  errorMessage: text("error_message"),
+  platformMetrics: jsonb("platform_metrics"), // views, likes, shares from platform
+  createdAt: timestamp("created_at").defaultNow(),
+  publishedAt: timestamp("published_at"),
+});
+
+// Content Analytics
+export const contentAnalytics = pgTable("content_analytics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").references(() => contentCreationSessions.id, { onDelete: "cascade" }).notNull(),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  totalViews: integer("total_views").default(0),
+  totalLikes: integer("total_likes").default(0),
+  totalShares: integer("total_shares").default(0),
+  totalComments: integer("total_comments").default(0),
+  totalRevenue: integer("total_revenue").default(0), // in cents
+  avgWatchTime: integer("avg_watch_time").default(0), // in seconds
+  clickThroughRate: integer("click_through_rate").default(0), // percentage
+  conversionRate: integer("conversion_rate").default(0), // percentage
+  demographicsData: jsonb("demographics_data"), // age, gender, location breakdown
+  platformBreakdown: jsonb("platform_breakdown"), // metrics per platform
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// AI-Generated Assets (trailers, GIFs, highlights)
+export const generatedAssets = pgTable("generated_assets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").references(() => contentCreationSessions.id, { onDelete: "cascade" }).notNull(),
+  assetType: varchar("asset_type").notNull(), // trailer, gif, highlight, thumbnail
+  fileUrl: varchar("file_url").notNull(),
+  thumbnailUrl: varchar("thumbnail_url"),
+  duration: integer("duration"), // in seconds for video assets
+  fileSize: integer("file_size"),
+  metadata: jsonb("metadata"), // generation settings, AI parameters
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Creator Studio Settings
+export const creatorStudioSettings = pgTable("creator_studio_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
+  defaultBranding: jsonb("default_branding"), // logo, watermark, brand colors
+  defaultIntroUrl: varchar("default_intro_url"),
+  defaultOutroUrl: varchar("default_outro_url"),
+  autoEditingEnabled: boolean("auto_editing_enabled").default(true),
+  autoDistributionEnabled: boolean("auto_distribution_enabled").default(false),
+  preferredPlatforms: text("preferred_platforms").array(),
+  defaultHashtags: text("default_hashtags").array(),
+  aiPricingSuggestions: boolean("ai_pricing_suggestions").default(true),
+  defaultPricePerView: integer("default_price_per_view"), // in cents
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Live Stream Co-Star Verification
+export const liveStreamCoStars = pgTable("live_stream_co_stars", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  streamId: varchar("stream_id").references(() => liveStreams.id, { onDelete: "cascade" }).notNull(),
+  coStarId: varchar("co_star_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  verificationStatus: kycStatusEnum("verification_status").default("pending"),
+  verifiedAt: timestamp("verified_at"),
+  joinedAt: timestamp("joined_at"),
+  leftAt: timestamp("left_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Zod Schemas
 export const insertFanzTransactionSchema = createInsertSchema(fanzTransactions).omit({
   id: true,
@@ -977,6 +1133,75 @@ export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;
 export type ContentInteraction = typeof contentInteractions.$inferSelect;
 export type VrContent = typeof vrContent.$inferSelect;
 export type InsertVrContent = z.infer<typeof insertVrContentSchema>;
+
+// ====================================
+// CONTENT CREATION - Zod Schemas & Types
+// ====================================
+
+export const insertContentCreationSessionSchema = createInsertSchema(contentCreationSessions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertEditingTaskSchema = createInsertSchema(editingTasks).omit({
+  id: true,
+  createdAt: true,
+  startedAt: true,
+  completedAt: true,
+  progress: true,
+});
+
+export const insertContentVersionSchema = createInsertSchema(contentVersions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertDistributionCampaignSchema = createInsertSchema(distributionCampaigns).omit({
+  id: true,
+  createdAt: true,
+  publishedAt: true,
+});
+
+export const insertPlatformDistributionSchema = createInsertSchema(platformDistributions).omit({
+  id: true,
+  createdAt: true,
+  publishedAt: true,
+});
+
+export const insertCreatorStudioSettingsSchema = createInsertSchema(creatorStudioSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertGeneratedAssetSchema = createInsertSchema(generatedAssets).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertContentAnalyticsSchema = createInsertSchema(contentAnalytics).omit({
+  id: true,
+  updatedAt: true,
+});
+
+// Content Creation Type Exports
+export type ContentCreationSession = typeof contentCreationSessions.$inferSelect;
+export type InsertContentCreationSession = z.infer<typeof insertContentCreationSessionSchema>;
+export type EditingTask = typeof editingTasks.$inferSelect;
+export type InsertEditingTask = z.infer<typeof insertEditingTaskSchema>;
+export type ContentVersion = typeof contentVersions.$inferSelect;
+export type InsertContentVersion = z.infer<typeof insertContentVersionSchema>;
+export type DistributionCampaign = typeof distributionCampaigns.$inferSelect;
+export type InsertDistributionCampaign = z.infer<typeof insertDistributionCampaignSchema>;
+export type PlatformDistribution = typeof platformDistributions.$inferSelect;
+export type InsertPlatformDistribution = z.infer<typeof insertPlatformDistributionSchema>;
+export type CreatorStudioSettings = typeof creatorStudioSettings.$inferSelect;
+export type InsertCreatorStudioSettings = z.infer<typeof insertCreatorStudioSettingsSchema>;
+export type GeneratedAsset = typeof generatedAssets.$inferSelect;
+export type InsertGeneratedAsset = z.infer<typeof insertGeneratedAssetSchema>;
+export type ContentAnalytics = typeof contentAnalytics.$inferSelect;
+export type InsertContentAnalytics = z.infer<typeof insertContentAnalyticsSchema>;
 
 // ====================================
 // FanzTrust™ API Response Types

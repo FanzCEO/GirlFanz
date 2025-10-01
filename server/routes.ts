@@ -26,6 +26,9 @@ import { createCCBillService } from "./payments/ccbill";
 import { verifymyService } from "./compliance/verifymy";
 import { contentFingerprintingService } from "./services/fingerprinting";
 import { creatorPayoutService } from "./services/payouts";
+import { contentCreationService } from "./services/content-creation";
+import { aiEditorService } from "./services/ai-editor";
+import { distributionService } from "./services/distribution";
 
 // Rate limiting
 const limiter = rateLimit({
@@ -2415,6 +2418,260 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error tracking interaction:', error);
       res.status(500).json({ error: 'Failed to track interaction' });
+    }
+  });
+
+  // ====================================
+  // CONTENT CREATION & STUDIO API
+  // ====================================
+
+  // Get creator studio settings
+  app.get('/api/creator/studio/settings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const settings = await storage.getCreatorStudioSettings(userId);
+      
+      if (!settings) {
+        // Return default settings if none exist
+        return res.json({
+          autoEditingEnabled: true,
+          autoDistributionEnabled: false,
+          preferredPlatforms: [],
+          defaultHashtags: [],
+          aiPricingSuggestions: true,
+        });
+      }
+      
+      res.json(settings);
+    } catch (error) {
+      console.error('Error fetching studio settings:', error);
+      res.status(500).json({ error: 'Failed to fetch studio settings' });
+    }
+  });
+
+  // Update creator studio settings
+  app.post('/api/creator/studio/settings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const existingSettings = await storage.getCreatorStudioSettings(userId);
+      
+      let settings;
+      if (existingSettings) {
+        settings = await storage.updateCreatorStudioSettings(userId, req.body);
+      } else {
+        settings = await storage.createCreatorStudioSettings({ ...req.body, creatorId: userId });
+      }
+      
+      res.json(settings);
+    } catch (error) {
+      console.error('Error updating studio settings:', error);
+      res.status(500).json({ error: 'Failed to update studio settings' });
+    }
+  });
+
+  // Get content sessions
+  app.get('/api/creator/content/sessions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const limit = parseInt(req.query.limit) || 20;
+      const sessions = await contentCreationService.getCreatorSessions(userId, limit);
+      res.json(sessions);
+    } catch (error) {
+      console.error('Error fetching content sessions:', error);
+      res.status(500).json({ error: 'Failed to fetch content sessions' });
+    }
+  });
+
+  // Get single content session
+  app.get('/api/creator/content/sessions/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const sessionId = req.params.id;
+      const session = await contentCreationService.getSession(sessionId);
+      
+      if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+      
+      res.json(session);
+    } catch (error) {
+      console.error('Error fetching content session:', error);
+      res.status(500).json({ error: 'Failed to fetch content session' });
+    }
+  });
+
+  // Create content upload session
+  app.post('/api/creator/content/upload', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { title, description, type, file } = req.body;
+      
+      // Verify creator access
+      await contentCreationService.verifyCreatorAccess(userId);
+      
+      // Process upload
+      const session = await contentCreationService.uploadContent(userId, {
+        title,
+        description,
+        type,
+        sourceType: 'upload',
+        file: Buffer.from(file.data, 'base64'),
+        filename: file.name,
+        mimeType: file.type,
+      });
+      
+      res.json(session);
+    } catch (error) {
+      console.error('Error uploading content:', error);
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to upload content' });
+    }
+  });
+
+  // Create camera capture session
+  app.post('/api/creator/content/capture', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { videoData, options } = req.body;
+      
+      // Verify creator access
+      await contentCreationService.verifyCreatorAccess(userId);
+      
+      // Process camera capture
+      const session = await contentCreationService.captureFromCamera(
+        userId,
+        Buffer.from(videoData, 'base64'),
+        options
+      );
+      
+      res.json(session);
+    } catch (error) {
+      console.error('Error capturing content:', error);
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to capture content' });
+    }
+  });
+
+  // Start live stream
+  app.post('/api/creator/content/live', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { title, description, coStarIds, visibility, priceInCents } = req.body;
+      
+      const result = await contentCreationService.startLiveStream(userId, {
+        title,
+        description,
+        coStarIds,
+        requiresVerification: true,
+        visibility,
+        priceInCents,
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error starting live stream:', error);
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to start live stream' });
+    }
+  });
+
+  // Process content with AI editor
+  app.post('/api/creator/content/process/:sessionId', isAuthenticated, async (req: any, res) => {
+    try {
+      const sessionId = req.params.sessionId;
+      const session = await storage.getContentSession(sessionId);
+      
+      if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+      
+      // Create or get editing task
+      let editingTask = await storage.getEditingTaskBySession(sessionId);
+      
+      if (!editingTask) {
+        editingTask = await storage.createEditingTask({
+          sessionId,
+          creatorId: session.creatorId,
+          status: 'pending',
+          editingOptions: req.body.editingOptions || {
+            autoCut: true,
+            addBranding: true,
+            generateMultipleAspectRatios: true,
+            createTrailer: true,
+            createGif: true,
+          },
+        });
+      }
+      
+      // Process in background
+      aiEditorService.processContent(editingTask.id).catch(console.error);
+      
+      res.json({ editingTask, message: 'Processing started' });
+    } catch (error) {
+      console.error('Error processing content:', error);
+      res.status(500).json({ error: 'Failed to process content' });
+    }
+  });
+
+  // Get AI pricing suggestions
+  app.get('/api/creator/content/pricing/:sessionId', isAuthenticated, async (req: any, res) => {
+    try {
+      const sessionId = req.params.sessionId;
+      const pricing = await aiEditorService.suggestPricing(sessionId);
+      res.json(pricing);
+    } catch (error) {
+      console.error('Error getting pricing suggestions:', error);
+      res.status(500).json({ error: 'Failed to get pricing suggestions' });
+    }
+  });
+
+  // Create distribution campaign
+  app.post('/api/creator/content/distribute', isAuthenticated, async (req: any, res) => {
+    try {
+      const { sessionId, platforms, publishSchedule, settings } = req.body;
+      
+      const campaign = await distributionService.createCampaign(sessionId, {
+        platforms,
+        publishSchedule,
+        settings,
+      });
+      
+      res.json(campaign);
+    } catch (error) {
+      console.error('Error creating distribution campaign:', error);
+      res.status(500).json({ error: 'Failed to create distribution campaign' });
+    }
+  });
+
+  // Get campaign analytics
+  app.get('/api/creator/campaigns/:campaignId/analytics', isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = req.params.campaignId;
+      const analytics = await distributionService.getCampaignAnalytics(campaignId);
+      res.json(analytics);
+    } catch (error) {
+      console.error('Error fetching campaign analytics:', error);
+      res.status(500).json({ error: 'Failed to fetch campaign analytics' });
+    }
+  });
+
+  // Delete content session
+  app.delete('/api/creator/content/sessions/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const sessionId = req.params.id;
+      const userId = req.user.claims.sub;
+      
+      const session = await storage.getContentSession(sessionId);
+      
+      if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+      
+      if (session.creatorId !== userId) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+      
+      await contentCreationService.deleteSession(sessionId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting session:', error);
+      res.status(500).json({ error: 'Failed to delete session' });
     }
   });
 

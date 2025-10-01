@@ -31,6 +31,15 @@ import {
   sponsoredPosts,
   postLikes,
   postUnlocks,
+  contentCreationSessions,
+  editingTasks,
+  contentVersions,
+  distributionCampaigns,
+  platformDistributions,
+  contentAnalytics,
+  generatedAssets,
+  creatorStudioSettings,
+  liveStreamCoStars,
   type User,
   type UpsertUser,
   type Profile,
@@ -74,6 +83,22 @@ import {
   type SponsoredPost,
   type PostLike,
   type PostUnlock,
+  type ContentCreationSession,
+  type InsertContentCreationSession,
+  type EditingTask,
+  type InsertEditingTask,
+  type ContentVersion,
+  type InsertContentVersion,
+  type DistributionCampaign,
+  type InsertDistributionCampaign,
+  type PlatformDistribution,
+  type InsertPlatformDistribution,
+  type ContentAnalytics,
+  type InsertContentAnalytics,
+  type GeneratedAsset,
+  type InsertGeneratedAsset,
+  type CreatorStudioSettings,
+  type InsertCreatorStudioSettings,
 } from "../shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, sql } from "drizzle-orm";
@@ -242,6 +267,57 @@ export interface IStorage {
   unlockPost(postId: string, userId: string, transactionId?: string, amount?: number): Promise<any>;
   isPostUnlocked(postId: string, userId: string): Promise<boolean>;
   getUserUnlockedPosts(userId: string): Promise<any[]>;
+
+  // Content Creation operations
+  getContentSession(id: string): Promise<ContentCreationSession | undefined>;
+  getContentSessionsByCreator(creatorId: string, limit?: number): Promise<ContentCreationSession[]>;
+  createContentSession(session: InsertContentCreationSession): Promise<ContentCreationSession>;
+  updateContentSession(id: string, updates: Partial<ContentCreationSession>): Promise<ContentCreationSession>;
+  deleteContentSession(id: string): Promise<void>;
+
+  // Editing Task operations
+  getEditingTask(id: string): Promise<EditingTask | undefined>;
+  getEditingTaskBySession(sessionId: string): Promise<EditingTask | undefined>;
+  getEditingTasksBySession(sessionId: string): Promise<EditingTask[]>;
+  createEditingTask(task: InsertEditingTask): Promise<EditingTask>;
+  updateEditingTask(id: string, updates: Partial<EditingTask>): Promise<EditingTask>;
+
+  // Content Version operations
+  getContentVersionsBySession(sessionId: string): Promise<ContentVersion[]>;
+  createContentVersion(version: InsertContentVersion): Promise<ContentVersion>;
+  
+  // Generated Asset operations
+  getGeneratedAssetsBySession(sessionId: string): Promise<GeneratedAsset[]>;
+  createGeneratedAsset(asset: InsertGeneratedAsset): Promise<GeneratedAsset>;
+  
+  // Distribution Campaign operations
+  getDistributionCampaign(id: string): Promise<DistributionCampaign | undefined>;
+  createDistributionCampaign(campaign: InsertDistributionCampaign): Promise<DistributionCampaign>;
+  updateDistributionCampaign(id: string, updates: Partial<DistributionCampaign>): Promise<DistributionCampaign>;
+  
+  // Platform Distribution operations
+  getPlatformDistributions(campaignId: string): Promise<PlatformDistribution[]>;
+  createPlatformDistribution(distribution: InsertPlatformDistribution): Promise<PlatformDistribution>;
+  updatePlatformDistribution(id: string, updates: Partial<PlatformDistribution>): Promise<PlatformDistribution>;
+  
+  // Content Analytics operations
+  getContentAnalytics(sessionId: string): Promise<ContentAnalytics | undefined>;
+  createContentAnalytics(analytics: InsertContentAnalytics): Promise<ContentAnalytics>;
+  updateContentAnalytics(sessionId: string, updates: Partial<ContentAnalytics>): Promise<ContentAnalytics>;
+  
+  // Creator Studio Settings operations
+  getCreatorStudioSettings(creatorId: string): Promise<CreatorStudioSettings | undefined>;
+  createCreatorStudioSettings(settings: InsertCreatorStudioSettings): Promise<CreatorStudioSettings>;
+  updateCreatorStudioSettings(creatorId: string, updates: Partial<CreatorStudioSettings>): Promise<CreatorStudioSettings>;
+
+  // Smart Link operations
+  createSmartLink(link: any): Promise<any>;
+  getSmartLinkClicks(url: string): Promise<number>;
+  getQRCodeScans(url: string): Promise<number>;
+  
+  // Live Stream operations
+  createLiveStream(stream: any): Promise<any>;
+  addLiveStreamCoStar(data: any): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1601,6 +1677,261 @@ export class DatabaseStorage implements IStorage {
       .from(postUnlocks)
       .where(eq(postUnlocks.userId, userId))
       .orderBy(desc(postUnlocks.createdAt));
+  }
+
+  // Content Creation operations
+  async getContentSession(id: string): Promise<ContentCreationSession | undefined> {
+    const [session] = await db
+      .select()
+      .from(contentCreationSessions)
+      .where(eq(contentCreationSessions.id, id));
+    return session;
+  }
+
+  async getContentSessionsByCreator(creatorId: string, limit = 20): Promise<ContentCreationSession[]> {
+    return await db
+      .select()
+      .from(contentCreationSessions)
+      .where(eq(contentCreationSessions.creatorId, creatorId))
+      .orderBy(desc(contentCreationSessions.createdAt))
+      .limit(limit);
+  }
+
+  async createContentSession(sessionData: InsertContentCreationSession): Promise<ContentCreationSession> {
+    const [session] = await db
+      .insert(contentCreationSessions)
+      .values(sessionData)
+      .returning();
+    return session;
+  }
+
+  async updateContentSession(id: string, updates: Partial<ContentCreationSession>): Promise<ContentCreationSession> {
+    const [session] = await db
+      .update(contentCreationSessions)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(contentCreationSessions.id, id))
+      .returning();
+    return session;
+  }
+
+  async deleteContentSession(id: string): Promise<void> {
+    await db.delete(contentCreationSessions).where(eq(contentCreationSessions.id, id));
+  }
+
+  // Editing Task operations
+  async getEditingTask(id: string): Promise<EditingTask | undefined> {
+    const [task] = await db
+      .select()
+      .from(editingTasks)
+      .where(eq(editingTasks.id, id));
+    return task;
+  }
+
+  async getEditingTaskBySession(sessionId: string): Promise<EditingTask | undefined> {
+    const [task] = await db
+      .select()
+      .from(editingTasks)
+      .where(eq(editingTasks.sessionId, sessionId))
+      .orderBy(desc(editingTasks.createdAt))
+      .limit(1);
+    return task;
+  }
+
+  async getEditingTasksBySession(sessionId: string): Promise<EditingTask[]> {
+    return await db
+      .select()
+      .from(editingTasks)
+      .where(eq(editingTasks.sessionId, sessionId))
+      .orderBy(desc(editingTasks.createdAt));
+  }
+
+  async createEditingTask(taskData: InsertEditingTask): Promise<EditingTask> {
+    const [task] = await db
+      .insert(editingTasks)
+      .values(taskData)
+      .returning();
+    return task;
+  }
+
+  async updateEditingTask(id: string, updates: Partial<EditingTask>): Promise<EditingTask> {
+    const [task] = await db
+      .update(editingTasks)
+      .set(updates)
+      .where(eq(editingTasks.id, id))
+      .returning();
+    return task;
+  }
+
+  // Content Version operations
+  async getContentVersionsBySession(sessionId: string): Promise<ContentVersion[]> {
+    return await db
+      .select()
+      .from(contentVersions)
+      .where(eq(contentVersions.sessionId, sessionId))
+      .orderBy(contentVersions.aspectRatio);
+  }
+
+  async createContentVersion(versionData: InsertContentVersion): Promise<ContentVersion> {
+    const [version] = await db
+      .insert(contentVersions)
+      .values(versionData)
+      .returning();
+    return version;
+  }
+
+  // Generated Asset operations
+  async getGeneratedAssetsBySession(sessionId: string): Promise<GeneratedAsset[]> {
+    return await db
+      .select()
+      .from(generatedAssets)
+      .where(eq(generatedAssets.sessionId, sessionId))
+      .orderBy(generatedAssets.assetType);
+  }
+
+  async createGeneratedAsset(assetData: InsertGeneratedAsset): Promise<GeneratedAsset> {
+    const [asset] = await db
+      .insert(generatedAssets)
+      .values(assetData)
+      .returning();
+    return asset;
+  }
+
+  // Distribution Campaign operations
+  async getDistributionCampaign(id: string): Promise<DistributionCampaign | undefined> {
+    const [campaign] = await db
+      .select()
+      .from(distributionCampaigns)
+      .where(eq(distributionCampaigns.id, id));
+    return campaign;
+  }
+
+  async createDistributionCampaign(campaignData: InsertDistributionCampaign): Promise<DistributionCampaign> {
+    const [campaign] = await db
+      .insert(distributionCampaigns)
+      .values(campaignData)
+      .returning();
+    return campaign;
+  }
+
+  async updateDistributionCampaign(id: string, updates: Partial<DistributionCampaign>): Promise<DistributionCampaign> {
+    const [campaign] = await db
+      .update(distributionCampaigns)
+      .set(updates)
+      .where(eq(distributionCampaigns.id, id))
+      .returning();
+    return campaign;
+  }
+
+  // Platform Distribution operations
+  async getPlatformDistributions(campaignId: string): Promise<PlatformDistribution[]> {
+    return await db
+      .select()
+      .from(platformDistributions)
+      .where(eq(platformDistributions.campaignId, campaignId));
+  }
+
+  async createPlatformDistribution(distributionData: InsertPlatformDistribution): Promise<PlatformDistribution> {
+    const [distribution] = await db
+      .insert(platformDistributions)
+      .values(distributionData)
+      .returning();
+    return distribution;
+  }
+
+  async updatePlatformDistribution(id: string, updates: Partial<PlatformDistribution>): Promise<PlatformDistribution> {
+    const [distribution] = await db
+      .update(platformDistributions)
+      .set(updates)
+      .where(eq(platformDistributions.id, id))
+      .returning();
+    return distribution;
+  }
+
+  // Content Analytics operations
+  async getContentAnalytics(sessionId: string): Promise<ContentAnalytics | undefined> {
+    const [analytics] = await db
+      .select()
+      .from(contentAnalytics)
+      .where(eq(contentAnalytics.sessionId, sessionId));
+    return analytics;
+  }
+
+  async createContentAnalytics(analyticsData: InsertContentAnalytics): Promise<ContentAnalytics> {
+    const [analytics] = await db
+      .insert(contentAnalytics)
+      .values(analyticsData)
+      .returning();
+    return analytics;
+  }
+
+  async updateContentAnalytics(sessionId: string, updates: Partial<ContentAnalytics>): Promise<ContentAnalytics> {
+    const [analytics] = await db
+      .update(contentAnalytics)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(contentAnalytics.sessionId, sessionId))
+      .returning();
+    return analytics;
+  }
+
+  // Creator Studio Settings operations
+  async getCreatorStudioSettings(creatorId: string): Promise<CreatorStudioSettings | undefined> {
+    const [settings] = await db
+      .select()
+      .from(creatorStudioSettings)
+      .where(eq(creatorStudioSettings.creatorId, creatorId));
+    return settings;
+  }
+
+  async createCreatorStudioSettings(settingsData: InsertCreatorStudioSettings): Promise<CreatorStudioSettings> {
+    const [settings] = await db
+      .insert(creatorStudioSettings)
+      .values(settingsData)
+      .returning();
+    return settings;
+  }
+
+  async updateCreatorStudioSettings(creatorId: string, updates: Partial<CreatorStudioSettings>): Promise<CreatorStudioSettings> {
+    const [settings] = await db
+      .update(creatorStudioSettings)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(creatorStudioSettings.creatorId, creatorId))
+      .returning();
+    return settings;
+  }
+
+  // Smart Link operations (simplified implementations)
+  async createSmartLink(link: any): Promise<any> {
+    // In production, this would be stored in a separate table
+    // For now, return a mock response
+    return { id: link.id, url: link.targetUrl };
+  }
+
+  async getSmartLinkClicks(url: string): Promise<number> {
+    // In production, this would query analytics data
+    return Math.floor(Math.random() * 1000);
+  }
+
+  async getQRCodeScans(url: string): Promise<number> {
+    // In production, this would query analytics data
+    return Math.floor(Math.random() * 500);
+  }
+
+  // Live Stream operations
+  async createLiveStream(streamData: any): Promise<any> {
+    const { liveStreams } = await import('../shared/schema');
+    const [stream] = await db
+      .insert(liveStreams)
+      .values(streamData)
+      .returning();
+    return stream;
+  }
+
+  async addLiveStreamCoStar(data: any): Promise<any> {
+    const [coStar] = await db
+      .insert(liveStreamCoStars)
+      .values(data)
+      .returning();
+    return coStar;
   }
 }
 

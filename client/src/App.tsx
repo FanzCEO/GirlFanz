@@ -28,6 +28,7 @@ import Discover from "@/pages/Discover";
 import CreatorAnalytics from "@/pages/CreatorAnalytics";
 import CreatorOnboardingPage from "@/pages/CreatorOnboardingPage";
 import FanzOnboardingPage from "@/pages/FanzOnboardingPage";
+import CreatorStudio from "@/pages/CreatorStudio";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -80,6 +81,8 @@ function Router() {
             <Route path="/messages" component={Messages} />
             <Route path="/analytics" component={CreatorAnalytics} />
             <Route path="/creator-analytics" component={CreatorAnalytics} />
+            <Route path="/creator-studio" component={CreatorStudio} />
+            <Route path="/studio" component={CreatorStudio} />
             <Route path="/earnings" component={CreatorDashboard} />
             <Route path="/settings" component={Settings} />
             <Route path="/verification" component={Verification} />
