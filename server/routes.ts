@@ -32,6 +32,10 @@ import { distributionService } from "./services/distribution";
 import { verificationService } from "./services/verification";
 import { streamingService } from "./services/streaming";
 import { initStreamWebSocketHandler } from "./websocket/stream-handler";
+import { aiProcessorService } from "./services/ai-processor";
+import { formatConverterService } from "./services/format-converter";
+import { assetGeneratorService } from "./services/asset-generator";
+import { contentAnalyzerService } from "./services/content-analyzer";
 
 // Rate limiting
 const limiter = rateLimit({
@@ -3068,6 +3072,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error getting pricing suggestions:', error);
       res.status(500).json({ error: 'Failed to get pricing suggestions' });
+    }
+  });
+
+  // Get editing task status
+  app.get('/api/creator/content/editing/:sessionId', isAuthenticated, async (req: any, res) => {
+    try {
+      const sessionId = req.params.sessionId;
+      const task = await aiProcessorService.getProcessingStatus(sessionId);
+      res.json(task);
+    } catch (error) {
+      console.error('Error getting editing task:', error);
+      res.status(500).json({ error: 'Failed to get editing task status' });
+    }
+  });
+
+  // Get content versions
+  app.get('/api/creator/content/versions/:sessionId', isAuthenticated, async (req: any, res) => {
+    try {
+      const sessionId = req.params.sessionId;
+      const versions = await formatConverterService.getGeneratedFormats(sessionId);
+      res.json(versions);
+    } catch (error) {
+      console.error('Error getting content versions:', error);
+      res.status(500).json({ error: 'Failed to get content versions' });
+    }
+  });
+
+  // Analyze content
+  app.get('/api/creator/content/analyze/:sessionId', isAuthenticated, async (req: any, res) => {
+    try {
+      const sessionId = req.params.sessionId;
+      const analysis = await contentAnalyzerService.analyzeContent(sessionId);
+      res.json(analysis);
+    } catch (error) {
+      console.error('Error analyzing content:', error);
+      res.status(500).json({ error: 'Failed to analyze content' });
+    }
+  });
+
+  // Get generated assets
+  app.get('/api/creator/content/assets/:sessionId', isAuthenticated, async (req: any, res) => {
+    try {
+      const sessionId = req.params.sessionId;
+      const assets = await assetGeneratorService.getGeneratedAssets(sessionId);
+      res.json(assets);
+    } catch (error) {
+      console.error('Error getting generated assets:', error);
+      res.status(500).json({ error: 'Failed to get generated assets' });
+    }
+  });
+
+  // Start AI processing
+  app.post('/api/creator/content/ai-process', isAuthenticated, async (req: any, res) => {
+    try {
+      const { sessionId, options } = req.body;
+      const result = await aiProcessorService.processContent(sessionId, options);
+      res.json(result);
+    } catch (error) {
+      console.error('Error starting AI processing:', error);
+      res.status(500).json({ error: 'Failed to start AI processing' });
+    }
+  });
+
+  // Generate formats
+  app.post('/api/creator/content/generate-formats', isAuthenticated, async (req: any, res) => {
+    try {
+      const { sessionId, platforms } = req.body;
+      const formats = await formatConverterService.generateFormats(sessionId, platforms);
+      res.json(formats);
+    } catch (error) {
+      console.error('Error generating formats:', error);
+      res.status(500).json({ error: 'Failed to generate formats' });
+    }
+  });
+
+  // Generate assets
+  app.post('/api/creator/content/generate-assets', isAuthenticated, async (req: any, res) => {
+    try {
+      const { sessionId, types } = req.body;
+      const assets = await assetGeneratorService.generateAssets(sessionId, types);
+      res.json(assets);
+    } catch (error) {
+      console.error('Error generating assets:', error);
+      res.status(500).json({ error: 'Failed to generate assets' });
+    }
+  });
+
+  // Get processing queue
+  app.get('/api/creator/processing-queue', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const queue = await aiProcessorService.getProcessingQueue(userId);
+      res.json(queue);
+    } catch (error) {
+      console.error('Error getting processing queue:', error);
+      res.status(500).json({ error: 'Failed to get processing queue' });
+    }
+  });
+
+  // Update queue priority
+  app.post('/api/creator/processing-queue/priority', isAuthenticated, async (req: any, res) => {
+    try {
+      const { sessionId, priority } = req.body;
+      await aiProcessorService.updateQueuePriority(sessionId, priority);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error updating queue priority:', error);
+      res.status(500).json({ error: 'Failed to update queue priority' });
+    }
+  });
+
+  // Cancel processing
+  app.post('/api/creator/processing-queue/cancel', isAuthenticated, async (req: any, res) => {
+    try {
+      const { sessionId } = req.body;
+      await aiProcessorService.cancelProcessing(sessionId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error canceling processing:', error);
+      res.status(500).json({ error: 'Failed to cancel processing' });
     }
   });
 
