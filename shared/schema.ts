@@ -37,22 +37,45 @@ export const subscriptionStatusEnum = pgEnum("subscription_status", ["active", "
 export const transactionStatusEnum = pgEnum("transaction_status", ["pending", "completed", "failed", "refunded", "chargeback"]);
 export const paymentProviderEnum = pgEnum("payment_provider", ["ccbill", "segpay", "stripe"]);
 
-// User storage table (required for Replit Auth)
+// User storage table
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique(),
+  email: varchar("email").unique().notNull(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   username: varchar("username").unique(),
-  password: varchar("password"), // For local auth
+  password: varchar("password").notNull(), // Bcrypt hashed password
   role: userRoleEnum("role").default("fan"),
   status: userStatusEnum("status").default("active"),
-  authProvider: authProviderEnum("auth_provider").default("replit"),
+  authProvider: authProviderEnum("auth_provider").default("local"),
   isCreator: boolean("is_creator").default(false),
   ageVerified: boolean("age_verified").default(false),
+  emailVerified: boolean("email_verified").default(false),
+  securityQuestion: varchar("security_question"), // For email recovery
+  securityAnswer: varchar("security_answer"), // Hashed answer
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Password reset tokens
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  token: varchar("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Email verification tokens
+export const emailVerificationTokens = pgTable("email_verification_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  token: varchar("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Creator/Fan profiles

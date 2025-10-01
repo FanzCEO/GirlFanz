@@ -135,15 +135,15 @@ export function CreatorOnboarding() {
               </div>
             </div>
             <div>
-              <h2 className="text-4xl font-bold bg-gradient-to-r from-gf-cyber to-gf-pink bg-clip-text text-transparent mb-4">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-gf-cyber to-gf-pink bg-clip-text text-transparent mb-4">
                 Claim Your Star Power
               </h2>
-              <p className="text-gf-steel text-lg max-w-xl mx-auto">
+              <p className="text-gf-steel text-base sm:text-lg max-w-xl mx-auto px-4">
                 Join thousands of creators earning 100% of their revenue. You own your content.
                 You control your earnings. Welcome to true creative freedom.
               </p>
             </div>
-            <div className="grid grid-cols-3 gap-4 max-w-2xl mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto px-4">
               <Card className="bg-gf-charcoal/50 border-gf-steel/20">
                 <CardContent className="p-4 text-center">
                   <DollarSign className="h-8 w-8 text-gf-cyber mx-auto mb-2" />
@@ -171,11 +171,11 @@ export function CreatorOnboarding() {
 
       case 2:
         return (
-          <div className="space-y-6 max-w-2xl mx-auto">
+          <div className="space-y-6 max-w-2xl mx-auto px-4">
             <div className="text-center mb-6">
-              <Shield className="h-16 w-16 text-gf-cyber mx-auto mb-4" />
-              <h2 className="text-3xl font-bold text-gf-snow mb-2">Content Policies & Compliance</h2>
-              <p className="text-gf-steel">Understand platform guidelines for adult content creators</p>
+              <Shield className="h-12 w-12 sm:h-16 sm:w-16 text-gf-cyber mx-auto mb-4" />
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gf-snow mb-2">Content Policies & Compliance</h2>
+              <p className="text-sm sm:text-base text-gf-steel">Understand platform guidelines for adult content creators</p>
             </div>
 
             <Card className="bg-gf-charcoal/50 border-gf-steel/20">
@@ -220,10 +220,10 @@ export function CreatorOnboarding() {
 
       case 3:
         return (
-          <div className="space-y-6 max-w-2xl mx-auto">
+          <div className="space-y-6 max-w-2xl mx-auto px-4">
             <div className="text-center mb-6">
-              <h2 className="text-3xl font-bold text-gf-snow mb-2">Build Your Creator Brand</h2>
-              <p className="text-gf-steel">Tell your fanz who you are</p>
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gf-snow mb-2">Build Your Creator Brand</h2>
+              <p className="text-sm sm:text-base text-gf-steel">Tell your fanz who you are</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

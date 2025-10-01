@@ -79,12 +79,24 @@ import { db } from "./db";
 import { eq, desc, and, or, sql } from "drizzle-orm";
 
 export interface IStorage {
-  // User operations (required for Replit Auth)
+  // User operations
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUsersBySecurityQuestion(question: string): Promise<User[]>;
   upsertUser(user: UpsertUser): Promise<User>;
   createUser(user: Partial<User>): Promise<User>;
+  updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
+  
+  // Password reset tokens
+  createPasswordResetToken(token: { userId: string; token: string; expiresAt: Date }): Promise<any>;
+  getPasswordResetToken(token: string): Promise<any | undefined>;
+  markPasswordResetTokenUsed(token: string): Promise<void>;
+  
+  // Email verification tokens
+  createEmailVerificationToken(token: { userId: string; token: string; expiresAt: Date }): Promise<any>;
+  getEmailVerificationToken(token: string): Promise<any | undefined>;
+  markEmailVerificationTokenUsed(token: string): Promise<void>;
   
   // Profile operations
   getProfile(userId: string): Promise<Profile | undefined>;
@@ -270,6 +282,76 @@ export class DatabaseStorage implements IStorage {
       .values(userData)
       .returning();
     return user;
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
+  async getUsersBySecurityQuestion(question: string): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .where(eq(users.securityQuestion, question));
+  }
+
+  // Password reset tokens
+  async createPasswordResetToken(tokenData: { userId: string; token: string; expiresAt: Date }): Promise<any> {
+    const { passwordResetTokens } = await import('@shared/schema');
+    const [token] = await db
+      .insert(passwordResetTokens)
+      .values(tokenData)
+      .returning();
+    return token;
+  }
+
+  async getPasswordResetToken(token: string): Promise<any | undefined> {
+    const { passwordResetTokens } = await import('@shared/schema');
+    const [resetToken] = await db
+      .select()
+      .from(passwordResetTokens)
+      .where(eq(passwordResetTokens.token, token));
+    return resetToken;
+  }
+
+  async markPasswordResetTokenUsed(token: string): Promise<void> {
+    const { passwordResetTokens } = await import('@shared/schema');
+    await db
+      .update(passwordResetTokens)
+      .set({ used: true })
+      .where(eq(passwordResetTokens.token, token));
+  }
+
+  // Email verification tokens
+  async createEmailVerificationToken(tokenData: { userId: string; token: string; expiresAt: Date }): Promise<any> {
+    const { emailVerificationTokens } = await import('@shared/schema');
+    const [token] = await db
+      .insert(emailVerificationTokens)
+      .values(tokenData)
+      .returning();
+    return token;
+  }
+
+  async getEmailVerificationToken(token: string): Promise<any | undefined> {
+    const { emailVerificationTokens } = await import('@shared/schema');
+    const [verificationToken] = await db
+      .select()
+      .from(emailVerificationTokens)
+      .where(eq(emailVerificationTokens.token, token));
+    return verificationToken;
+  }
+
+  async markEmailVerificationTokenUsed(token: string): Promise<void> {
+    const { emailVerificationTokens } = await import('@shared/schema');
+    await db
+      .update(emailVerificationTokens)
+      .set({ used: true })
+      .where(eq(emailVerificationTokens.token, token));
   }
 
   // Profile operations
