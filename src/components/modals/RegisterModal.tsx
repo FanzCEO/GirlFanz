@@ -136,10 +136,19 @@ export const RegisterModal: React.FC = () => {
       addNotification({
         type: 'success',
         title: 'Account Created',
-        message: 'Welcome to GirlFanz! Please check your email to verify your account.'
+        message: `Welcome to GirlFanz! Complete your ${formData.userType === 'creator' ? 'creator' : 'fan'} onboarding to get started.`
       });
       
       handleClose();
+      
+      // Redirect to appropriate onboarding flow
+      setTimeout(() => {
+        if (formData.userType === 'creator') {
+          window.location.href = '/onboarding/creator';
+        } else {
+          window.location.href = '/onboarding/fan';
+        }
+      }, 300);
     } catch (error) {
       addNotification({
         type: 'error',

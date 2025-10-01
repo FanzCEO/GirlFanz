@@ -36,24 +36,30 @@ const steps: OnboardingStep[] = [
   },
   {
     id: 2,
-    title: "Profile",
-    description: "Create Your Identity",
-    icon: Camera,
-  },
-  {
-    id: 3,
-    title: "Verification",
-    description: "Secure Your Account",
+    title: "Policies",
+    description: "Compliance & Guidelines",
     icon: Shield,
   },
   {
+    id: 3,
+    title: "Profile",
+    description: "Build Your Brand",
+    icon: Sparkles,
+  },
+  {
     id: 4,
+    title: "Verification",
+    description: "Secure & Verify",
+    icon: Shield,
+  },
+  {
+    id: 5,
     title: "Monetization",
     description: "Set Up Earnings",
     icon: DollarSign,
   },
   {
-    id: 5,
+    id: 6,
     title: "Dashboard",
     description: "Start Creating",
     icon: TrendingUp,
@@ -167,7 +173,56 @@ export function CreatorOnboarding() {
         return (
           <div className="space-y-6 max-w-2xl mx-auto">
             <div className="text-center mb-6">
-              <h2 className="text-3xl font-bold text-gf-snow mb-2">Create Your Identity</h2>
+              <Shield className="h-16 w-16 text-gf-cyber mx-auto mb-4" />
+              <h2 className="text-3xl font-bold text-gf-snow mb-2">Content Policies & Compliance</h2>
+              <p className="text-gf-steel">Understand platform guidelines for adult content creators</p>
+            </div>
+
+            <Card className="bg-gf-charcoal/50 border-gf-steel/20">
+              <CardContent className="p-6 space-y-4">
+                <div>
+                  <h3 className="font-semibold text-gf-snow mb-2">18 U.S.C. §2257 Compliance</h3>
+                  <p className="text-sm text-gf-steel">
+                    As an adult content creator, you must maintain records proving all performers are 18+. We handle compliance documentation for you.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold text-gf-snow mb-2">Content Guidelines</h3>
+                  <ul className="text-sm text-gf-steel space-y-2">
+                    <li>✓ All content must follow community standards</li>
+                    <li>✓ Prohibited: minors, non-consensual content, illegal activities</li>
+                    <li>✓ Use content warnings for sensitive material</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold text-gf-snow mb-2">Your Rights</h3>
+                  <p className="text-sm text-gf-steel">
+                    You retain 100% ownership of your content. You can remove it anytime. We protect your intellectual property.
+                  </p>
+                </div>
+
+                <label className="flex items-start gap-3 p-4 bg-gf-ink rounded-lg">
+                  <input
+                    type="checkbox"
+                    className="mt-1 w-5 h-5 rounded border-gf-steel/20 bg-gf-charcoal focus:ring-2 focus:ring-gf-cyber"
+                    data-testid="checkbox-policies-agree"
+                  />
+                  <span className="text-sm text-gf-snow">
+                    I understand and agree to follow all content policies and compliance requirements
+                  </span>
+                </label>
+              </CardContent>
+            </Card>
+          </div>
+        );
+
+      case 3:
+        return (
+          <div className="space-y-6 max-w-2xl mx-auto">
+            <div className="text-center mb-6">
+              <h2 className="text-3xl font-bold text-gf-snow mb-2">Build Your Creator Brand</h2>
               <p className="text-gf-steel">Tell your fanz who you are</p>
             </div>
 
@@ -277,13 +332,13 @@ export function CreatorOnboarding() {
           </div>
         );
 
-      case 3:
+      case 4:
         return (
           <div className="space-y-6 max-w-2xl mx-auto">
             <div className="text-center mb-6">
               <Shield className="h-16 w-16 text-gf-cyber mx-auto mb-4" />
               <h2 className="text-3xl font-bold text-gf-snow mb-2">
-                Verification & Compliance
+                Identity Verification
               </h2>
               <p className="text-gf-steel">Quick and secure verification process</p>
             </div>
@@ -363,7 +418,7 @@ export function CreatorOnboarding() {
           </div>
         );
 
-      case 4:
+      case 5:
         return (
           <div className="space-y-6 max-w-2xl mx-auto">
             <div className="text-center mb-6">
@@ -442,7 +497,7 @@ export function CreatorOnboarding() {
           </div>
         );
 
-      case 5:
+      case 6:
         return (
           <div className="text-center space-y-6">
             <div className="flex justify-center">
@@ -549,7 +604,7 @@ export function CreatorOnboarding() {
         <div className="mb-8">{renderStep()}</div>
 
         {/* Navigation */}
-        {currentStep !== 5 && (
+        {currentStep !== 6 && (
           <div className="flex justify-between max-w-2xl mx-auto">
             <Button
               variant="outline"
@@ -561,11 +616,11 @@ export function CreatorOnboarding() {
               Previous
             </Button>
             <Button
-              onClick={() => setCurrentStep((prev) => Math.min(5, prev + 1))}
+              onClick={() => setCurrentStep((prev) => Math.min(6, prev + 1))}
               className="bg-gradient-to-r from-gf-cyber to-gf-pink hover:opacity-90"
               data-testid="button-next"
             >
-              {currentStep === 4 ? "Complete Setup" : "Next"}
+              {currentStep === 5 ? "Complete Setup" : "Next"}
             </Button>
           </div>
         )}

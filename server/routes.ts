@@ -142,11 +142,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Onboarding validation schemas
+  const creatorOnboardingSchema = z.object({
+    displayName: z.string().min(1, "Display name is required"),
+    stageName: z.string().optional(),
+    pronouns: z.string().optional(),
+    bio: z.string().optional(),
+    selectedNiches: z.array(z.string()).max(3, "Maximum 3 niches allowed"),
+    payoutMethod: z.enum(["paypal", "bank", "crypto"]),
+    payoutEmail: z.string().email().optional(),
+  });
+
+  const fanOnboardingSchema = z.object({
+    birthday: z.string(),
+    selectedInterests: z.array(z.string()),
+    paymentAdded: z.boolean().optional(),
+  });
+
   // Onboarding routes
   app.post('/api/creator/onboarding', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const onboardingData = req.body;
+      
+      // Validate request body
+      const onboardingData = creatorOnboardingSchema.parse(req.body);
 
       // Update user to mark as creator
       await storage.updateUser(userId, { isCreator: true });
@@ -200,7 +219,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/fan/onboarding', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const onboardingData = req.body;
+      
+      // Validate request body
+      const onboardingData = fanOnboardingSchema.parse(req.body);
 
       // Validate age
       if (onboardingData.birthday) {
@@ -211,8 +232,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "You must be 18 or older to join GirlFanz" });
         }
 
-        // Store age verification
-        await storage.updateUser(userId, { ageVerified: true });
+        // Get user info for VerifyMy
+        const user = await storage.getUser(userId);
+        
+        if (user) {
+          // Trigger VerifyMy age verification (async)
+          // This will call the VerifyMy API and update the user's verification status via webhook
+          const verificationResult = await verifymyService.verifyAge({
+            userId,
+            firstName: user.firstName || 'Unknown',
+            lastName: user.lastName || 'Unknown',
+            dateOfBirth: onboardingData.birthday,
+            email: user.email || '',
+            address: {
+              street: '',
+              city: '',
+              state: '',
+              zipCode: '',
+              country: 'US'
+            }
+          }).catch(err => {
+            // Log error and continue with pending status
+            console.error('VerifyMy age verification failed:', err);
+            return { transactionId: 'pending', status: 'pending' as const };
+          });
+
+          // Store verification transaction ID for webhook callback
+          await storage.createKycVerification({
+            userId,
+            provider: 'verifymy',
+            status: 'pending',
+            documentType: 'age_verification',
+            dataJson: { transactionId: verificationResult.transactionId }
+          });
+        }
+
+        // DO NOT set ageVerified=true here - wait for VerifyMy webhook confirmation
       }
 
       // Create/update profile with interests
@@ -247,6 +302,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error completing fan onboarding:", error);
       res.status(500).json({ message: "Failed to complete onboarding" });
+    }
+  });
+
+  // VerifyMy Webhook endpoint
+  app.post('/api/webhooks/verifymy', async (req: any, res) => {
+    try {
+      const signature = req.headers['x-signature'];
+      const rawBody = JSON.stringify(req.body);
+
+      // Verify webhook signature
+      if (!signature || !verifymyService.verifyWebhookSignature(rawBody, signature)) {
+        console.error('Invalid VerifyMy webhook signature');
+        return res.status(401).json({ message: "Invalid signature" });
+      }
+
+      // Process the webhook
+      await verifymyService.processWebhookNotification(req.body);
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error processing VerifyMy webhook:', error);
+      res.status(500).json({ message: "Webhook processing failed" });
     }
   });
 
