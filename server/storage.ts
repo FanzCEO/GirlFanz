@@ -40,6 +40,15 @@ import {
   generatedAssets,
   creatorStudioSettings,
   liveStreamCoStars,
+  liveStreams,
+  streamParticipants,
+  streamChatMessages,
+  streamGifts,
+  streamReactions,
+  streamHighlights,
+  streamRecordings,
+  streamViewers,
+  streamAnalytics,
   type User,
   type UpsertUser,
   type Profile,
@@ -323,7 +332,46 @@ export interface IStorage {
   
   // Live Stream operations
   createLiveStream(stream: any): Promise<any>;
+  updateLiveStream(id: string, updates: any): Promise<any>;
+  getLiveStream(id: string): Promise<any | undefined>;
+  getLiveStreamByKey(streamKey: string): Promise<any | undefined>;
   addLiveStreamCoStar(data: any): Promise<any>;
+  
+  // Stream Participant operations
+  addStreamParticipant(participant: any): Promise<any>;
+  updateStreamParticipant(streamId: string, userId: string, updates: any): Promise<any>;
+  getStreamParticipants(streamId: string): Promise<any[]>;
+  
+  // Stream Viewer operations
+  addStreamViewer(viewer: any): Promise<any>;
+  updateStreamViewer(streamId: string, userId: string, updates: any): Promise<any>;
+  getStreamViewers(streamId: string): Promise<any[]>;
+  
+  // Stream Chat operations
+  addStreamChatMessage(message: any): Promise<any>;
+  getStreamChatMessages(streamId: string, limit?: number): Promise<any[]>;
+  
+  // Stream Gift operations
+  addStreamGift(gift: any): Promise<any>;
+  getStreamGifts(streamId: string): Promise<any[]>;
+  
+  // Stream Reaction operations
+  addStreamReaction(reaction: any): Promise<any>;
+  getStreamReactions(streamId: string): Promise<any[]>;
+  
+  // Stream Highlight operations
+  createStreamHighlight(highlight: any): Promise<any>;
+  getStreamHighlights(streamId: string): Promise<any[]>;
+  
+  // Stream Recording operations
+  createStreamRecording(recording: any): Promise<any>;
+  updateStreamRecording(id: string, updates: any): Promise<any>;
+  getStreamRecording(streamId: string): Promise<any | undefined>;
+  
+  // Stream Analytics operations
+  createStreamAnalytics(analytics: any): Promise<any>;
+  updateStreamAnalytics(streamId: string, updates: any): Promise<any>;
+  getStreamAnalytics(streamId: string): Promise<any | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1938,6 +1986,209 @@ export class DatabaseStorage implements IStorage {
       .values(data)
       .returning();
     return coStar;
+  }
+
+  async updateLiveStream(id: string, updates: any): Promise<any> {
+    const [stream] = await db
+      .update(liveStreams)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(liveStreams.id, id))
+      .returning();
+    return stream;
+  }
+
+  async getLiveStream(id: string): Promise<any | undefined> {
+    const [stream] = await db
+      .select()
+      .from(liveStreams)
+      .where(eq(liveStreams.id, id));
+    return stream;
+  }
+
+  async getLiveStreamByKey(streamKey: string): Promise<any | undefined> {
+    const [stream] = await db
+      .select()
+      .from(liveStreams)
+      .where(eq(liveStreams.streamKey, streamKey));
+    return stream;
+  }
+
+  // Stream Participant operations
+  async addStreamParticipant(participant: any): Promise<any> {
+    const [result] = await db
+      .insert(streamParticipants)
+      .values(participant)
+      .returning();
+    return result;
+  }
+
+  async updateStreamParticipant(streamId: string, userId: string, updates: any): Promise<any> {
+    const [result] = await db
+      .update(streamParticipants)
+      .set(updates)
+      .where(and(
+        eq(streamParticipants.streamId, streamId),
+        eq(streamParticipants.userId, userId)
+      ))
+      .returning();
+    return result;
+  }
+
+  async getStreamParticipants(streamId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(streamParticipants)
+      .where(eq(streamParticipants.streamId, streamId));
+  }
+
+  // Stream Viewer operations
+  async addStreamViewer(viewer: any): Promise<any> {
+    const [result] = await db
+      .insert(streamViewers)
+      .values(viewer)
+      .returning();
+    return result;
+  }
+
+  async updateStreamViewer(streamId: string, userId: string, updates: any): Promise<any> {
+    const [result] = await db
+      .update(streamViewers)
+      .set(updates)
+      .where(and(
+        eq(streamViewers.streamId, streamId),
+        eq(streamViewers.userId, userId)
+      ))
+      .returning();
+    return result;
+  }
+
+  async getStreamViewers(streamId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(streamViewers)
+      .where(eq(streamViewers.streamId, streamId));
+  }
+
+  // Stream Chat operations
+  async addStreamChatMessage(message: any): Promise<any> {
+    const [result] = await db
+      .insert(streamChatMessages)
+      .values(message)
+      .returning();
+    return result;
+  }
+
+  async getStreamChatMessages(streamId: string, limit: number = 100): Promise<any[]> {
+    return await db
+      .select()
+      .from(streamChatMessages)
+      .where(eq(streamChatMessages.streamId, streamId))
+      .orderBy(desc(streamChatMessages.createdAt))
+      .limit(limit);
+  }
+
+  // Stream Gift operations
+  async addStreamGift(gift: any): Promise<any> {
+    const [result] = await db
+      .insert(streamGifts)
+      .values(gift)
+      .returning();
+    return result;
+  }
+
+  async getStreamGifts(streamId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(streamGifts)
+      .where(eq(streamGifts.streamId, streamId))
+      .orderBy(desc(streamGifts.createdAt));
+  }
+
+  // Stream Reaction operations
+  async addStreamReaction(reaction: any): Promise<any> {
+    const [result] = await db
+      .insert(streamReactions)
+      .values(reaction)
+      .returning();
+    return result;
+  }
+
+  async getStreamReactions(streamId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(streamReactions)
+      .where(eq(streamReactions.streamId, streamId));
+  }
+
+  // Stream Highlight operations
+  async createStreamHighlight(highlight: any): Promise<any> {
+    const [result] = await db
+      .insert(streamHighlights)
+      .values(highlight)
+      .returning();
+    return result;
+  }
+
+  async getStreamHighlights(streamId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(streamHighlights)
+      .where(eq(streamHighlights.streamId, streamId))
+      .orderBy(desc(streamHighlights.score));
+  }
+
+  // Stream Recording operations
+  async createStreamRecording(recording: any): Promise<any> {
+    const [result] = await db
+      .insert(streamRecordings)
+      .values(recording)
+      .returning();
+    return result;
+  }
+
+  async updateStreamRecording(id: string, updates: any): Promise<any> {
+    const [result] = await db
+      .update(streamRecordings)
+      .set(updates)
+      .where(eq(streamRecordings.id, id))
+      .returning();
+    return result;
+  }
+
+  async getStreamRecording(streamId: string): Promise<any | undefined> {
+    const [recording] = await db
+      .select()
+      .from(streamRecordings)
+      .where(eq(streamRecordings.streamId, streamId))
+      .orderBy(desc(streamRecordings.createdAt))
+      .limit(1);
+    return recording;
+  }
+
+  // Stream Analytics operations
+  async createStreamAnalytics(analytics: any): Promise<any> {
+    const [result] = await db
+      .insert(streamAnalytics)
+      .values(analytics)
+      .returning();
+    return result;
+  }
+
+  async updateStreamAnalytics(streamId: string, updates: any): Promise<any> {
+    const [result] = await db
+      .update(streamAnalytics)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(streamAnalytics.streamId, streamId))
+      .returning();
+    return result;
+  }
+
+  async getStreamAnalytics(streamId: string): Promise<any | undefined> {
+    const [analytics] = await db
+      .select()
+      .from(streamAnalytics)
+      .where(eq(streamAnalytics.streamId, streamId));
+    return analytics;
   }
 }
 

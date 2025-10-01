@@ -555,6 +555,135 @@ export const vrContent = pgTable("vr_content", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// ====================================
+// ENHANCED LIVE STREAMING SYSTEM
+// ====================================
+
+// Stream Participants (Co-stars)
+export const streamParticipants = pgTable("stream_participants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  streamId: varchar("stream_id").references(() => liveStreams.id, { onDelete: "cascade" }).notNull(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  role: varchar("role").notNull().default("co-star"), // host, co-star, moderator
+  isVerified: boolean("is_verified").default(false),
+  verificationStatus: varchar("verification_status").default("pending"), // pending, verified, failed
+  verifiedAt: timestamp("verified_at"),
+  joinedAt: timestamp("joined_at"),
+  leftAt: timestamp("left_at"),
+  streamQuality: varchar("stream_quality").default("720p"), // 360p, 720p, 1080p, 4K
+  audioEnabled: boolean("audio_enabled").default(true),
+  videoEnabled: boolean("video_enabled").default(true),
+  screenPosition: jsonb("screen_position"), // {x, y, width, height} for multi-person layout
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Stream Chat Messages
+export const streamChatMessages = pgTable("stream_chat_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  streamId: varchar("stream_id").references(() => liveStreams.id, { onDelete: "cascade" }).notNull(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  message: text("message").notNull(),
+  messageType: varchar("message_type").default("text"), // text, emote, announcement, system
+  isPinned: boolean("is_pinned").default(false),
+  isModerated: boolean("is_moderated").default(false),
+  moderatedBy: varchar("moderated_by").references(() => users.id),
+  replyToId: varchar("reply_to_id"), // For threaded messages
+  metadata: jsonb("metadata"), // emotes, mentions, etc.
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Stream Gifts
+export const streamGifts = pgTable("stream_gifts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  streamId: varchar("stream_id").references(() => liveStreams.id, { onDelete: "cascade" }).notNull(),
+  senderId: varchar("sender_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  receiverId: varchar("receiver_id").references(() => users.id, { onDelete: "cascade" }).notNull(), // Can be host or co-star
+  giftType: varchar("gift_type").notNull(), // rose, heart, diamond, fireworks, etc.
+  giftValue: integer("gift_value").notNull(), // in cents
+  quantity: integer("quantity").default(1),
+  animationType: varchar("animation_type").default("floating"), // floating, explosion, rain
+  message: text("message"),
+  isAnonymous: boolean("is_anonymous").default(false),
+  transactionId: varchar("transaction_id").references(() => transactions.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Stream Reactions (real-time reactions)
+export const streamReactions = pgTable("stream_reactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  streamId: varchar("stream_id").references(() => liveStreams.id, { onDelete: "cascade" }).notNull(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  reactionType: varchar("reaction_type").notNull(), // heart, fire, laugh, wow, clap
+  intensity: integer("intensity").default(1), // 1-10 for reaction strength
+  timestamp: integer("timestamp"), // Stream timestamp in seconds
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Stream Highlights (AI-detected or manual)
+export const streamHighlights = pgTable("stream_highlights", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  streamId: varchar("stream_id").references(() => liveStreams.id, { onDelete: "cascade" }).notNull(),
+  title: varchar("title"),
+  startTime: integer("start_time").notNull(), // seconds from stream start
+  endTime: integer("end_time").notNull(), // seconds from stream start
+  clipUrl: varchar("clip_url"),
+  thumbnailUrl: varchar("thumbnail_url"),
+  highlightType: varchar("highlight_type").notNull(), // ai_detected, manual, peak_viewers, peak_gifts
+  score: integer("score").default(0), // AI confidence score 0-100
+  tags: text("tags").array(),
+  metadata: jsonb("metadata"), // AI analysis data
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Stream Recordings
+export const streamRecordings = pgTable("stream_recordings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  streamId: varchar("stream_id").references(() => liveStreams.id, { onDelete: "cascade" }).notNull(),
+  recordingUrl: varchar("recording_url").notNull(),
+  thumbnailUrl: varchar("thumbnail_url"),
+  duration: integer("duration"), // in seconds
+  fileSize: integer("file_size"), // in bytes
+  resolution: varchar("resolution"), // 1080p, 720p, etc.
+  format: varchar("format").default("mp4"), // mp4, webm, etc.
+  status: varchar("status").default("processing"), // processing, ready, failed
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Stream Viewers (active viewer tracking)
+export const streamViewers = pgTable("stream_viewers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  streamId: varchar("stream_id").references(() => liveStreams.id, { onDelete: "cascade" }).notNull(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  joinedAt: timestamp("joined_at").defaultNow(),
+  leftAt: timestamp("left_at"),
+  watchTimeSeconds: integer("watch_time_seconds").default(0),
+  peakQuality: varchar("peak_quality"), // Highest quality watched
+  deviceType: varchar("device_type"), // mobile, desktop, tablet, tv
+  location: varchar("location"), // Country/region
+  connectionQuality: varchar("connection_quality"), // excellent, good, poor
+  bufferingEvents: integer("buffering_events").default(0),
+  isActive: boolean("is_active").default(true),
+});
+
+// Stream Analytics (aggregated metrics)
+export const streamAnalytics = pgTable("stream_analytics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  streamId: varchar("stream_id").references(() => liveStreams.id, { onDelete: "cascade" }).notNull().unique(),
+  peakViewers: integer("peak_viewers").default(0),
+  avgViewers: integer("avg_viewers").default(0),
+  totalViewers: integer("total_viewers").default(0),
+  totalWatchTimeMinutes: integer("total_watch_time_minutes").default(0),
+  totalGifts: integer("total_gifts").default(0),
+  totalGiftValue: integer("total_gift_value").default(0), // in cents
+  totalReactions: integer("total_reactions").default(0),
+  totalChatMessages: integer("total_chat_messages").default(0),
+  engagementScore: integer("engagement_score").default(0), // 0-100
+  viewerRetention: jsonb("viewer_retention"), // {time: percentage} graph data
+  demographicsData: jsonb("demographics_data"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   profile: one(profiles, { fields: [users.id], references: [profiles.userId] }),

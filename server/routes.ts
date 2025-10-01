@@ -30,6 +30,8 @@ import { contentCreationService } from "./services/content-creation";
 import { aiEditorService } from "./services/ai-editor";
 import { distributionService } from "./services/distribution";
 import { verificationService } from "./services/verification";
+import { streamingService } from "./services/streaming";
+import { initStreamWebSocketHandler } from "./websocket/stream-handler";
 
 // Rate limiting
 const limiter = rateLimit({
@@ -742,6 +744,173 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ====================================
+  // LIVE STREAMING ROUTES
+  // ====================================
+  
+  // Create a new live stream
+  app.post('/api/streams/create', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const config = req.body;
+      
+      const session = await streamingService.createStream(userId, config);
+      
+      res.json({
+        sessionId: session.id,
+        streamId: session.streamId,
+        streamKey: session.streamKey,
+        rtcConfiguration: session.rtcConfiguration,
+        status: session.status
+      });
+    } catch (error) {
+      console.error("Error creating stream:", error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to create stream" });
+    }
+  });
+
+  // Get stream details
+  app.get('/api/streams/:streamId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { streamId } = req.params;
+      const stream = await storage.getLiveStream(streamId);
+      
+      if (!stream) {
+        return res.status(404).json({ message: "Stream not found" });
+      }
+      
+      res.json(stream);
+    } catch (error) {
+      console.error("Error fetching stream:", error);
+      res.status(500).json({ message: "Failed to fetch stream" });
+    }
+  });
+
+  // Get active streams
+  app.get('/api/streams/active', isAuthenticated, async (req: any, res) => {
+    try {
+      const sessions = streamingService.getActiveSessions();
+      
+      res.json(sessions.map(s => ({
+        sessionId: s.id,
+        streamId: s.streamId,
+        creatorId: s.creatorId,
+        status: s.status,
+        viewerCount: s.analytics.currentViewers,
+        startedAt: s.startedAt
+      })));
+    } catch (error) {
+      console.error("Error fetching active streams:", error);
+      res.status(500).json({ message: "Failed to fetch active streams" });
+    }
+  });
+
+  // Start stream
+  app.post('/api/streams/:sessionId/start', isAuthenticated, async (req: any, res) => {
+    try {
+      const { sessionId } = req.params;
+      await streamingService.startStream(sessionId);
+      
+      res.json({ message: "Stream started successfully" });
+    } catch (error) {
+      console.error("Error starting stream:", error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to start stream" });
+    }
+  });
+
+  // End stream
+  app.post('/api/streams/:sessionId/end', isAuthenticated, async (req: any, res) => {
+    try {
+      const { sessionId } = req.params;
+      await streamingService.endStream(sessionId);
+      
+      res.json({ message: "Stream ended successfully" });
+    } catch (error) {
+      console.error("Error ending stream:", error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to end stream" });
+    }
+  });
+
+  // Get stream analytics
+  app.get('/api/streams/:streamId/analytics', isAuthenticated, async (req: any, res) => {
+    try {
+      const { streamId } = req.params;
+      const analytics = await storage.getStreamAnalytics(streamId);
+      
+      if (!analytics) {
+        // Return default analytics if not found
+        const session = streamingService.getAllSessions().find(s => s.streamId === streamId);
+        if (session) {
+          return res.json(session.analytics);
+        }
+        return res.status(404).json({ message: "Analytics not found" });
+      }
+      
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching stream analytics:", error);
+      res.status(500).json({ message: "Failed to fetch analytics" });
+    }
+  });
+
+  // Get stream highlights
+  app.get('/api/streams/:streamId/highlights', isAuthenticated, async (req: any, res) => {
+    try {
+      const { streamId } = req.params;
+      const highlights = await storage.getStreamHighlights(streamId);
+      
+      res.json(highlights);
+    } catch (error) {
+      console.error("Error fetching highlights:", error);
+      res.status(500).json({ message: "Failed to fetch highlights" });
+    }
+  });
+
+  // Get stream recording
+  app.get('/api/streams/:streamId/recording', isAuthenticated, async (req: any, res) => {
+    try {
+      const { streamId } = req.params;
+      const recording = await storage.getStreamRecording(streamId);
+      
+      if (!recording) {
+        return res.status(404).json({ message: "Recording not found" });
+      }
+      
+      res.json(recording);
+    } catch (error) {
+      console.error("Error fetching recording:", error);
+      res.status(500).json({ message: "Failed to fetch recording" });
+    }
+  });
+
+  // Get stream chat messages
+  app.get('/api/streams/:streamId/chat', isAuthenticated, async (req: any, res) => {
+    try {
+      const { streamId } = req.params;
+      const limit = parseInt(req.query.limit as string) || 100;
+      
+      const messages = await storage.getStreamChatMessages(streamId, limit);
+      
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching chat messages:", error);
+      res.status(500).json({ message: "Failed to fetch chat messages" });
+    }
+  });
+
+  // Get stream gifts
+  app.get('/api/streams/:streamId/gifts', isAuthenticated, async (req: any, res) => {
+    try {
+      const { streamId } = req.params;
+      const gifts = await storage.getStreamGifts(streamId);
+      
+      res.json(gifts);
+    } catch (error) {
+      console.error("Error fetching gifts:", error);
+      res.status(500).json({ message: "Failed to fetch gifts" });
+    }
+  });
+
   // Moderation routes
   app.get('/api/moderation/queue', isAuthenticated, async (req: any, res) => {
     try {
@@ -813,6 +982,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Store active connections
   const connections = new Map<string, WebSocket>();
+  
+  // Initialize stream WebSocket handler
+  const streamHandler = initStreamWebSocketHandler(wss);
 
   wss.on('connection', (ws, req) => {
     let userId: string | null = null;
@@ -821,6 +993,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Try to extract token from query parameters
     const url = new URL(req.url!, `http://${req.headers.host}`);
     const token = url.searchParams.get('token');
+    const purpose = url.searchParams.get('purpose'); // 'stream' or 'chat'
     
     if (token) {
       console.log('WebSocket connection with token:', token.substring(0, 10) + '...');
@@ -836,11 +1009,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }));
       console.log('WebSocket authenticated via token');
     }
+    
+    // If this is a streaming connection, delegate to stream handler
+    if (purpose === 'stream') {
+      streamHandler.handleConnection(ws as any, req);
+      return;
+    }
 
     ws.on('message', async (data) => {
       try {
         const message = JSON.parse(data.toString());
         console.log('WebSocket message received:', message.type, userId ? `from user ${userId}` : '(unauthenticated)');
+        
+        // Check if this is a streaming-related message
+        if (message.type && message.type.startsWith('stream_') || 
+            ['create_stream', 'join_stream', 'leave_stream', 'send_gift', 'send_reaction'].includes(message.type)) {
+          // Delegate to stream handler
+          streamHandler.handleConnection(ws as any, req);
+          return;
+        }
         
         if (message.type === 'auth') {
           userId = message.userId;
