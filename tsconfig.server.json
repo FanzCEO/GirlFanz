@@ -1,5 +1,4 @@
 {
-  "extends": "./tsconfig.json",
   "compilerOptions": {
     "target": "ES2017",
     "module": "commonjs",
@@ -12,8 +11,13 @@
     },
     "jsx": "react",
     "noEmit": false,
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "resolveJsonModule": true,
+    "allowJs": true
   },
-  "include": ["server/**/*", "shared/**/*", "client/**/*"],
-  "exclude": ["node_modules", "dist", ".next", "src"]
+  "include": ["server/**/*", "shared/**/*"],
+  "exclude": ["node_modules", "dist", ".next", "src", "client"]
 }
