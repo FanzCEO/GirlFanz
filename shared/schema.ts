@@ -49,6 +49,8 @@ export const users = pgTable("users", {
   role: userRoleEnum("role").default("fan"),
   status: userStatusEnum("status").default("active"),
   authProvider: authProviderEnum("auth_provider").default("replit"),
+  isCreator: boolean("is_creator").default(false),
+  ageVerified: boolean("age_verified").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -61,6 +63,9 @@ export const profiles = pgTable("profiles", {
   bio: text("bio"),
   avatarUrl: varchar("avatar_url"),
   bannerUrl: varchar("banner_url"),
+  pronouns: varchar("pronouns"),
+  niches: text("niches").array(),
+  interests: text("interests").array(),
   kycStatus: kycStatusEnum("kyc_status").default("pending"),
   ageVerified: boolean("age_verified").default(false),
   subscriptionPrice: integer("subscription_price"), // in cents

@@ -142,6 +142,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Onboarding routes
+  app.post('/api/creator/onboarding', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const onboardingData = req.body;
+
+      // Update user to mark as creator
+      await storage.updateUser(userId, { isCreator: true });
+
+      // Create/update profile with onboarding data
+      const profileData = {
+        userId,
+        displayName: onboardingData.displayName,
+        bio: onboardingData.bio || '',
+        niches: onboardingData.selectedNiches || [],
+        pronouns: onboardingData.pronouns || '',
+      };
+
+      const existingProfile = await storage.getProfile(userId);
+      let profile;
+      
+      if (existingProfile) {
+        profile = await storage.updateProfile(userId, profileData);
+      } else {
+        profile = await storage.createProfile(profileData);
+      }
+
+      // Store payout information (would integrate with payment processor in production)
+      // For now, just log it
+      console.log('Creator payout setup:', {
+        userId,
+        method: onboardingData.payoutMethod,
+        email: onboardingData.payoutEmail,
+      });
+
+      // Audit log
+      await storage.createAuditLog({
+        actorId: userId,
+        action: 'creator_onboarding_complete',
+        targetType: 'user',
+        targetId: userId,
+        metadata: { niches: onboardingData.selectedNiches },
+      });
+
+      res.json({
+        success: true,
+        profile,
+        message: 'Creator onboarding completed successfully',
+      });
+    } catch (error) {
+      console.error("Error completing creator onboarding:", error);
+      res.status(500).json({ message: "Failed to complete onboarding" });
+    }
+  });
+
+  app.post('/api/fan/onboarding', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const onboardingData = req.body;
+
+      // Validate age
+      if (onboardingData.birthday) {
+        const birthDate = new Date(onboardingData.birthday);
+        const age = Math.floor((new Date().getTime() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+        
+        if (age < 18) {
+          return res.status(400).json({ message: "You must be 18 or older to join GirlFanz" });
+        }
+
+        // Store age verification
+        await storage.updateUser(userId, { ageVerified: true });
+      }
+
+      // Create/update profile with interests
+      const profileData = {
+        userId,
+        interests: onboardingData.selectedInterests || [],
+      };
+
+      const existingProfile = await storage.getProfile(userId);
+      let profile;
+      
+      if (existingProfile) {
+        profile = await storage.updateProfile(userId, profileData);
+      } else {
+        profile = await storage.createProfile(profileData);
+      }
+
+      // Audit log
+      await storage.createAuditLog({
+        actorId: userId,
+        action: 'fan_onboarding_complete',
+        targetType: 'user',
+        targetId: userId,
+        metadata: { interests: onboardingData.selectedInterests },
+      });
+
+      res.json({
+        success: true,
+        profile,
+        message: 'Fan onboarding completed successfully',
+      });
+    } catch (error) {
+      console.error("Error completing fan onboarding:", error);
+      res.status(500).json({ message: "Failed to complete onboarding" });
+    }
+  });
+
   // Media/Content routes
   app.get('/api/media', isAuthenticated, async (req: any, res) => {
     try {
