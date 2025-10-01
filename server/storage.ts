@@ -74,7 +74,7 @@ import {
   type SponsoredPost,
   type PostLike,
   type PostUnlock,
-} from "@shared/schema";
+} from "../shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, sql } from "drizzle-orm";
 
@@ -302,7 +302,7 @@ export class DatabaseStorage implements IStorage {
 
   // Password reset tokens
   async createPasswordResetToken(tokenData: { userId: string; token: string; expiresAt: Date }): Promise<any> {
-    const { passwordResetTokens } = await import('@shared/schema');
+    const { passwordResetTokens } = await import('../shared/schema');
     const [token] = await db
       .insert(passwordResetTokens)
       .values(tokenData)
@@ -311,7 +311,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPasswordResetToken(token: string): Promise<any | undefined> {
-    const { passwordResetTokens } = await import('@shared/schema');
+    const { passwordResetTokens } = await import('../shared/schema');
     const [resetToken] = await db
       .select()
       .from(passwordResetTokens)
@@ -320,7 +320,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async markPasswordResetTokenUsed(token: string): Promise<void> {
-    const { passwordResetTokens } = await import('@shared/schema');
+    const { passwordResetTokens } = await import('../shared/schema');
     await db
       .update(passwordResetTokens)
       .set({ used: true })
@@ -329,7 +329,7 @@ export class DatabaseStorage implements IStorage {
 
   // Email verification tokens
   async createEmailVerificationToken(tokenData: { userId: string; token: string; expiresAt: Date }): Promise<any> {
-    const { emailVerificationTokens } = await import('@shared/schema');
+    const { emailVerificationTokens } = await import('../shared/schema');
     const [token] = await db
       .insert(emailVerificationTokens)
       .values(tokenData)
@@ -338,7 +338,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getEmailVerificationToken(token: string): Promise<any | undefined> {
-    const { emailVerificationTokens } = await import('@shared/schema');
+    const { emailVerificationTokens } = await import('../shared/schema');
     const [verificationToken] = await db
       .select()
       .from(emailVerificationTokens)
@@ -347,7 +347,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async markEmailVerificationTokenUsed(token: string): Promise<void> {
-    const { emailVerificationTokens } = await import('@shared/schema');
+    const { emailVerificationTokens } = await import('../shared/schema');
     await db
       .update(emailVerificationTokens)
       .set({ used: true })

@@ -18,7 +18,7 @@ import {
   insertTutorialSchema,
   insertFeedPostSchema,
   insertPostMediaSchema
-} from "@shared/schema";
+} from "../shared/schema";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
@@ -372,7 +372,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Object storage routes for file handling
-  app.get("/objects/:objectPath(*)", isAuthenticated, async (req: any, res) => {
+  app.get(/^\/objects\/(.*)$/, isAuthenticated, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
     const objectStorageService = new ObjectStorageService();
     try {

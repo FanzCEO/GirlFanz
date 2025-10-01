@@ -1,0 +1,30 @@
+#!/usr/bin/env node
+
+// This is a wrapper that intercepts the "next dev" command
+// and runs our Express server instead
+
+const args = process.argv.slice(2);
+
+if (args.includes('dev')) {
+  console.log('🔄 Redirecting to Express server...');
+  
+  // Set environment variables
+  process.env.JWT_SECRET = process.env.JWT_SECRET || 'development-secret-' + Math.random().toString(36).substring(7);
+  process.env.PORT = '5000'; // Override the port from Next.js
+  process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'session-secret-' + Math.random().toString(36).substring(7);
+  
+  // Load and run our Express server
+  require('tsx/cjs');
+  require('tsconfig-paths/register');
+  // Use absolute path to server-entry.ts
+  require('/home/runner/workspace/server-entry.ts');
+} else {
+  // For other commands, just pass through to the real next
+  console.log('Running actual Next.js command:', args);
+  const { spawn } = require('child_process');
+  const nextPath = require.resolve('next/dist/bin/next');
+  const child = spawn(process.execPath, [nextPath, ...args], {
+    stdio: 'inherit'
+  });
+  child.on('exit', (code) => process.exit(code));
+}
