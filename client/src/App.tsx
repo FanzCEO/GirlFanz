@@ -26,6 +26,8 @@ import Feed from "@/pages/Feed";
 import LiveStreams from "@/pages/LiveStreams";
 import Discover from "@/pages/Discover";
 import CreatorAnalytics from "@/pages/CreatorAnalytics";
+import CreatorOnboardingPage from "@/pages/CreatorOnboardingPage";
+import FanzOnboardingPage from "@/pages/FanzOnboardingPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -51,6 +53,10 @@ function Router() {
         <Route path="/wiki" component={WikiPage} />
         <Route path="/tutorials/:id" component={TutorialDetailPage} />
         <Route path="/tutorials" component={TutorialsPage} />
+        
+        {/* Onboarding flows - public routes */}
+        <Route path="/onboarding/creator" component={CreatorOnboardingPage} />
+        <Route path="/onboarding/fan" component={FanzOnboardingPage} />
         
         {!isAuthenticated ? (
           <>
