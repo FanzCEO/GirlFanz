@@ -51,6 +51,14 @@ export const royaltyTypeEnum = pgEnum("royalty_type", ["fixed", "decaying", "tie
 export const nftTransactionTypeEnum = pgEnum("nft_transaction_type", ["mint", "sale", "transfer", "royalty", "burn"]);
 export const marketplaceEnum = pgEnum("marketplace", ["internal", "opensea", "rarible", "looksrare", "x2y2"]);
 
+// Voice cloning enums
+export const voiceProviderEnum = pgEnum("voice_provider", ["elevenlabs", "resemble", "speechify"]);
+export const voiceProfileStatusEnum = pgEnum("voice_profile_status", ["pending", "training", "ready", "failed", "disabled"]);
+export const voiceCloningTypeEnum = pgEnum("voice_cloning_type", ["instant", "professional", "custom"]);
+export const voiceMessageStatusEnum = pgEnum("voice_message_status", ["queued", "generating", "generated", "delivered", "failed"]);
+export const voiceCampaignStatusEnum = pgEnum("voice_campaign_status", ["draft", "scheduled", "running", "paused", "completed", "cancelled"]);
+export const voiceEmotionEnum = pgEnum("voice_emotion", ["neutral", "happy", "sad", "excited", "calm", "serious", "playful"]);
+
 // User storage table
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1135,6 +1143,153 @@ export const liveStreamCoStars = pgTable("live_stream_co_stars", {
 });
 
 // ====================================
+// VOICE CLONING SYSTEM
+// ====================================
+
+// Voice Profiles - Creator voice profiles
+export const voiceProfiles = pgTable("voice_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  provider: voiceProviderEnum("provider").notNull(),
+  providerVoiceId: varchar("provider_voice_id"), // Voice ID from provider (ElevenLabs, Resemble, etc)
+  status: voiceProfileStatusEnum("status").default("pending"),
+  cloningType: voiceCloningTypeEnum("cloning_type").default("instant"),
+  language: varchar("language").default("en"),
+  supportedLanguages: text("supported_languages").array(),
+  voiceSettings: jsonb("voice_settings"), // {stability, similarity_boost, style, etc}
+  isDefault: boolean("is_default").default(false),
+  isPublic: boolean("is_public").default(false),
+  consentVerified: boolean("consent_verified").default(false),
+  consentDocumentUrl: varchar("consent_document_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Voice Samples - Training audio samples for cloning
+export const voiceSamples = pgTable("voice_samples", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  profileId: varchar("profile_id").references(() => voiceProfiles.id, { onDelete: "cascade" }).notNull(),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  sampleType: varchar("sample_type").notNull(), // training, reference, validation
+  fileUrl: varchar("file_url").notNull(),
+  s3Key: varchar("s3_key").notNull(),
+  duration: integer("duration"), // in seconds
+  fileSize: integer("file_size"),
+  mimeType: varchar("mime_type"),
+  transcription: text("transcription"),
+  quality: integer("quality"), // 0-100 quality score
+  isProcessed: boolean("is_processed").default(false),
+  metadata: jsonb("metadata"), // {sample_rate, bit_rate, channels, etc}
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Voice Messages - Generated voice messages
+export const voiceMessages = pgTable("voice_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  profileId: varchar("profile_id").references(() => voiceProfiles.id, { onDelete: "cascade" }).notNull(),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  recipientId: varchar("recipient_id").references(() => users.id),
+  recipientName: varchar("recipient_name"),
+  messageType: varchar("message_type"), // voicemail, dm, birthday, thank_you, wake_up, custom
+  text: text("text").notNull(),
+  personalizedText: text("personalized_text"), // Text with personalization variables replaced
+  language: varchar("language").default("en"),
+  emotion: voiceEmotionEnum("emotion").default("neutral"),
+  audioUrl: varchar("audio_url"),
+  s3Key: varchar("s3_key"),
+  duration: integer("duration"), // in seconds
+  fileSize: integer("file_size"),
+  status: voiceMessageStatusEnum("status").default("queued"),
+  provider: voiceProviderEnum("provider"),
+  providerRequestId: varchar("provider_request_id"),
+  generationTimeMs: integer("generation_time_ms"),
+  creditsCost: integer("credits_cost"),
+  errorMessage: text("error_message"),
+  watermarkApplied: boolean("watermark_applied").default(true),
+  deliveredAt: timestamp("delivered_at"),
+  viewedAt: timestamp("viewed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Voice Campaigns - Bulk message generation campaigns
+export const voiceCampaigns = pgTable("voice_campaigns", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  profileId: varchar("profile_id").references(() => voiceProfiles.id).notNull(),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  status: voiceCampaignStatusEnum("status").default("draft"),
+  campaignType: varchar("campaign_type"), // birthday, thank_you, holiday, custom
+  targetAudience: jsonb("target_audience"), // {tier: "premium", min_spend: 100, tags: ["vip"]}
+  messageTemplate: text("message_template").notNull(), // Template with {{variables}}
+  personalizations: jsonb("personalizations"), // {variables: ["name", "amount"], defaults: {}}
+  scheduledAt: timestamp("scheduled_at"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  totalRecipients: integer("total_recipients").default(0),
+  messagesGenerated: integer("messages_generated").default(0),
+  messagesDelivered: integer("messages_delivered").default(0),
+  messagesFailed: integer("messages_failed").default(0),
+  totalCreditsCost: integer("total_credits_cost").default(0),
+  estimatedCost: integer("estimated_cost"), // in cents
+  batchSize: integer("batch_size").default(100), // Messages per batch
+  retryFailures: boolean("retry_failures").default(true),
+  metadata: jsonb("metadata"), // Additional campaign settings
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Voice Analytics - Track message engagement
+export const voiceAnalytics = pgTable("voice_analytics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  messageId: varchar("message_id").references(() => voiceMessages.id, { onDelete: "cascade" }).notNull(),
+  campaignId: varchar("campaign_id").references(() => voiceCampaigns.id),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  recipientId: varchar("recipient_id").references(() => users.id),
+  plays: integer("plays").default(0),
+  completions: integer("completions").default(0), // Full listens
+  avgListenDuration: integer("avg_listen_duration"), // in seconds
+  shares: integer("shares").default(0),
+  tips: integer("tips").default(0), // Tips received after listening
+  tipAmount: integer("tip_amount").default(0), // Total tip amount in cents
+  sentiment: varchar("sentiment"), // positive, neutral, negative (from reactions)
+  deviceType: varchar("device_type"), // mobile, desktop
+  location: varchar("location"), // Country/region
+  lastPlayedAt: timestamp("last_played_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Voice Credits - Track API usage and costs
+export const voiceCredits = pgTable("voice_credits", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  creditBalance: integer("credit_balance").default(0),
+  monthlyAllocation: integer("monthly_allocation").default(1000),
+  bonusCredits: integer("bonus_credits").default(0),
+  totalUsed: integer("total_used").default(0),
+  totalPurchased: integer("total_purchased").default(0),
+  lastResetAt: timestamp("last_reset_at"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Voice Transaction Log
+export const voiceTransactions = pgTable("voice_transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  transactionType: varchar("transaction_type").notNull(), // credit_purchase, credit_usage, credit_refund
+  amount: integer("amount").notNull(), // Credits or cents
+  balance: integer("balance"), // Balance after transaction
+  description: text("description"),
+  metadata: jsonb("metadata"), // {message_id, campaign_id, provider, etc}
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ====================================
 // NFT & BLOCKCHAIN SYSTEM
 // ====================================
 
@@ -1594,6 +1749,71 @@ export type MarketplaceIntegration = typeof marketplaceIntegrations.$inferSelect
 export type InsertMarketplaceIntegration = z.infer<typeof insertMarketplaceIntegrationSchema>;
 export type BlockchainEvent = typeof blockchainEvents.$inferSelect;
 export type InsertBlockchainEvent = z.infer<typeof insertBlockchainEventSchema>;
+
+// ====================================
+// VOICE CLONING - Zod Schemas & Types
+// ====================================
+
+export const insertVoiceProfileSchema = createInsertSchema(voiceProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertVoiceSampleSchema = createInsertSchema(voiceSamples).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertVoiceMessageSchema = createInsertSchema(voiceMessages).omit({
+  id: true,
+  deliveredAt: true,
+  viewedAt: true,
+  createdAt: true,
+});
+
+export const insertVoiceCampaignSchema = createInsertSchema(voiceCampaigns).omit({
+  id: true,
+  startedAt: true,
+  completedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertVoiceAnalyticsSchema = createInsertSchema(voiceAnalytics).omit({
+  id: true,
+  lastPlayedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertVoiceCreditsSchema = createInsertSchema(voiceCredits).omit({
+  id: true,
+  lastResetAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertVoiceTransactionSchema = createInsertSchema(voiceTransactions).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Voice Type Exports
+export type VoiceProfile = typeof voiceProfiles.$inferSelect;
+export type InsertVoiceProfile = z.infer<typeof insertVoiceProfileSchema>;
+export type VoiceSample = typeof voiceSamples.$inferSelect;
+export type InsertVoiceSample = z.infer<typeof insertVoiceSampleSchema>;
+export type VoiceMessage = typeof voiceMessages.$inferSelect;
+export type InsertVoiceMessage = z.infer<typeof insertVoiceMessageSchema>;
+export type VoiceCampaign = typeof voiceCampaigns.$inferSelect;
+export type InsertVoiceCampaign = z.infer<typeof insertVoiceCampaignSchema>;
+export type VoiceAnalytics = typeof voiceAnalytics.$inferSelect;
+export type InsertVoiceAnalytics = z.infer<typeof insertVoiceAnalyticsSchema>;
+export type VoiceCredits = typeof voiceCredits.$inferSelect;
+export type InsertVoiceCredits = z.infer<typeof insertVoiceCreditsSchema>;
+export type VoiceTransaction = typeof voiceTransactions.$inferSelect;
+export type InsertVoiceTransaction = z.infer<typeof insertVoiceTransactionSchema>;
 
 // ====================================
 // FanzTrust™ API Response Types
