@@ -10,13 +10,16 @@ import { queryClient, apiRequest } from '@/lib/queryClient';
 import { 
   Camera, Upload, Radio, Film, Settings, 
   TrendingUp, DollarSign, Eye, Heart, Share2,
-  CheckCircle, Clock, AlertCircle, Sparkles
+  CheckCircle, Clock, AlertCircle, Sparkles, Shield
 } from 'lucide-react';
 import CameraCapture from '@/components/creator/CameraCapture';
 import ContentUpload from '@/components/creator/ContentUpload';
 import EditingPreview from '@/components/creator/EditingPreview';
 import DistributionSettings from '@/components/creator/DistributionSettings';
 import ContentAnalytics from '@/components/creator/ContentAnalytics';
+import VerificationModal from '@/components/verification/VerificationModal';
+import VerificationBadge from '@/components/verification/VerificationBadge';
+import VerificationStatus from '@/components/verification/VerificationStatus';
 
 type ContentSession = {
   id: string;
@@ -52,11 +55,17 @@ export default function CreatorStudio() {
   const [activeTab, setActiveTab] = useState('create');
   const [selectedSession, setSelectedSession] = useState<ContentSession | null>(null);
   const [showVerificationAlert, setShowVerificationAlert] = useState(false);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
   const { toast } = useToast();
 
   // Check verification status
   const { data: profile } = useQuery({
     queryKey: ['/api/user/profile'],
+  });
+
+  // Get verification status
+  const { data: verificationStatus } = useQuery({
+    queryKey: ['/api/verification/status'],
   });
 
   // Get studio settings
@@ -102,10 +111,24 @@ export default function CreatorStudio() {
 
   // Check if user is verified
   useEffect(() => {
-    if (profile && (!profile.kycVerificationStatus || profile.kycVerificationStatus !== 'verified')) {
+    if (verificationStatus && !verificationStatus.verified) {
       setShowVerificationAlert(true);
+    } else if (verificationStatus?.verified) {
+      setShowVerificationAlert(false);
     }
-  }, [profile]);
+  }, [verificationStatus]);
+
+  // Handle verification success
+  const handleVerificationSuccess = () => {
+    setShowVerificationModal(false);
+    setShowVerificationAlert(false);
+    queryClient.invalidateQueries({ queryKey: ['/api/verification/status'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/user/profile'] });
+    toast({
+      title: 'Verification Complete!',
+      description: 'You can now access all creator features.',
+    });
+  };
 
   const handleContentCreated = (session: ContentSession) => {
     setSelectedSession(session);
@@ -196,21 +219,34 @@ export default function CreatorStudio() {
         </div>
       </div>
 
-      {showVerificationAlert && (
+      {showVerificationAlert && !verificationStatus?.verified && (
         <Alert className="border-yellow-500 bg-yellow-50">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription data-testid="alert-verification">
-            <strong>Verification Required:</strong> Complete your ID verification to unlock all creator features.
-            <Button 
-              size="sm" 
-              className="ml-2"
-              onClick={() => window.location.href = '/verification'}
-              data-testid="button-verify-now"
-            >
-              Verify Now
-            </Button>
+            <div className="flex items-center justify-between">
+              <div>
+                <strong>Verification Required:</strong> Complete your ID verification to unlock all creator features.
+                <p className="text-sm mt-1">Verification ensures compliance with 18 U.S.C. §2257 requirements.</p>
+              </div>
+              <Button 
+                size="sm" 
+                onClick={() => setShowVerificationModal(true)}
+                data-testid="button-verify-now"
+              >
+                <Shield className="h-4 w-4 mr-2" />
+                Verify Now
+              </Button>
+            </div>
           </AlertDescription>
         </Alert>
+      )}
+
+      {verificationStatus?.verified && (
+        <div className="flex items-center gap-2 text-green-600">
+          <CheckCircle className="h-5 w-5" />
+          <span className="font-medium">Identity Verified</span>
+          <VerificationBadge showText />
+        </div>
       )}
 
       {/* Quick Stats */}
@@ -437,6 +473,15 @@ export default function CreatorStudio() {
           <ContentAnalytics sessions={sessions} />
         </TabsContent>
       </Tabs>
+
+      {/* Verification Modal */}
+      <VerificationModal
+        open={showVerificationModal}
+        onClose={() => setShowVerificationModal(false)}
+        onSuccess={handleVerificationSuccess}
+        mandatory={false}
+        userType="creator"
+      />
     </div>
   );
 }

@@ -168,12 +168,17 @@ export interface IStorage {
   updateTransaction(id: string, updates: Partial<Transaction>): Promise<Transaction | undefined>;
 
   // KYC operations
+  // KYC Verification operations
   getKycVerification(userId: string): Promise<KycVerification | undefined>;
   getKycVerificationByType(userId: string, documentType: string): Promise<KycVerification | undefined>;
   createKycVerification(verification: InsertKycVerification): Promise<KycVerification>;
+  getKycVerificationsByUserId(userId: string): Promise<KycVerification[]>;
+  getKycVerificationsInDateRange(startDate: Date, endDate: Date): Promise<KycVerification[]>;
+  createRecord2257(record: any): Promise<any>;
   
   // Audit operations
   createAuditLog(log: Partial<AuditLog>): Promise<AuditLog>;
+  getAuditLogsInDateRange(startDate: Date, endDate: Date, actionPattern?: string): Promise<AuditLog[]>;
   
   // Support Ticket operations
   getSupportTickets(userId?: string, status?: string): Promise<SupportTicket[]>;
@@ -271,9 +276,10 @@ export interface IStorage {
   // Content Creation operations
   getContentSession(id: string): Promise<ContentCreationSession | undefined>;
   getContentSessionsByCreator(creatorId: string, limit?: number): Promise<ContentCreationSession[]>;
+  getContentSessionsByUserId(userId: string): Promise<ContentCreationSession[]>;
   createContentSession(session: InsertContentCreationSession): Promise<ContentCreationSession>;
   updateContentSession(id: string, updates: Partial<ContentCreationSession>): Promise<ContentCreationSession>;
-  deleteContentSession(id: string): Promise<void>;
+  deleteContentSession(id: string, ownerId: string): Promise<void>;
 
   // Editing Task operations
   getEditingTask(id: string): Promise<EditingTask | undefined>;

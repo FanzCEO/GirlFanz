@@ -29,6 +29,7 @@ import { creatorPayoutService } from "./services/payouts";
 import { contentCreationService } from "./services/content-creation";
 import { aiEditorService } from "./services/ai-editor";
 import { distributionService } from "./services/distribution";
+import { verificationService } from "./services/verification";
 
 // Rate limiting
 const limiter = rateLimit({
@@ -145,6 +146,152 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Verification routes
+  app.post('/api/verification/session', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { userType } = req.body;
+      
+      const session = await verificationService.createSession(userId, userType);
+      
+      res.json({
+        sessionId: session.id,
+        expiresAt: session.expiresAt
+      });
+    } catch (error) {
+      console.error("Error creating verification session:", error);
+      res.status(500).json({ message: "Failed to create verification session" });
+    }
+  });
+
+  app.post('/api/verification/submit/:sessionId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { documentType, frontImageBase64, backImageBase64, selfieImageBase64 } = req.body;
+      
+      const result = await verificationService.submitVerification(
+        sessionId,
+        documentType,
+        frontImageBase64,
+        backImageBase64,
+        selfieImageBase64
+      );
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error submitting verification:", error);
+      res.status(500).json({ message: "Failed to submit verification" });
+    }
+  });
+
+  app.get('/api/verification/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const status = await verificationService.getUserVerificationStatus(userId);
+      
+      res.json(status);
+    } catch (error) {
+      console.error("Error fetching verification status:", error);
+      res.status(500).json({ message: "Failed to fetch verification status" });
+    }
+  });
+
+  app.get('/api/verification/status/:userId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const status = await verificationService.getUserVerificationStatus(userId);
+      
+      res.json(status);
+    } catch (error) {
+      console.error("Error fetching user verification status:", error);
+      res.status(500).json({ message: "Failed to fetch verification status" });
+    }
+  });
+
+  app.get('/api/verification/result/:sessionId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { sessionId } = req.params;
+      const result = await verificationService.getVerificationResult(sessionId);
+      
+      if (!result) {
+        return res.status(404).json({ message: "Verification session not found" });
+      }
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching verification result:", error);
+      res.status(500).json({ message: "Failed to fetch verification result" });
+    }
+  });
+
+  app.get('/api/verification/history', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const history = await verificationService.getVerificationHistory(userId);
+      
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching verification history:", error);
+      res.status(500).json({ message: "Failed to fetch verification history" });
+    }
+  });
+
+  app.get('/api/verification/compliance-report', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Only admins can generate compliance reports
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const startDate = req.query.startDate 
+        ? new Date(req.query.startDate as string) 
+        : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const endDate = req.query.endDate 
+        ? new Date(req.query.endDate as string)
+        : new Date();
+      
+      const report = await verificationService.generateComplianceReport(startDate, endDate);
+      
+      res.json(report);
+    } catch (error) {
+      console.error("Error generating compliance report:", error);
+      res.status(500).json({ message: "Failed to generate compliance report" });
+    }
+  });
+
+  // Verification middleware for content creation
+  const requireVerification = async (req: any, res: any, next: any) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const status = await verificationService.getUserVerificationStatus(userId);
+      
+      if (!status.verified) {
+        return res.status(403).json({ 
+          message: "Verification required",
+          verificationRequired: true,
+          status: status.status
+        });
+      }
+      
+      // Check if verification is about to expire
+      if (await verificationService.needsReverification(userId)) {
+        res.setHeader('X-Verification-Warning', 'Verification expiring soon');
+      }
+      
+      next();
+    } catch (error) {
+      console.error("Error checking verification:", error);
+      res.status(500).json({ message: "Failed to check verification status" });
+    }
+  };
+
   // Onboarding validation schemas
   const creatorOnboardingSchema = z.object({
     displayName: z.string().min(1, "Display name is required"),
@@ -160,6 +307,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
     birthday: z.string(),
     selectedInterests: z.array(z.string()),
     paymentAdded: z.boolean().optional(),
+  });
+
+  // Creator content creation routes (require verification)
+  app.get('/api/creator/studio/settings', isAuthenticated, requireVerification, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get stored settings or return defaults
+      const settings = {
+        autoEditingEnabled: false,
+        autoDistributionEnabled: false,
+        preferredPlatforms: [],
+        defaultHashtags: [],
+        aiPricingSuggestions: true,
+      };
+      
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching studio settings:", error);
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+
+  app.post('/api/creator/studio/settings', isAuthenticated, requireVerification, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const settings = req.body;
+      
+      // Store settings (would be saved to database in production)
+      console.log('Updating studio settings for user:', userId, settings);
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating studio settings:", error);
+      res.status(500).json({ message: "Failed to update settings" });
+    }
+  });
+
+  app.get('/api/creator/content/sessions', isAuthenticated, requireVerification, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get user's content sessions
+      const sessions = await storage.getContentSessionsByUserId(userId);
+      
+      res.json(sessions || []);
+    } catch (error) {
+      console.error("Error fetching content sessions:", error);
+      res.status(500).json({ message: "Failed to fetch content sessions" });
+    }
+  });
+
+  app.post('/api/creator/content/sessions', isAuthenticated, requireVerification, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { title, description, type, sourceType, originalUrl } = req.body;
+      
+      // Create new content session
+      const session = await storage.createContentSession({
+        ownerId: userId,
+        title,
+        description,
+        type,
+        sourceType,
+        originalUrl,
+        status: 'processing'
+      });
+      
+      // Log creation
+      await storage.createAuditLog({
+        actorId: userId,
+        action: 'content_session_created',
+        targetType: 'content_session',
+        targetId: session.id,
+        metadata: { type, sourceType }
+      });
+      
+      res.json(session);
+    } catch (error) {
+      console.error("Error creating content session:", error);
+      res.status(500).json({ message: "Failed to create content session" });
+    }
+  });
+
+  app.delete('/api/creator/content/sessions/:sessionId', isAuthenticated, requireVerification, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { sessionId } = req.params;
+      
+      // Verify ownership and delete
+      await storage.deleteContentSession(sessionId, userId);
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting content session:", error);
+      res.status(500).json({ message: "Failed to delete content session" });
+    }
+  });
+
+  app.post('/api/creator/content/process/:sessionId', isAuthenticated, requireVerification, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { sessionId } = req.params;
+      const { editingOptions } = req.body;
+      
+      // Start AI processing
+      const task = await aiEditorService.startEditingTask(sessionId, editingOptions);
+      
+      res.json({
+        taskId: task.id,
+        status: 'processing'
+      });
+    } catch (error) {
+      console.error("Error processing content:", error);
+      res.status(500).json({ message: "Failed to process content" });
+    }
   });
 
   // Onboarding routes
