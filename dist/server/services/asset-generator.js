@@ -540,3 +540,4 @@ export class AssetGeneratorService {
         return Buffer.from('meme_image');
     }
 }
+export const assetGeneratorService = new AssetGeneratorService();

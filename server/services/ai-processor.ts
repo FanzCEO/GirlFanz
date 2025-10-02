@@ -92,6 +92,63 @@ export class AIProcessorService {
     this.objectStorage = new ObjectStorageService();
   }
 
+  // Get processing status for a session
+  async getProcessingStatus(sessionId: string): Promise<any> {
+    const pipeline = this.processingPipelines.get(sessionId);
+    const task = await storage.getEditingTaskBySession(sessionId);
+    
+    return {
+      sessionId,
+      pipeline,
+      task,
+      inQueue: this.processingQueue.includes(sessionId),
+      queuePosition: this.processingQueue.indexOf(sessionId) + 1
+    };
+  }
+
+  // Get processing queue for a user
+  async getProcessingQueue(userId: string): Promise<any[]> {
+    const sessions = await storage.getContentSessionsByCreator(userId);
+    const queueItems = [];
+    
+    for (const session of sessions) {
+      if (session.status === 'processing') {
+        const status = await this.getProcessingStatus(session.id);
+        queueItems.push({
+          ...session,
+          ...status
+        });
+      }
+    }
+    
+    return queueItems;
+  }
+
+  // Update priority of a queued session
+  async updateQueuePriority(sessionId: string, priority: 'normal' | 'high' | 'premium'): Promise<void> {
+    const queueIndex = this.processingQueue.indexOf(sessionId);
+    
+    if (queueIndex > -1) {
+      // Remove from current position
+      this.processingQueue.splice(queueIndex, 1);
+      
+      // Re-insert based on priority
+      if (priority === 'premium') {
+        this.processingQueue.unshift(sessionId); // Front of queue
+      } else if (priority === 'high') {
+        const firstNormalIndex = this.processingQueue.findIndex(id => !this.isPremium(id));
+        this.processingQueue.splice(firstNormalIndex >= 0 ? firstNormalIndex : this.processingQueue.length, 0, sessionId);
+      } else {
+        this.processingQueue.push(sessionId); // End of queue
+      }
+    }
+  }
+
+  private isPremium(sessionId: string): boolean {
+    // In production: Check user's subscription level
+    return false;
+  }
+
   // Main processing entry point
   async processContent(
     sessionId: string,
@@ -546,14 +603,4 @@ export class AIProcessorService {
   }
 }
 
-// Dummy definitions for types used in changes
-interface ProcessingOptions {}
-
-// Placeholder for processContent function
-const processContent = async (contentId: string, options: ProcessingOptions) => {
-  // Implementation here
-};
-
-export const aiProcessorService = {
-  processContent,
-};
+export const aiProcessorService = new AIProcessorService();

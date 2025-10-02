@@ -7,6 +7,56 @@ export class AIProcessorService {
         this.isProcessing = false;
         this.objectStorage = new ObjectStorageService();
     }
+    // Get processing status for a session
+    async getProcessingStatus(sessionId) {
+        const pipeline = this.processingPipelines.get(sessionId);
+        const task = await storage.getEditingTaskBySession(sessionId);
+        return {
+            sessionId,
+            pipeline,
+            task,
+            inQueue: this.processingQueue.includes(sessionId),
+            queuePosition: this.processingQueue.indexOf(sessionId) + 1
+        };
+    }
+    // Get processing queue for a user
+    async getProcessingQueue(userId) {
+        const sessions = await storage.getContentSessionsByCreator(userId);
+        const queueItems = [];
+        for (const session of sessions) {
+            if (session.status === 'processing') {
+                const status = await this.getProcessingStatus(session.id);
+                queueItems.push({
+                    ...session,
+                    ...status
+                });
+            }
+        }
+        return queueItems;
+    }
+    // Update priority of a queued session
+    async updateQueuePriority(sessionId, priority) {
+        const queueIndex = this.processingQueue.indexOf(sessionId);
+        if (queueIndex > -1) {
+            // Remove from current position
+            this.processingQueue.splice(queueIndex, 1);
+            // Re-insert based on priority
+            if (priority === 'premium') {
+                this.processingQueue.unshift(sessionId); // Front of queue
+            }
+            else if (priority === 'high') {
+                const firstNormalIndex = this.processingQueue.findIndex(id => !this.isPremium(id));
+                this.processingQueue.splice(firstNormalIndex >= 0 ? firstNormalIndex : this.processingQueue.length, 0, sessionId);
+            }
+            else {
+                this.processingQueue.push(sessionId); // End of queue
+            }
+        }
+    }
+    isPremium(sessionId) {
+        // In production: Check user's subscription level
+        return false;
+    }
     // Main processing entry point
     async processContent(sessionId, config) {
         const session = await storage.getContentSession(sessionId);

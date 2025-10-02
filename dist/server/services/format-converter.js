@@ -438,3 +438,4 @@ export class FormatConverterService {
         return ratioMap[from]?.includes(to) || false;
     }
 }
+export const formatConverterService = new FormatConverterService();

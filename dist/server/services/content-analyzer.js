@@ -531,3 +531,4 @@ export class ContentAnalyzerService {
         return topics[dayOffset % topics.length];
     }
 }
+export const contentAnalyzerService = new ContentAnalyzerService();
