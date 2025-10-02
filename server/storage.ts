@@ -2240,6 +2240,323 @@ export class DatabaseStorage implements IStorage {
       .where(eq(streamAnalytics.streamId, streamId));
     return analytics;
   }
+
+  // NFT Collection operations
+  async getNftCollection(id: string): Promise<any | undefined> {
+    const [collection] = await db
+      .select()
+      .from(nftCollections)
+      .where(eq(nftCollections.id, id));
+    return collection;
+  }
+
+  async getNftCollectionsByCreator(creatorId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(nftCollections)
+      .where(eq(nftCollections.creatorId, creatorId))
+      .orderBy(desc(nftCollections.createdAt));
+  }
+
+  async createNftCollection(collectionData: any): Promise<any> {
+    const [collection] = await db
+      .insert(nftCollections)
+      .values(collectionData)
+      .returning();
+    return collection;
+  }
+
+  async updateNftCollection(id: string, updates: any): Promise<any | undefined> {
+    const [collection] = await db
+      .update(nftCollections)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(nftCollections.id, id))
+      .returning();
+    return collection;
+  }
+
+  // NFT Token operations
+  async getNftToken(id: string): Promise<any | undefined> {
+    const [token] = await db
+      .select()
+      .from(nftTokens)
+      .where(eq(nftTokens.id, id));
+    return token;
+  }
+
+  async getNftTokensByOwner(ownerId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(nftTokens)
+      .where(eq(nftTokens.ownerId, ownerId))
+      .orderBy(desc(nftTokens.createdAt));
+  }
+
+  async getNftTokensByCollection(collectionId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(nftTokens)
+      .where(eq(nftTokens.collectionId, collectionId))
+      .orderBy(desc(nftTokens.createdAt));
+  }
+
+  async createNftToken(tokenData: any): Promise<any> {
+    const [token] = await db
+      .insert(nftTokens)
+      .values(tokenData)
+      .returning();
+    return token;
+  }
+
+  async updateNftToken(id: string, updates: any): Promise<any | undefined> {
+    const [token] = await db
+      .update(nftTokens)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(nftTokens.id, id))
+      .returning();
+    return token;
+  }
+
+  // NFT Transaction operations
+  async getNftTransactionsByToken(tokenId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(nftTransactions)
+      .where(eq(nftTransactions.tokenId, tokenId))
+      .orderBy(desc(nftTransactions.createdAt));
+  }
+
+  async getNftTransactionsByUser(userId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(nftTransactions)
+      .where(or(
+        eq(nftTransactions.fromUserId, userId),
+        eq(nftTransactions.toUserId, userId)
+      ))
+      .orderBy(desc(nftTransactions.createdAt));
+  }
+
+  async createNftTransaction(transactionData: any): Promise<any> {
+    const [transaction] = await db
+      .insert(nftTransactions)
+      .values(transactionData)
+      .returning();
+    return transaction;
+  }
+
+  async updateNftTransaction(id: string, updates: any): Promise<any | undefined> {
+    const [transaction] = await db
+      .update(nftTransactions)
+      .set(updates)
+      .where(eq(nftTransactions.id, id))
+      .returning();
+    return transaction;
+  }
+
+  // Blockchain Wallet operations
+  async getBlockchainWallet(userId: string, blockchain?: string): Promise<any | undefined> {
+    let query = db
+      .select()
+      .from(blockchainWallets)
+      .where(eq(blockchainWallets.userId, userId));
+
+    if (blockchain) {
+      query = query.where(and(
+        eq(blockchainWallets.userId, userId),
+        eq(blockchainWallets.blockchain, blockchain as any)
+      ));
+    }
+
+    const [wallet] = await query;
+    return wallet;
+  }
+
+  async getBlockchainWalletsByUser(userId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(blockchainWallets)
+      .where(eq(blockchainWallets.userId, userId));
+  }
+
+  async createBlockchainWallet(walletData: any): Promise<any> {
+    const [wallet] = await db
+      .insert(blockchainWallets)
+      .values(walletData)
+      .returning();
+    return wallet;
+  }
+
+  async updateBlockchainWallet(id: string, updates: any): Promise<any | undefined> {
+    const [wallet] = await db
+      .update(blockchainWallets)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(blockchainWallets.id, id))
+      .returning();
+    return wallet;
+  }
+
+  // Royalty Distribution operations
+  async getRoyaltyDistributionsByToken(tokenId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(royaltyDistributions)
+      .where(eq(royaltyDistributions.tokenId, tokenId))
+      .orderBy(desc(royaltyDistributions.createdAt));
+  }
+
+  async getRoyaltyDistributionsByRecipient(recipientId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(royaltyDistributions)
+      .where(eq(royaltyDistributions.recipientId, recipientId))
+      .orderBy(desc(royaltyDistributions.createdAt));
+  }
+
+  async createRoyaltyDistribution(distributionData: any): Promise<any> {
+    const [distribution] = await db
+      .insert(royaltyDistributions)
+      .values(distributionData)
+      .returning();
+    return distribution;
+  }
+
+  async updateRoyaltyDistribution(id: string, updates: any): Promise<any | undefined> {
+    const [distribution] = await db
+      .update(royaltyDistributions)
+      .set(updates)
+      .where(eq(royaltyDistributions.id, id))
+      .returning();
+    return distribution;
+  }
+
+  // IPFS Record operations
+  async getIpfsRecordsByUser(userId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(ipfsRecords)
+      .where(eq(ipfsRecords.userId, userId))
+      .orderBy(desc(ipfsRecords.createdAt));
+  }
+
+  async getIpfsRecordByHash(ipfsHash: string): Promise<any | undefined> {
+    const [record] = await db
+      .select()
+      .from(ipfsRecords)
+      .where(eq(ipfsRecords.ipfsHash, ipfsHash));
+    return record;
+  }
+
+  async createIpfsRecord(recordData: any): Promise<any> {
+    const [record] = await db
+      .insert(ipfsRecords)
+      .values(recordData)
+      .returning();
+    return record;
+  }
+
+  async updateIpfsRecord(id: string, updates: any): Promise<any | undefined> {
+    const [record] = await db
+      .update(ipfsRecords)
+      .set(updates)
+      .where(eq(ipfsRecords.id, id))
+      .returning();
+    return record;
+  }
+
+  // Marketplace Integration operations
+  async getMarketplaceIntegration(userId: string, marketplace: string): Promise<any | undefined> {
+    const [integration] = await db
+      .select()
+      .from(marketplaceIntegrations)
+      .where(and(
+        eq(marketplaceIntegrations.userId, userId),
+        eq(marketplaceIntegrations.marketplace, marketplace as any)
+      ));
+    return integration;
+  }
+
+  async getMarketplaceIntegrationsByUser(userId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(marketplaceIntegrations)
+      .where(eq(marketplaceIntegrations.userId, userId));
+  }
+
+  async createMarketplaceIntegration(integrationData: any): Promise<any> {
+    const [integration] = await db
+      .insert(marketplaceIntegrations)
+      .values(integrationData)
+      .returning();
+    return integration;
+  }
+
+  async updateMarketplaceIntegration(id: string, updates: any): Promise<any | undefined> {
+    const [integration] = await db
+      .update(marketplaceIntegrations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(marketplaceIntegrations.id, id))
+      .returning();
+    return integration;
+  }
+
+  // Additional helper methods
+  async getContentSessionsByUserId(userId: string): Promise<ContentCreationSession[]> {
+    return await this.getContentSessionsByCreator(userId);
+  }
+
+  async deleteContentSession(id: string, ownerId: string): Promise<void> {
+    await db
+      .delete(contentCreationSessions)
+      .where(and(
+        eq(contentCreationSessions.id, id),
+        eq(contentCreationSessions.creatorId, ownerId)
+      ));
+  }
+
+  async getKycVerificationsByUserId(userId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(kycVerifications)
+      .where(eq(kycVerifications.userId, userId))
+      .orderBy(desc(kycVerifications.createdAt));
+  }
+
+  async getKycVerificationsInDateRange(startDate: Date, endDate: Date): Promise<any[]> {
+    return await db
+      .select()
+      .from(kycVerifications)
+      .where(and(
+        sql`${kycVerifications.createdAt} >= ${startDate}`,
+        sql`${kycVerifications.createdAt} <= ${endDate}`
+      ))
+      .orderBy(desc(kycVerifications.createdAt));
+  }
+
+  async createRecord2257(recordData: any): Promise<any> {
+    const { records2257 } = await import('../shared/schema');
+    const [record] = await db
+      .insert(records2257)
+      .values(recordData)
+      .returning();
+    return record;
+  }
+
+  async getAuditLogsInDateRange(startDate: Date, endDate: Date, actionPattern?: string): Promise<any[]> {
+    let query = db
+      .select()
+      .from(auditLogs)
+      .where(and(
+        sql`${auditLogs.createdAt} >= ${startDate}`,
+        sql`${auditLogs.createdAt} <= ${endDate}`
+      ));
+
+    if (actionPattern) {
+      query = query.where(sql`${auditLogs.action} LIKE ${`%${actionPattern}%`}`);
+    }
+
+    return await query.orderBy(desc(auditLogs.createdAt));
+  }
 }
 
 export const storage = new DatabaseStorage();
