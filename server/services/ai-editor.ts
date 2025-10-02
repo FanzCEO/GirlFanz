@@ -45,6 +45,32 @@ export class AIEditorService {
     this.objectStorage = new ObjectStorageService();
   }
 
+  // Start a new editing task
+  async startEditingTask(sessionId: string, editingOptions: any): Promise<any> {
+    const task = await storage.createEditingTask({
+      sessionId,
+      editingOptions,
+      status: 'pending',
+      progress: 0,
+    });
+    
+    // Start processing in the background
+    this.processContent(task.id).catch(console.error);
+    
+    return task;
+  }
+
+  // Process stream recording with AI editing
+  async processStreamRecording(streamId: string, options: any): Promise<void> {
+    console.log(`Processing stream recording ${streamId} with options:`, options);
+    
+    // In production: Download stream recording, apply AI edits, generate highlights
+    await this.simulateProcessingDelay(3000);
+    
+    // Create editing assets from stream
+    // This would integrate with the main AI editing pipeline
+  }
+
   // Process content with AI editing
   async processContent(editingTaskId: string): Promise<void> {
     const task = await storage.getEditingTask(editingTaskId);
