@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.TikTokAPI = void 0;
-class TikTokAPI {
+export class TikTokAPI {
     constructor(config) {
         this.baseUrl = 'https://open.tiktokapis.com/v2';
         this.authUrl = 'https://www.tiktok.com/v2/auth/authorize';
@@ -63,7 +60,6 @@ class TikTokAPI {
         }
     }
     async initializeUpload(videoData) {
-        var _a;
         const endpoint = `${this.baseUrl}/video/upload/`;
         const body = {
             post_info: {
@@ -90,7 +86,7 @@ class TikTokAPI {
         });
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(`Failed to initialize upload: ${(_a = error.error) === null || _a === void 0 ? void 0 : _a.message}`);
+            throw new Error(`Failed to initialize upload: ${error.error?.message}`);
         }
         return response.json();
     }
@@ -115,7 +111,6 @@ class TikTokAPI {
         }
     }
     async publishUploadedVideo(publishId, videoData) {
-        var _a;
         const endpoint = `${this.baseUrl}/video/publish/`;
         const body = {
             publish_id: publishId,
@@ -130,7 +125,7 @@ class TikTokAPI {
         });
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(`Failed to publish video: ${(_a = error.error) === null || _a === void 0 ? void 0 : _a.message}`);
+            throw new Error(`Failed to publish video: ${error.error?.message}`);
         }
         const result = await response.json();
         return {
@@ -266,7 +261,7 @@ class TikTokAPI {
             const contentLength = response.headers.get('content-length');
             return contentLength ? parseInt(contentLength, 10) : 0;
         }
-        catch (_a) {
+        catch {
             return 0;
         }
     }
@@ -327,4 +322,3 @@ class TikTokAPI {
         return response.json();
     }
 }
-exports.TikTokAPI = TikTokAPI;

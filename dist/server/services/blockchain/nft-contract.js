@@ -1,11 +1,8 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.nftContractService = exports.NFTContractService = void 0;
-const ethers_1 = require("ethers");
-const db_1 = require("../../db");
-const web3_service_1 = require("./web3-service");
-const schema_1 = require("../../../shared/schema");
-const drizzle_orm_1 = require("drizzle-orm");
+import { ethers } from 'ethers';
+import { db } from '../../db';
+import { web3Service } from './web3-service';
+import { nftCollections, nftTokens, nftTransactions, royaltyDistributions, nftRoyaltyRules } from '../../../shared/schema';
+import { eq, and } from 'drizzle-orm';
 // ERC-721 ABI (minimal interface)
 const ERC721_ABI = [
     'function balanceOf(address owner) view returns (uint256)',
@@ -41,22 +38,22 @@ const GIRLFANZ_NFT_ABI = [
     'function unpause()',
     'function withdraw()'
 ];
-class NFTContractService {
+export class NFTContractService {
     constructor() {
-        this.provider = web3_service_1.web3Service.getProvider();
-        this.signer = web3_service_1.web3Service.getSigner();
+        this.provider = web3Service.getProvider();
+        this.signer = web3Service.getSigner();
     }
     // Get contract instance
     getContract(contractAddress, abi = ERC721_ABI) {
         if (this.signer) {
-            return new ethers_1.ethers.Contract(contractAddress, abi, this.signer);
+            return new ethers.Contract(contractAddress, abi, this.signer);
         }
-        return new ethers_1.ethers.Contract(contractAddress, abi, this.provider);
+        return new ethers.Contract(contractAddress, abi, this.provider);
     }
     // Create NFT collection
     async createCollection(data) {
         try {
-            const [collection] = await db_1.db.insert(schema_1.nftCollections)
+            const [collection] = await db.insert(nftCollections)
                 .values(data)
                 .returning();
             return collection;
@@ -74,8 +71,8 @@ class NFTContractService {
         try {
             // This is a placeholder - actual deployment would require compiled bytecode
             // In production, use Hardhat or similar to compile and deploy
-            const mockAddress = ethers_1.ethers.hexlify(ethers_1.ethers.randomBytes(20));
-            const mockTxHash = ethers_1.ethers.hexlify(ethers_1.ethers.randomBytes(32));
+            const mockAddress = ethers.hexlify(ethers.randomBytes(20));
+            const mockTxHash = ethers.hexlify(ethers.randomBytes(32));
             // Log the deployment attempt
             console.log('NFT Contract Deployment:', {
                 name,
@@ -97,9 +94,9 @@ class NFTContractService {
     async mintNFT(collectionId, recipientAddress, tokenURI, metadata, priceInWei) {
         try {
             // Get collection
-            const [collection] = await db_1.db.select()
-                .from(schema_1.nftCollections)
-                .where((0, drizzle_orm_1.eq)(schema_1.nftCollections.id, collectionId))
+            const [collection] = await db.select()
+                .from(nftCollections)
+                .where(eq(nftCollections.id, collectionId))
                 .limit(1);
             if (!collection) {
                 throw new Error('Collection not found');
@@ -117,7 +114,7 @@ class NFTContractService {
             // Wait for confirmation
             const receipt = await tx.wait();
             // Extract token ID from events
-            const transferEvent = receipt.logs.find((log) => log.topics[0] === ethers_1.ethers.id('Transfer(address,address,uint256)'));
+            const transferEvent = receipt.logs.find((log) => log.topics[0] === ethers.id('Transfer(address,address,uint256)'));
             const tokenId = transferEvent ? parseInt(transferEvent.topics[3], 16) : 0;
             // Create NFT token record
             const tokenData = {
@@ -134,13 +131,13 @@ class NFTContractService {
                 status: 'minted',
                 txHash: receipt.hash
             };
-            const [token] = await db_1.db.insert(schema_1.nftTokens)
+            const [token] = await db.insert(nftTokens)
                 .values(tokenData)
                 .returning();
             // Update collection minted supply
-            await db_1.db.update(schema_1.nftCollections)
+            await db.update(nftCollections)
                 .set({ mintedSupply: (collection.mintedSupply || 0) + 1 })
-                .where((0, drizzle_orm_1.eq)(schema_1.nftCollections.id, collectionId));
+                .where(eq(nftCollections.id, collectionId));
             return token;
         }
         catch (error) {
@@ -152,19 +149,19 @@ class NFTContractService {
     async transferNFT(tokenId, fromAddress, toAddress) {
         try {
             // Get token details
-            const [token] = await db_1.db.select()
-                .from(schema_1.nftTokens)
-                .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.id, tokenId))
+            const [token] = await db.select()
+                .from(nftTokens)
+                .where(eq(nftTokens.id, tokenId))
                 .limit(1);
             if (!token) {
                 throw new Error('Token not found');
             }
             // Get collection
-            const [collection] = await db_1.db.select()
-                .from(schema_1.nftCollections)
-                .where((0, drizzle_orm_1.eq)(schema_1.nftCollections.id, token.collectionId))
+            const [collection] = await db.select()
+                .from(nftCollections)
+                .where(eq(nftCollections.id, token.collectionId))
                 .limit(1);
-            if (!(collection === null || collection === void 0 ? void 0 : collection.contractAddress)) {
+            if (!collection?.contractAddress) {
                 throw new Error('Collection contract not found');
             }
             // Get contract instance
@@ -183,11 +180,11 @@ class NFTContractService {
                 blockchain: 'ethereum',
                 status: 'confirmed'
             };
-            await db_1.db.insert(schema_1.nftTransactions).values(txData);
+            await db.insert(nftTransactions).values(txData);
             // Update token owner
-            await db_1.db.update(schema_1.nftTokens)
+            await db.update(nftTokens)
                 .set({ ownerId: toAddress })
-                .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.id, tokenId));
+                .where(eq(nftTokens.id, tokenId));
             return receipt;
         }
         catch (error) {
@@ -198,14 +195,14 @@ class NFTContractService {
     // List NFT for sale
     async listNFT(tokenId, priceInWei, marketplaces = ['internal']) {
         try {
-            const [token] = await db_1.db.update(schema_1.nftTokens)
+            const [token] = await db.update(nftTokens)
                 .set({
                 isListedForSale: true,
                 listingPrice: priceInWei,
                 marketplaces,
                 status: 'listed'
             })
-                .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.id, tokenId))
+                .where(eq(nftTokens.id, tokenId))
                 .returning();
             return token;
         }
@@ -218,9 +215,9 @@ class NFTContractService {
     async purchaseNFT(tokenId, buyerAddress, buyerId, priceInWei) {
         try {
             // Get token details
-            const [token] = await db_1.db.select()
-                .from(schema_1.nftTokens)
-                .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.id, tokenId))
+            const [token] = await db.select()
+                .from(nftTokens)
+                .where(eq(nftTokens.id, tokenId))
                 .limit(1);
             if (!token) {
                 throw new Error('Token not found');
@@ -231,7 +228,7 @@ class NFTContractService {
             // Calculate royalties
             const royalties = await this.calculateRoyalties(tokenId, BigInt(priceInWei));
             // Execute purchase transaction (simplified)
-            const mockTxHash = ethers_1.ethers.hexlify(ethers_1.ethers.randomBytes(32));
+            const mockTxHash = ethers.hexlify(ethers.randomBytes(32));
             // Record transaction
             const txData = {
                 tokenId,
@@ -247,7 +244,7 @@ class NFTContractService {
                 marketplace: 'internal',
                 status: 'confirmed'
             };
-            const [transaction] = await db_1.db.insert(schema_1.nftTransactions)
+            const [transaction] = await db.insert(nftTransactions)
                 .values(txData)
                 .returning();
             // Distribute royalties
@@ -265,17 +262,17 @@ class NFTContractService {
                     status: 'distributed',
                     txHash: mockTxHash
                 };
-                await db_1.db.insert(schema_1.royaltyDistributions).values(royaltyData);
+                await db.insert(royaltyDistributions).values(royaltyData);
             }
             // Update token ownership
-            const [updatedToken] = await db_1.db.update(schema_1.nftTokens)
+            const [updatedToken] = await db.update(nftTokens)
                 .set({
                 ownerId: buyerId,
                 isListedForSale: false,
                 listingPrice: null,
                 status: 'sold'
             })
-                .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.id, tokenId))
+                .where(eq(nftTokens.id, tokenId))
                 .returning();
             return {
                 token: updatedToken,
@@ -292,24 +289,24 @@ class NFTContractService {
     async calculateRoyalties(tokenId, salePrice) {
         try {
             // Get token and collection
-            const [token] = await db_1.db.select()
-                .from(schema_1.nftTokens)
-                .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.id, tokenId))
+            const [token] = await db.select()
+                .from(nftTokens)
+                .where(eq(nftTokens.id, tokenId))
                 .limit(1);
             if (!token) {
                 throw new Error('Token not found');
             }
-            const [collection] = await db_1.db.select()
-                .from(schema_1.nftCollections)
-                .where((0, drizzle_orm_1.eq)(schema_1.nftCollections.id, token.collectionId))
+            const [collection] = await db.select()
+                .from(nftCollections)
+                .where(eq(nftCollections.id, token.collectionId))
                 .limit(1);
             if (!collection) {
                 throw new Error('Collection not found');
             }
             // Get royalty rules
-            const rules = await db_1.db.select()
-                .from(schema_1.nftRoyaltyRules)
-                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.nftRoyaltyRules.tokenId, tokenId), (0, drizzle_orm_1.eq)(schema_1.nftRoyaltyRules.isActive, true)));
+            const rules = await db.select()
+                .from(nftRoyaltyRules)
+                .where(and(eq(nftRoyaltyRules.tokenId, tokenId), eq(nftRoyaltyRules.isActive, true)));
             const royalties = [];
             // If specific rules exist, use them
             if (rules.length > 0) {
@@ -356,12 +353,12 @@ class NFTContractService {
     async setRoyaltyRules(tokenId, rules) {
         try {
             // Deactivate existing rules
-            await db_1.db.update(schema_1.nftRoyaltyRules)
+            await db.update(nftRoyaltyRules)
                 .set({ isActive: false })
-                .where((0, drizzle_orm_1.eq)(schema_1.nftRoyaltyRules.tokenId, tokenId));
+                .where(eq(nftRoyaltyRules.tokenId, tokenId));
             // Insert new rules
             if (rules.length > 0) {
-                await db_1.db.insert(schema_1.nftRoyaltyRules).values(rules);
+                await db.insert(nftRoyaltyRules).values(rules);
             }
         }
         catch (error) {
@@ -407,9 +404,9 @@ class NFTContractService {
     // Get user's NFTs
     async getUserNFTs(userId) {
         try {
-            const tokens = await db_1.db.select()
-                .from(schema_1.nftTokens)
-                .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.ownerId, userId));
+            const tokens = await db.select()
+                .from(nftTokens)
+                .where(eq(nftTokens.ownerId, userId));
             return tokens;
         }
         catch (error) {
@@ -420,9 +417,9 @@ class NFTContractService {
     // Get collection NFTs
     async getCollectionNFTs(collectionId) {
         try {
-            const tokens = await db_1.db.select()
-                .from(schema_1.nftTokens)
-                .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.collectionId, collectionId));
+            const tokens = await db.select()
+                .from(nftTokens)
+                .where(eq(nftTokens.collectionId, collectionId));
             return tokens;
         }
         catch (error) {
@@ -431,6 +428,5 @@ class NFTContractService {
         }
     }
 }
-exports.NFTContractService = NFTContractService;
 // Export singleton instance
-exports.nftContractService = new NFTContractService();
+export const nftContractService = new NFTContractService();

@@ -1,24 +1,6 @@
-"use strict";
-var __rest = (this && this.__rest) || function (s, e) {
-    var t = {};
-    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
-        t[p] = s[p];
-    if (s != null && typeof Object.getOwnPropertySymbols === "function")
-        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
-            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
-                t[p[i]] = s[p[i]];
-        }
-    return t;
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.CCBillService = void 0;
-exports.createCCBillService = createCCBillService;
-const crypto_1 = __importDefault(require("crypto"));
-const storage_1 = require("../storage");
-class CCBillService {
+import crypto from 'crypto';
+import { storage } from '../storage';
+export class CCBillService {
     constructor(config) {
         this.config = config;
         this.baseUrl = config.sandboxMode
@@ -103,12 +85,12 @@ class CCBillService {
             throw new Error('Invalid parameters for digest generation');
         }
         // Generate MD5 hash
-        return crypto_1.default.createHash('md5').update(stringToHash).digest('hex');
+        return crypto.createHash('md5').update(stringToHash).digest('hex');
     }
     // Verify CCBill webhook using MD5 verification (not HMAC)
     verifyWebhookData(formData) {
         // CCBill sends verification via built-in fields
-        const { verificationHash } = formData, data = __rest(formData, ["verificationHash"]);
+        const { verificationHash, ...data } = formData;
         if (!verificationHash) {
             return false;
         }
@@ -120,7 +102,7 @@ class CCBillService {
             data.subscriptionId || data.transactionId || '',
             this.config.webhookSecret // Verification key
         ].join('');
-        const expectedHash = crypto_1.default.createHash('md5').update(verificationString).digest('hex');
+        const expectedHash = crypto.createHash('md5').update(verificationString).digest('hex');
         return expectedHash.toLowerCase() === verificationHash.toLowerCase();
     }
     // Process webhook notification
@@ -149,7 +131,7 @@ class CCBillService {
     async handleNewSale(data) {
         const { subscriptionId, transactionId, initialPrice, accountingInitialPrice, UDT1: userId, UDT2: creatorId, UDT3: type, UDT4: additionalData, currencyCode } = data;
         // Create transaction record
-        await storage_1.storage.createTransaction({
+        await storage.createTransaction({
             userId,
             creatorId: creatorId || null,
             mediaId: type === 'purchase' ? additionalData : null,
@@ -167,11 +149,11 @@ class CCBillService {
         // If it's a subscription, create or update subscription record
         if (type === 'subscription' && subscriptionId) {
             // Check if subscription already exists
-            const existingSubscriptions = await storage_1.storage.getSubscriptionsAsFan(userId);
+            const existingSubscriptions = await storage.getSubscriptionsAsFan(userId);
             const existingSubscription = existingSubscriptions.find(s => s.providerSubscriptionId === subscriptionId);
             if (existingSubscription) {
                 // Update existing subscription
-                await storage_1.storage.updateSubscription(existingSubscription.id, {
+                await storage.updateSubscription(existingSubscription.id, {
                     status: 'active',
                     nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
                     updatedAt: new Date(),
@@ -179,7 +161,7 @@ class CCBillService {
             }
             else {
                 // Create new subscription
-                await storage_1.storage.createSubscription({
+                await storage.createSubscription({
                     userId,
                     creatorId,
                     provider: 'ccbill',
@@ -193,7 +175,7 @@ class CCBillService {
             }
         }
         // Log the transaction
-        await storage_1.storage.createAuditLog({
+        await storage.createAuditLog({
             actorId: userId,
             action: 'payment_success',
             targetType: 'transaction',
@@ -204,15 +186,15 @@ class CCBillService {
     async handleRenewalSuccess(data) {
         const { subscriptionId, transactionId, billingAmount, accountingAmount } = data;
         // Update subscription next billing date
-        const subscription = await storage_1.storage.getSubscriptionsAsFan(data.UDT1);
+        const subscription = await storage.getSubscriptionsAsFan(data.UDT1);
         const activeSubscription = subscription.find(s => s.providerSubscriptionId === subscriptionId);
         if (activeSubscription) {
-            await storage_1.storage.updateSubscription(activeSubscription.id, {
+            await storage.updateSubscription(activeSubscription.id, {
                 nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
                 updatedAt: new Date(),
             });
             // Create transaction record for renewal
-            await storage_1.storage.createTransaction({
+            await storage.createTransaction({
                 userId: activeSubscription.userId,
                 creatorId: activeSubscription.creatorId,
                 subscriptionId: activeSubscription.id,
@@ -232,10 +214,10 @@ class CCBillService {
     async handleCancellation(data) {
         const { subscriptionId } = data;
         // Find and cancel subscription
-        const subscriptions = await storage_1.storage.getSubscriptionsAsFan(data.UDT1);
+        const subscriptions = await storage.getSubscriptionsAsFan(data.UDT1);
         const activeSubscription = subscriptions.find(s => s.providerSubscriptionId === subscriptionId);
         if (activeSubscription) {
-            await storage_1.storage.updateSubscription(activeSubscription.id, {
+            await storage.updateSubscription(activeSubscription.id, {
                 status: 'cancelled',
                 cancelledAt: new Date(),
             });
@@ -244,10 +226,10 @@ class CCBillService {
     async handleChargeback(data) {
         const { transactionId } = data;
         // Update transaction status to chargeback
-        const transactions = await storage_1.storage.getTransactionsAsBuyer(data.UDT1);
+        const transactions = await storage.getTransactionsAsBuyer(data.UDT1);
         const transaction = transactions.find(t => t.providerTransactionId === transactionId);
         if (transaction) {
-            await storage_1.storage.updateTransaction(transaction.id, {
+            await storage.updateTransaction(transaction.id, {
                 status: 'chargeback',
             });
         }
@@ -255,18 +237,17 @@ class CCBillService {
     async handleRefund(data) {
         const { transactionId } = data;
         // Update transaction status to refunded
-        const transactions = await storage_1.storage.getTransactionsAsBuyer(data.UDT1);
+        const transactions = await storage.getTransactionsAsBuyer(data.UDT1);
         const transaction = transactions.find(t => t.providerTransactionId === transactionId);
         if (transaction) {
-            await storage_1.storage.updateTransaction(transaction.id, {
+            await storage.updateTransaction(transaction.id, {
                 status: 'refunded',
             });
         }
     }
 }
-exports.CCBillService = CCBillService;
 // Export service with environment configuration
-function createCCBillService() {
+export function createCCBillService() {
     const config = {
         accountNumber: process.env.CCBILL_ACCOUNT_NUMBER || '',
         clientId: process.env.CCBILL_CLIENT_ID || '',

@@ -1,56 +1,18 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.authMiddleware = void 0;
-const express_1 = require("express");
-const oauth = __importStar(require("openid-client"));
-const passport_1 = __importDefault(require("passport"));
-const passport_custom_1 = require("passport-custom");
-const express_session_1 = __importDefault(require("express-session"));
-const db_1 = require("./db");
-const memoizee_1 = __importDefault(require("memoizee"));
-const connect_pg_simple_1 = __importDefault(require("connect-pg-simple"));
-const pg_1 = require("pg");
-const PgSession = (0, connect_pg_simple_1.default)(express_session_1.default);
-const pool = new pg_1.Pool({
+// @ts-nocheck - Replit auth integration with runtime-only types
+import { Router } from "express";
+import * as oauth from "openid-client";
+import passport from "passport";
+import { Strategy as CustomStrategy } from "passport-custom";
+import session from "express-session";
+import { db } from "./db";
+import memoizee from "memoizee";
+import connectPgSimple from "connect-pg-simple";
+import { Pool } from "pg";
+const PgSession = connectPgSimple(session);
+const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
 });
-const getClient = (0, memoizee_1.default)(async () => {
+const getClient = memoizee(async () => {
     const issuer = new URL(process.env.REPLIT_DEPLOYMENT === "1"
         ? "https://replit.com"
         : `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
@@ -59,7 +21,7 @@ const getClient = (0, memoizee_1.default)(async () => {
         : "local-testing", undefined, undefined, { execute: [oauth.allowInsecureRequests] });
     return config;
 }, { promise: true, maxAge: 60000 });
-passport_1.default.use("replit", new passport_custom_1.Strategy(async (req, done) => {
+passport.use("replit", new CustomStrategy(async (req, done) => {
     try {
         const client = await getClient();
         const currentUrl = new URL(req.url, `https://${req.get("host")}`);
@@ -68,7 +30,7 @@ passport_1.default.use("replit", new passport_custom_1.Strategy(async (req, done
             pkceCodeVerifier: req.session.codeVerifier,
         });
         const claims = oauth.getValidatedIdTokenClaims(tokens);
-        const user = await db_1.db.user.upsert({
+        const user = await db.user.upsert({
             where: { id: claims.sub },
             update: {},
             create: {
@@ -86,20 +48,20 @@ passport_1.default.use("replit", new passport_custom_1.Strategy(async (req, done
         done(err);
     }
 }));
-passport_1.default.serializeUser((user, done) => {
+passport.serializeUser((user, done) => {
     done(null, user.id);
 });
-passport_1.default.deserializeUser(async (id, done) => {
+passport.deserializeUser(async (id, done) => {
     try {
-        const user = await db_1.db.user.findUnique({ where: { id } });
+        const user = await db.user.findUnique({ where: { id } });
         done(null, user);
     }
     catch (err) {
         done(err);
     }
 });
-const router = (0, express_1.Router)();
-router.use((0, express_session_1.default)({
+const router = Router();
+router.use(session({
     store: new PgSession({ pool }),
     secret: process.env.SESSION_SECRET || "your-secret-key",
     resave: false,
@@ -110,8 +72,8 @@ router.use((0, express_session_1.default)({
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     },
 }));
-router.use(passport_1.default.initialize());
-router.use(passport_1.default.session());
+router.use(passport.initialize());
+router.use(passport.session());
 router.get("/login", async (req, res) => {
     const client = await getClient();
     const state = oauth.generateRandomState();
@@ -125,7 +87,7 @@ router.get("/login", async (req, res) => {
     });
     res.redirect(authUrl.href);
 });
-router.get("/callback", passport_1.default.authenticate("replit"), (req, res) => {
+router.get("/callback", passport.authenticate("replit"), (req, res) => {
     res.redirect("/");
 });
 router.get("/logout", (req, res) => {
@@ -144,11 +106,10 @@ router.get("/user", (req, res) => {
         res.status(401).json({ error: "Not authenticated" });
     }
 });
-const authMiddleware = (req, res, next) => {
+export const authMiddleware = (req, res, next) => {
     if (req.isAuthenticated()) {
         return next();
     }
     res.status(401).json({ error: "Authentication required" });
 };
-exports.authMiddleware = authMiddleware;
-exports.default = router;
+export default router;

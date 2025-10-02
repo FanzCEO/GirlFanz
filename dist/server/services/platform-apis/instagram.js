@@ -1,11 +1,5 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.InstagramAPI = void 0;
-const crypto_1 = __importDefault(require("crypto"));
-class InstagramAPI {
+import crypto from 'crypto';
+export class InstagramAPI {
     constructor(config) {
         this.baseUrl = 'https://graph.instagram.com/v18.0';
         this.apiVersion = 'v18.0';
@@ -61,7 +55,6 @@ class InstagramAPI {
         }
     }
     async createMediaContainer(mediaData) {
-        var _a;
         const endpoint = `${this.baseUrl}/me/media`;
         const caption = this.buildCaption(mediaData.caption, mediaData.hashtags);
         const params = {
@@ -90,12 +83,11 @@ class InstagramAPI {
         });
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(`Failed to create media container: ${(_a = error.error) === null || _a === void 0 ? void 0 : _a.message}`);
+            throw new Error(`Failed to create media container: ${error.error?.message}`);
         }
         return response.json();
     }
     async publishMediaContainer(containerId) {
-        var _a;
         const endpoint = `${this.baseUrl}/me/media_publish`;
         const params = {
             creation_id: containerId,
@@ -106,7 +98,7 @@ class InstagramAPI {
         });
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(`Failed to publish media: ${(_a = error.error) === null || _a === void 0 ? void 0 : _a.message}`);
+            throw new Error(`Failed to publish media: ${error.error?.message}`);
         }
         const result = await response.json();
         // Get permalink
@@ -283,7 +275,7 @@ class InstagramAPI {
     async schedulePost(mediaData, scheduledTime) {
         // Instagram doesn't have native scheduling API
         // This would integrate with a scheduling service or queue
-        const scheduledId = crypto_1.default.randomBytes(16).toString('hex');
+        const scheduledId = crypto.randomBytes(16).toString('hex');
         // Store in queue for scheduled publishing
         // Implementation would depend on your scheduling system
         return { scheduledId };
@@ -303,4 +295,3 @@ class InstagramAPI {
         return { success: response.ok };
     }
 }
-exports.InstagramAPI = InstagramAPI;

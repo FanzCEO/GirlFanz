@@ -324,9 +324,9 @@ export class AIProcessorService {
 
     // Update session with processed content URL
     await storage.updateContentSession(session.id, {
-      status: 'processed',
+      status: 'ready',
       metadata: {
-        ...session.metadata,
+        ...session.metadata as object,
         processedUrl: result.url,
         processedAt: new Date().toISOString(),
       },

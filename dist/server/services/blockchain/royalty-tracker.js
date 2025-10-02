@@ -1,14 +1,11 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.royaltyTrackerService = exports.RoyaltyTrackerService = void 0;
-const db_1 = require("../../db");
-const schema_1 = require("../../../shared/schema");
-const drizzle_orm_1 = require("drizzle-orm");
-class RoyaltyTrackerService {
+import { db } from '../../db';
+import { royaltyDistributions, nftTransactions, nftRoyaltyRules, nftTokens, nftCollections, users } from '../../../shared/schema';
+import { eq, and, desc, sql, gte, lte } from 'drizzle-orm';
+export class RoyaltyTrackerService {
     // Track royalty payment
     async trackRoyaltyPayment(data) {
         try {
-            const [distribution] = await db_1.db.insert(schema_1.royaltyDistributions)
+            const [distribution] = await db.insert(royaltyDistributions)
                 .values(data)
                 .returning();
             return distribution;
@@ -21,13 +18,13 @@ class RoyaltyTrackerService {
     // Get royalty history for a user
     async getUserRoyalties(userId, startDate, endDate) {
         try {
-            let query = db_1.db.select()
-                .from(schema_1.royaltyDistributions)
-                .where((0, drizzle_orm_1.eq)(schema_1.royaltyDistributions.recipientId, userId));
+            let query = db.select()
+                .from(royaltyDistributions)
+                .where(eq(royaltyDistributions.recipientId, userId));
             if (startDate && endDate) {
-                query = query.where((0, drizzle_orm_1.and)((0, drizzle_orm_1.gte)(schema_1.royaltyDistributions.createdAt, startDate), (0, drizzle_orm_1.lte)(schema_1.royaltyDistributions.createdAt, endDate)));
+                query = query.where(and(gte(royaltyDistributions.createdAt, startDate), lte(royaltyDistributions.createdAt, endDate)));
             }
-            const distributions = await query.orderBy((0, drizzle_orm_1.desc)(schema_1.royaltyDistributions.createdAt));
+            const distributions = await query.orderBy(desc(royaltyDistributions.createdAt));
             // Calculate totals
             let totalWei = 0n;
             let totalUsd = 0;
@@ -86,19 +83,19 @@ class RoyaltyTrackerService {
     async getCollectionRoyaltyAnalytics(collectionId) {
         try {
             // Get all tokens in collection
-            const tokens = await db_1.db.select()
-                .from(schema_1.nftTokens)
-                .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.collectionId, collectionId));
+            const tokens = await db.select()
+                .from(nftTokens)
+                .where(eq(nftTokens.collectionId, collectionId));
             const tokenIds = tokens.map(t => t.id);
             // Get all transactions for these tokens
-            const transactions = await db_1.db.select()
-                .from(schema_1.nftTransactions)
-                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.sql) `${schema_1.nftTransactions.tokenId} = ANY(${tokenIds})`, (0, drizzle_orm_1.eq)(schema_1.nftTransactions.type, 'sale')));
+            const transactions = await db.select()
+                .from(nftTransactions)
+                .where(and(sql `${nftTransactions.tokenId} = ANY(${tokenIds})`, eq(nftTransactions.type, 'sale')));
             // Get all royalty distributions
-            const distributions = await db_1.db.select()
-                .from(schema_1.royaltyDistributions)
-                .where((0, drizzle_orm_1.sql) `${schema_1.royaltyDistributions.tokenId} = ANY(${tokenIds})`)
-                .orderBy((0, drizzle_orm_1.desc)(schema_1.royaltyDistributions.createdAt))
+            const distributions = await db.select()
+                .from(royaltyDistributions)
+                .where(sql `${royaltyDistributions.tokenId} = ANY(${tokenIds})`)
+                .orderBy(desc(royaltyDistributions.createdAt))
                 .limit(50);
             // Calculate totals
             let totalVolumeWei = 0n;
@@ -133,14 +130,14 @@ class RoyaltyTrackerService {
                 .sort((a, b) => b[1] - a[1])
                 .slice(0, 5)
                 .map(([id]) => id);
-            const topEarnerUsers = await db_1.db.select()
-                .from(schema_1.users)
-                .where((0, drizzle_orm_1.sql) `${schema_1.users.id} = ANY(${topEarnerIds})`);
+            const topEarnerUsers = await db.select()
+                .from(users)
+                .where(sql `${users.id} = ANY(${topEarnerIds})`);
             const topEarners = topEarnerIds.map(id => {
                 const user = topEarnerUsers.find(u => u.id === id);
                 return {
                     userId: id,
-                    username: (user === null || user === void 0 ? void 0 : user.username) || 'Unknown',
+                    username: user?.username || 'Unknown',
                     earnings: earnerMap.get(id) || 0
                 };
             });
@@ -166,11 +163,11 @@ class RoyaltyTrackerService {
     // Get pending royalties
     async getPendingRoyalties(userId) {
         try {
-            let query = db_1.db.select()
-                .from(schema_1.royaltyDistributions)
-                .where((0, drizzle_orm_1.eq)(schema_1.royaltyDistributions.status, 'pending'));
+            let query = db.select()
+                .from(royaltyDistributions)
+                .where(eq(royaltyDistributions.status, 'pending'));
             if (userId) {
-                query = query.where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.royaltyDistributions.status, 'pending'), (0, drizzle_orm_1.eq)(schema_1.royaltyDistributions.recipientId, userId)));
+                query = query.where(and(eq(royaltyDistributions.status, 'pending'), eq(royaltyDistributions.recipientId, userId)));
             }
             return await query;
         }
@@ -189,20 +186,20 @@ class RoyaltyTrackerService {
                 try {
                     // In production, this would trigger actual blockchain transactions
                     // For now, we'll just update the status
-                    await db_1.db.update(schema_1.royaltyDistributions)
+                    await db.update(royaltyDistributions)
                         .set({
                         status: 'distributed',
                         distributedAt: new Date(),
                         txHash: `0x${Math.random().toString(16).substr(2, 64)}` // Mock tx hash
                     })
-                        .where((0, drizzle_orm_1.eq)(schema_1.royaltyDistributions.id, royalty.id));
+                        .where(eq(royaltyDistributions.id, royalty.id));
                     processed++;
                 }
                 catch (error) {
                     console.error(`Failed to process royalty ${royalty.id}:`, error);
-                    await db_1.db.update(schema_1.royaltyDistributions)
+                    await db.update(royaltyDistributions)
                         .set({ status: 'failed' })
-                        .where((0, drizzle_orm_1.eq)(schema_1.royaltyDistributions.id, royalty.id));
+                        .where(eq(royaltyDistributions.id, royalty.id));
                     failed++;
                 }
             }
@@ -216,14 +213,14 @@ class RoyaltyTrackerService {
     // Get royalty rules for a token or collection
     async getRoyaltyRules(tokenId, collectionId) {
         try {
-            let query = db_1.db.select()
-                .from(schema_1.nftRoyaltyRules)
-                .where((0, drizzle_orm_1.eq)(schema_1.nftRoyaltyRules.isActive, true));
+            let query = db.select()
+                .from(nftRoyaltyRules)
+                .where(eq(nftRoyaltyRules.isActive, true));
             if (tokenId) {
-                query = query.where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.nftRoyaltyRules.tokenId, tokenId), (0, drizzle_orm_1.eq)(schema_1.nftRoyaltyRules.isActive, true)));
+                query = query.where(and(eq(nftRoyaltyRules.tokenId, tokenId), eq(nftRoyaltyRules.isActive, true)));
             }
             else if (collectionId) {
-                query = query.where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.nftRoyaltyRules.collectionId, collectionId), (0, drizzle_orm_1.eq)(schema_1.nftRoyaltyRules.isActive, true)));
+                query = query.where(and(eq(nftRoyaltyRules.collectionId, collectionId), eq(nftRoyaltyRules.isActive, true)));
             }
             return await query;
         }
@@ -268,18 +265,18 @@ class RoyaltyTrackerService {
                 return sum + (dist.amountInUsd || 0);
             }, 0);
             // Get top collections
-            const collections = await db_1.db.select()
-                .from(schema_1.nftCollections)
-                .where((0, drizzle_orm_1.eq)(schema_1.nftCollections.creatorId, creatorId));
+            const collections = await db.select()
+                .from(nftCollections)
+                .where(eq(nftCollections.creatorId, creatorId));
             const collectionEarnings = [];
             for (const collection of collections) {
-                const tokens = await db_1.db.select()
-                    .from(schema_1.nftTokens)
-                    .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.collectionId, collection.id));
+                const tokens = await db.select()
+                    .from(nftTokens)
+                    .where(eq(nftTokens.collectionId, collection.id));
                 const tokenIds = tokens.map(t => t.id);
-                const distributions = await db_1.db.select()
-                    .from(schema_1.royaltyDistributions)
-                    .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.sql) `${schema_1.royaltyDistributions.tokenId} = ANY(${tokenIds})`, (0, drizzle_orm_1.eq)(schema_1.royaltyDistributions.recipientId, creatorId), (0, drizzle_orm_1.eq)(schema_1.royaltyDistributions.status, 'distributed')));
+                const distributions = await db.select()
+                    .from(royaltyDistributions)
+                    .where(and(sql `${royaltyDistributions.tokenId} = ANY(${tokenIds})`, eq(royaltyDistributions.recipientId, creatorId), eq(royaltyDistributions.status, 'distributed')));
                 const earnings = distributions.reduce((sum, dist) => {
                     return sum + (dist.amountInUsd || 0);
                 }, 0);
@@ -295,15 +292,15 @@ class RoyaltyTrackerService {
                 .sort((a, b) => b.earnings - a.earnings)
                 .slice(0, 5);
             // Get recent activity
-            const recentActivity = await db_1.db.select()
-                .from(schema_1.royaltyDistributions)
-                .where((0, drizzle_orm_1.eq)(schema_1.royaltyDistributions.recipientId, creatorId))
-                .orderBy((0, drizzle_orm_1.desc)(schema_1.royaltyDistributions.createdAt))
+            const recentActivity = await db.select()
+                .from(royaltyDistributions)
+                .where(eq(royaltyDistributions.recipientId, creatorId))
+                .orderBy(desc(royaltyDistributions.createdAt))
                 .limit(10);
             // Calculate average royalty rate
-            const rules = await db_1.db.select()
-                .from(schema_1.nftRoyaltyRules)
-                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.nftRoyaltyRules.recipientId, creatorId), (0, drizzle_orm_1.eq)(schema_1.nftRoyaltyRules.isActive, true)));
+            const rules = await db.select()
+                .from(nftRoyaltyRules)
+                .where(and(eq(nftRoyaltyRules.recipientId, creatorId), eq(nftRoyaltyRules.isActive, true)));
             const averageRoyaltyRate = rules.length > 0
                 ? rules.reduce((sum, rule) => sum + rule.percentage, 0) / rules.length / 100
                 : 7.5; // Default 7.5%
@@ -326,6 +323,5 @@ class RoyaltyTrackerService {
         }
     }
 }
-exports.RoyaltyTrackerService = RoyaltyTrackerService;
 // Export singleton instance
-exports.royaltyTrackerService = new RoyaltyTrackerService();
+export const royaltyTrackerService = new RoyaltyTrackerService();

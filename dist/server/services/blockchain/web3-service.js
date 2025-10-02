@@ -1,11 +1,8 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.web3Service = exports.Web3Service = void 0;
-const ethers_1 = require("ethers");
-const db_1 = require("../../db");
-const schema_1 = require("../../../shared/schema");
-const drizzle_orm_1 = require("drizzle-orm");
-class Web3Service {
+import { ethers } from 'ethers';
+import { db } from '../../db';
+import { blockchainWallets, blockchainEvents } from '../../../shared/schema';
+import { eq } from 'drizzle-orm';
+export class Web3Service {
     constructor(blockchain = 'ethereum', privateKey) {
         this.signer = null;
         // Configure RPC URLs based on blockchain
@@ -22,9 +19,9 @@ class Web3Service {
         this.rpcUrl = rpcUrls[blockchain];
         this.chainId = chainIds[blockchain];
         this.privateKey = privateKey || process.env.WALLET_PRIVATE_KEY;
-        this.provider = new ethers_1.ethers.JsonRpcProvider(this.rpcUrl);
+        this.provider = new ethers.JsonRpcProvider(this.rpcUrl);
         if (this.privateKey) {
-            this.signer = new ethers_1.ethers.Wallet(this.privateKey, this.provider);
+            this.signer = new ethers.Wallet(this.privateKey, this.provider);
         }
     }
     // Get provider
@@ -39,7 +36,7 @@ class Web3Service {
     async connectWallet(address) {
         try {
             // Verify address format
-            if (!ethers_1.ethers.isAddress(address)) {
+            if (!ethers.isAddress(address)) {
                 throw new Error('Invalid wallet address');
             }
             // Check if address has balance
@@ -58,9 +55,9 @@ class Web3Service {
                 userId,
                 address: address.toLowerCase(),
                 blockchain,
-                nonce: ethers_1.ethers.hexlify(ethers_1.ethers.randomBytes(16))
+                nonce: ethers.hexlify(ethers.randomBytes(16))
             };
-            const [wallet] = await db_1.db.insert(schema_1.blockchainWallets)
+            const [wallet] = await db.insert(blockchainWallets)
                 .values(walletData)
                 .returning();
             return wallet;
@@ -73,9 +70,9 @@ class Web3Service {
     // Get user wallets
     async getUserWallets(userId) {
         try {
-            const wallets = await db_1.db.select()
-                .from(schema_1.blockchainWallets)
-                .where((0, drizzle_orm_1.eq)(schema_1.blockchainWallets.userId, userId));
+            const wallets = await db.select()
+                .from(blockchainWallets)
+                .where(eq(blockchainWallets.userId, userId));
             return wallets;
         }
         catch (error) {
@@ -86,7 +83,7 @@ class Web3Service {
     // Verify wallet signature for authentication
     async verifySignature(address, message, signature) {
         try {
-            const recoveredAddress = ethers_1.ethers.verifyMessage(message, signature);
+            const recoveredAddress = ethers.verifyMessage(message, signature);
             return recoveredAddress.toLowerCase() === address.toLowerCase();
         }
         catch (error) {
@@ -174,7 +171,7 @@ class Web3Service {
             const balance = await this.provider.getBalance(address);
             return {
                 wei: balance.toString(),
-                ether: ethers_1.ethers.formatEther(balance)
+                ether: ethers.formatEther(balance)
             };
         }
         catch (error) {
@@ -184,10 +181,10 @@ class Web3Service {
     }
     // Convert between wei and ether
     weiToEther(wei) {
-        return ethers_1.ethers.formatEther(wei);
+        return ethers.formatEther(wei);
     }
     etherToWei(ether) {
-        return ethers_1.ethers.parseEther(ether);
+        return ethers.parseEther(ether);
     }
     // Format wallet address
     formatAddress(address) {
@@ -208,7 +205,7 @@ class Web3Service {
         try {
             const filter = {
                 address: contractAddress,
-                topics: [ethers_1.ethers.id(eventName)]
+                topics: [ethers.id(eventName)]
             };
             this.provider.on(filter, callback);
         }
@@ -220,7 +217,7 @@ class Web3Service {
     // Log blockchain event
     async logBlockchainEvent(event) {
         try {
-            await db_1.db.insert(schema_1.blockchainEvents).values(event);
+            await db.insert(blockchainEvents).values(event);
         }
         catch (error) {
             console.error('Error logging blockchain event:', error);
@@ -269,7 +266,7 @@ class Web3Service {
         try {
             const currentGasPrice = gasPrice || (await this.provider.getFeeData()).gasPrice || 0n;
             const feeInWei = gasLimit * currentGasPrice;
-            const feeInEth = parseFloat(ethers_1.ethers.formatEther(feeInWei));
+            const feeInEth = parseFloat(ethers.formatEther(feeInWei));
             const ethPrice = await this.getEthPrice();
             return feeInEth * ethPrice;
         }
@@ -279,6 +276,5 @@ class Web3Service {
         }
     }
 }
-exports.Web3Service = Web3Service;
 // Export singleton instance
-exports.web3Service = new Web3Service();
+export const web3Service = new Web3Service();

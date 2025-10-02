@@ -1,18 +1,15 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.aiProcessorService = exports.AIProcessorService = void 0;
-const storage_1 = require("../storage");
-const objectStorage_1 = require("../objectStorage");
-class AIProcessorService {
+import { storage } from '../storage';
+import { ObjectStorageService } from '../objectStorage';
+export class AIProcessorService {
     constructor() {
         this.processingPipelines = new Map();
         this.processingQueue = [];
         this.isProcessing = false;
-        this.objectStorage = new objectStorage_1.ObjectStorageService();
+        this.objectStorage = new ObjectStorageService();
     }
     // Main processing entry point
     async processContent(sessionId, config) {
-        const session = await storage_1.storage.getContentSession(sessionId);
+        const session = await storage.getContentSession(sessionId);
         if (!session)
             throw new Error('Session not found');
         // Create processing pipeline
@@ -192,9 +189,13 @@ class AIProcessorService {
             },
         });
         // Update session with processed content URL
-        await storage_1.storage.updateContentSession(session.id, {
-            status: 'processed',
-            metadata: Object.assign(Object.assign({}, session.metadata), { processedUrl: result.url, processedAt: new Date().toISOString() }),
+        await storage.updateContentSession(session.id, {
+            status: 'ready',
+            metadata: {
+                ...session.metadata,
+                processedUrl: result.url,
+                processedAt: new Date().toISOString(),
+            },
         });
         return result.url;
     }
@@ -356,11 +357,10 @@ class AIProcessorService {
         return 'normal';
     }
 }
-exports.AIProcessorService = AIProcessorService;
 // Placeholder for processContent function
 const processContent = async (contentId, options) => {
     // Implementation here
 };
-exports.aiProcessorService = {
+export const aiProcessorService = {
     processContent,
 };

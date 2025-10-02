@@ -1,9 +1,3 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ObjectPermission = exports.ObjectAccessGroupType = void 0;
-exports.setObjectAclPolicy = setObjectAclPolicy;
-exports.getObjectAclPolicy = getObjectAclPolicy;
-exports.canAccessObject = canAccessObject;
 const ACL_POLICY_METADATA_KEY = "custom:aclPolicy";
 // The type of the access group.
 //
@@ -15,14 +9,14 @@ const ACL_POLICY_METADATA_KEY = "custom:aclPolicy";
 // - GROUP_MEMBER: the users who are members of a specific group;
 // - SUBSCRIBER: the users who are subscribers of a specific service / content
 //   creator.
-var ObjectAccessGroupType;
+export var ObjectAccessGroupType;
 (function (ObjectAccessGroupType) {
-})(ObjectAccessGroupType || (exports.ObjectAccessGroupType = ObjectAccessGroupType = {}));
-var ObjectPermission;
+})(ObjectAccessGroupType || (ObjectAccessGroupType = {}));
+export var ObjectPermission;
 (function (ObjectPermission) {
     ObjectPermission["READ"] = "read";
     ObjectPermission["WRITE"] = "write";
-})(ObjectPermission || (exports.ObjectPermission = ObjectPermission = {}));
+})(ObjectPermission || (ObjectPermission = {}));
 // Check if the requested permission is allowed based on the granted permission.
 function isPermissionAllowed(requested, granted) {
     // Users granted with read or write permissions can read the object.
@@ -59,7 +53,7 @@ function createObjectAccessGroup(group) {
     }
 }
 // Sets the ACL policy to the object metadata.
-async function setObjectAclPolicy(objectFile, aclPolicy) {
+export async function setObjectAclPolicy(objectFile, aclPolicy) {
     const [exists] = await objectFile.exists();
     if (!exists) {
         throw new Error(`Object not found: ${objectFile.name}`);
@@ -71,17 +65,16 @@ async function setObjectAclPolicy(objectFile, aclPolicy) {
     });
 }
 // Gets the ACL policy from the object metadata.
-async function getObjectAclPolicy(objectFile) {
-    var _a;
+export async function getObjectAclPolicy(objectFile) {
     const [metadata] = await objectFile.getMetadata();
-    const aclPolicy = (_a = metadata === null || metadata === void 0 ? void 0 : metadata.metadata) === null || _a === void 0 ? void 0 : _a[ACL_POLICY_METADATA_KEY];
+    const aclPolicy = metadata?.metadata?.[ACL_POLICY_METADATA_KEY];
     if (!aclPolicy) {
         return null;
     }
     return JSON.parse(aclPolicy);
 }
 // Checks if the user can access the object.
-async function canAccessObject({ userId, objectFile, requestedPermission, }) {
+export async function canAccessObject({ userId, objectFile, requestedPermission, }) {
     // When this function is called, the acl policy is required.
     const aclPolicy = await getObjectAclPolicy(objectFile);
     if (!aclPolicy) {

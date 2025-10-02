@@ -1,10 +1,7 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.marketplaceIntegrationService = exports.MarketplaceIntegrationService = void 0;
-const db_1 = require("../../db");
-const schema_1 = require("../../../shared/schema");
-const drizzle_orm_1 = require("drizzle-orm");
-const ethers_1 = require("ethers");
+import { db } from '../../db';
+import { marketplaceIntegrations, nftTokens, nftCollections } from '../../../shared/schema';
+import { eq } from 'drizzle-orm';
+import { ethers } from 'ethers';
 // Marketplace APIs configuration
 const MARKETPLACE_APIS = {
     opensea: {
@@ -24,7 +21,7 @@ const MARKETPLACE_APIS = {
         testnet: 'https://goerli-api.x2y2.org/v1'
     }
 };
-class MarketplaceIntegrationService {
+export class MarketplaceIntegrationService {
     constructor() {
         this.apiKeys = new Map();
         // Load API keys from environment
@@ -39,8 +36,12 @@ class MarketplaceIntegrationService {
     async saveIntegration(data) {
         try {
             // Encrypt API keys before storing
-            const encryptedData = Object.assign(Object.assign({}, data), { apiKey: data.apiKey ? this.encryptApiKey(data.apiKey) : undefined, apiSecret: data.apiSecret ? this.encryptApiKey(data.apiSecret) : undefined });
-            const [integration] = await db_1.db.insert(schema_1.marketplaceIntegrations)
+            const encryptedData = {
+                ...data,
+                apiKey: data.apiKey ? this.encryptApiKey(data.apiKey) : undefined,
+                apiSecret: data.apiSecret ? this.encryptApiKey(data.apiSecret) : undefined
+            };
+            const [integration] = await db.insert(marketplaceIntegrations)
                 .values(encryptedData)
                 .returning();
             return integration;
@@ -53,11 +54,15 @@ class MarketplaceIntegrationService {
     // Get user's marketplace integrations
     async getUserIntegrations(userId) {
         try {
-            const integrations = await db_1.db.select()
-                .from(schema_1.marketplaceIntegrations)
-                .where((0, drizzle_orm_1.eq)(schema_1.marketplaceIntegrations.userId, userId));
+            const integrations = await db.select()
+                .from(marketplaceIntegrations)
+                .where(eq(marketplaceIntegrations.userId, userId));
             // Decrypt API keys
-            return integrations.map(integration => (Object.assign(Object.assign({}, integration), { apiKey: integration.apiKey ? this.decryptApiKey(integration.apiKey) : undefined, apiSecret: integration.apiSecret ? this.decryptApiKey(integration.apiSecret) : undefined })));
+            return integrations.map(integration => ({
+                ...integration,
+                apiKey: integration.apiKey ? this.decryptApiKey(integration.apiKey) : undefined,
+                apiSecret: integration.apiSecret ? this.decryptApiKey(integration.apiSecret) : undefined
+            }));
         }
         catch (error) {
             console.error('Error fetching user integrations:', error);
@@ -69,17 +74,17 @@ class MarketplaceIntegrationService {
     ) {
         try {
             // Get token details
-            const [token] = await db_1.db.select()
-                .from(schema_1.nftTokens)
-                .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.id, tokenId))
+            const [token] = await db.select()
+                .from(nftTokens)
+                .where(eq(nftTokens.id, tokenId))
                 .limit(1);
             if (!token) {
                 return { success: false, error: 'Token not found' };
             }
             // Get collection details
-            const [collection] = await db_1.db.select()
-                .from(schema_1.nftCollections)
-                .where((0, drizzle_orm_1.eq)(schema_1.nftCollections.id, token.collectionId))
+            const [collection] = await db.select()
+                .from(nftCollections)
+                .where(eq(nftCollections.id, token.collectionId))
                 .limit(1);
             if (!collection) {
                 return { success: false, error: 'Collection not found' };
@@ -105,7 +110,6 @@ class MarketplaceIntegrationService {
     }
     // List on OpenSea
     async listOnOpenSea(token, collection, priceInWei, duration) {
-        var _a;
         try {
             const apiKey = this.apiKeys.get('opensea');
             if (!apiKey) {
@@ -115,10 +119,10 @@ class MarketplaceIntegrationService {
             // Create listing payload
             const payload = {
                 asset: {
-                    tokenId: (_a = token.tokenId) === null || _a === void 0 ? void 0 : _a.toString(),
+                    tokenId: token.tokenId?.toString(),
                     tokenAddress: collection.contractAddress,
                 },
-                startAmount: ethers_1.ethers.formatEther(priceInWei),
+                startAmount: ethers.formatEther(priceInWei),
                 expirationTime: duration
                     ? Math.floor(Date.now() / 1000) + (duration * 24 * 60 * 60)
                     : 0,
@@ -127,13 +131,13 @@ class MarketplaceIntegrationService {
             // Mock successful listing for development
             const mockListingId = `opensea-${Date.now()}`;
             // Update token status
-            await db_1.db.update(schema_1.nftTokens)
+            await db.update(nftTokens)
                 .set({
                 isListedForSale: true,
                 listingPrice: priceInWei,
                 marketplaces: [...(token.marketplaces || []), 'opensea']
             })
-                .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.id, token.id));
+                .where(eq(nftTokens.id, token.id));
             return {
                 success: true,
                 listingId: mockListingId
@@ -146,7 +150,6 @@ class MarketplaceIntegrationService {
     }
     // List on Rarible
     async listOnRarible(token, collection, priceInWei, duration) {
-        var _a;
         try {
             const apiKey = this.apiKeys.get('rarible');
             if (!apiKey) {
@@ -158,12 +161,12 @@ class MarketplaceIntegrationService {
                 makeAssetType: {
                     assetClass: 'ERC721',
                     contract: collection.contractAddress,
-                    tokenId: (_a = token.tokenId) === null || _a === void 0 ? void 0 : _a.toString()
+                    tokenId: token.tokenId?.toString()
                 },
                 takeAssetType: {
                     assetClass: 'ETH'
                 },
-                price: ethers_1.ethers.formatEther(priceInWei),
+                price: ethers.formatEther(priceInWei),
                 maker: token.ownerId,
                 start: Math.floor(Date.now() / 1000),
                 end: duration
@@ -173,13 +176,13 @@ class MarketplaceIntegrationService {
             // Mock successful listing
             const mockListingId = `rarible-${Date.now()}`;
             // Update token status
-            await db_1.db.update(schema_1.nftTokens)
+            await db.update(nftTokens)
                 .set({
                 isListedForSale: true,
                 listingPrice: priceInWei,
                 marketplaces: [...(token.marketplaces || []), 'rarible']
             })
-                .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.id, token.id));
+                .where(eq(nftTokens.id, token.id));
             return {
                 success: true,
                 listingId: mockListingId
@@ -195,13 +198,13 @@ class MarketplaceIntegrationService {
         try {
             // LooksRare listing logic
             const mockListingId = `looksrare-${Date.now()}`;
-            await db_1.db.update(schema_1.nftTokens)
+            await db.update(nftTokens)
                 .set({
                 isListedForSale: true,
                 listingPrice: priceInWei,
                 marketplaces: [...(token.marketplaces || []), 'looksrare']
             })
-                .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.id, token.id));
+                .where(eq(nftTokens.id, token.id));
             return {
                 success: true,
                 listingId: mockListingId
@@ -217,13 +220,13 @@ class MarketplaceIntegrationService {
         try {
             // X2Y2 listing logic
             const mockListingId = `x2y2-${Date.now()}`;
-            await db_1.db.update(schema_1.nftTokens)
+            await db.update(nftTokens)
                 .set({
                 isListedForSale: true,
                 listingPrice: priceInWei,
                 marketplaces: [...(token.marketplaces || []), 'x2y2']
             })
-                .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.id, token.id));
+                .where(eq(nftTokens.id, token.id));
             return {
                 success: true,
                 listingId: mockListingId
@@ -237,9 +240,9 @@ class MarketplaceIntegrationService {
     // Cancel listing on marketplace
     async cancelListing(tokenId, marketplace) {
         try {
-            const [token] = await db_1.db.select()
-                .from(schema_1.nftTokens)
-                .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.id, tokenId))
+            const [token] = await db.select()
+                .from(nftTokens)
+                .where(eq(nftTokens.id, tokenId))
                 .limit(1);
             if (!token) {
                 return { success: false, error: 'Token not found' };
@@ -247,13 +250,13 @@ class MarketplaceIntegrationService {
             // Remove marketplace from list
             const updatedMarketplaces = (token.marketplaces || [])
                 .filter(m => m !== marketplace);
-            await db_1.db.update(schema_1.nftTokens)
+            await db.update(nftTokens)
                 .set({
                 isListedForSale: updatedMarketplaces.length > 0,
                 listingPrice: updatedMarketplaces.length > 0 ? token.listingPrice : null,
                 marketplaces: updatedMarketplaces
             })
-                .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.id, tokenId));
+                .where(eq(nftTokens.id, tokenId));
             return { success: true };
         }
         catch (error) {
@@ -283,9 +286,9 @@ class MarketplaceIntegrationService {
                         // Add other marketplaces
                     }
                     // Update last synced time
-                    await db_1.db.update(schema_1.marketplaceIntegrations)
+                    await db.update(marketplaceIntegrations)
                         .set({ lastSyncedAt: new Date() })
-                        .where((0, drizzle_orm_1.eq)(schema_1.marketplaceIntegrations.id, integration.id));
+                        .where(eq(marketplaceIntegrations.id, integration.id));
                 }
                 catch (error) {
                     errors.push(`Failed to sync ${integration.marketplace}: ${error}`);
@@ -338,18 +341,17 @@ class MarketplaceIntegrationService {
     }
     // Get marketplace analytics
     async getMarketplaceAnalytics(collectionId, marketplace) {
-        var _a;
         try {
-            const tokens = await db_1.db.select()
-                .from(schema_1.nftTokens)
-                .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.collectionId, collectionId));
+            const tokens = await db.select()
+                .from(nftTokens)
+                .where(eq(nftTokens.collectionId, collectionId));
             let totalListings = 0;
             let totalSales = 0;
             let totalVolume = 0n;
             let prices = [];
             for (const token of tokens) {
                 if (token.isListedForSale) {
-                    if (!marketplace || ((_a = token.marketplaces) === null || _a === void 0 ? void 0 : _a.includes(marketplace))) {
+                    if (!marketplace || token.marketplaces?.includes(marketplace)) {
                         totalListings++;
                         if (token.listingPrice) {
                             prices.push(BigInt(token.listingPrice));
@@ -399,6 +401,5 @@ class MarketplaceIntegrationService {
         return Buffer.from(encryptedKey, 'base64').toString('utf-8');
     }
 }
-exports.MarketplaceIntegrationService = MarketplaceIntegrationService;
 // Export singleton instance
-exports.marketplaceIntegrationService = new MarketplaceIntegrationService();
+export const marketplaceIntegrationService = new MarketplaceIntegrationService();

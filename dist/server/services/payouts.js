@@ -1,8 +1,5 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.creatorPayoutService = exports.CreatorPayoutService = void 0;
-const storage_1 = require("../storage");
-class CreatorPayoutService {
+import { storage } from '../storage';
+export class CreatorPayoutService {
     constructor() {
         this.PLATFORM_FEE_RATE = 0.00; // 0% platform fee - creators keep 100%
         this.MIN_PAYOUT_THRESHOLD = 5000; // $50.00 minimum
@@ -12,7 +9,7 @@ class CreatorPayoutService {
     async calculateCreatorEarnings(userId, startDate, endDate) {
         try {
             // Get all transactions for the creator in the period
-            const transactions = await storage_1.storage.getTransactionsAsCreator(userId);
+            const transactions = await storage.getTransactionsAsCreator(userId);
             const periodTransactions = transactions.filter(tx => {
                 const txDate = new Date(tx.createdAt);
                 return txDate >= startDate && txDate <= endDate && tx.status === 'completed';
@@ -77,7 +74,7 @@ class CreatorPayoutService {
                         continue;
                     }
                     // Get creator's payout method
-                    const payoutAccounts = await storage_1.storage.getPayoutAccounts(creator.userId);
+                    const payoutAccounts = await storage.getPayoutAccounts(creator.userId);
                     const defaultAccount = payoutAccounts.find(acc => acc.isDefault);
                     if (!defaultAccount) {
                         console.log(`No default payout method for creator ${creator.userId}`);
@@ -96,7 +93,7 @@ class CreatorPayoutService {
                     processed++;
                     totalAmount += earnings.netPayout;
                     // Log the payout
-                    await storage_1.storage.createAuditLog({
+                    await storage.createAuditLog({
                         actorId: 'system',
                         action: 'payout_processed',
                         targetType: 'payout',
@@ -149,7 +146,7 @@ class CreatorPayoutService {
     async submitPayout(payout) {
         try {
             // Get payout account details
-            const payoutAccounts = await storage_1.storage.getPayoutAccounts(payout.userId);
+            const payoutAccounts = await storage.getPayoutAccounts(payout.userId);
             const account = payoutAccounts.find(acc => acc.id === payout.payoutAccountId);
             if (!account) {
                 throw new Error('Payout account not found');
@@ -230,7 +227,7 @@ class CreatorPayoutService {
             const startDate = new Date();
             startDate.setMonth(endDate.getMonth() - months);
             const earnings = await this.calculateCreatorEarnings(userId, startDate, endDate);
-            const payoutRequests = await storage_1.storage.getPayoutRequests(userId);
+            const payoutRequests = await storage.getPayoutRequests(userId);
             return {
                 totalEarnings: earnings.grossEarnings,
                 averageMonthly: Math.round(earnings.grossEarnings / months),
@@ -254,5 +251,4 @@ class CreatorPayoutService {
         }
     }
 }
-exports.CreatorPayoutService = CreatorPayoutService;
-exports.creatorPayoutService = new CreatorPayoutService();
+export const creatorPayoutService = new CreatorPayoutService();

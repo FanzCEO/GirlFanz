@@ -1,13 +1,7 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.distributionService = exports.DistributionService = void 0;
-const storage_1 = require("../storage");
-const objectStorage_1 = require("../objectStorage");
-const qrcode_1 = __importDefault(require("qrcode"));
-const nanoid_1 = require("nanoid");
+import { storage } from '../storage';
+import { ObjectStorageService } from '../objectStorage';
+import QRCode from 'qrcode';
+import { nanoid } from 'nanoid';
 const PLATFORM_CONFIGS = {
     instagram: {
         platform: 'instagram',
@@ -50,13 +44,13 @@ const PLATFORM_CONFIGS = {
         supportedFormats: ['mp4', 'mov', 'avi', 'wmv', 'flv', 'webm'],
     },
 };
-class DistributionService {
+export class DistributionService {
     constructor() {
-        this.objectStorage = new objectStorage_1.ObjectStorageService();
+        this.objectStorage = new ObjectStorageService();
     }
     // Create a distribution campaign
     async createCampaign(sessionId, options) {
-        const session = await storage_1.storage.getContentSession(sessionId);
+        const session = await storage.getContentSession(sessionId);
         if (!session)
             throw new Error('Content session not found');
         // Generate QR code and smart link
@@ -74,7 +68,7 @@ class DistributionService {
             smartLinkUrl,
             scheduledAt: options.publishSchedule.scheduledTime,
         };
-        const campaign = await storage_1.storage.createDistributionCampaign(campaignData);
+        const campaign = await storage.createDistributionCampaign(campaignData);
         // If immediate publishing, start distribution
         if (options.publishSchedule.immediate) {
             await this.startDistribution(campaign.id);
@@ -87,22 +81,22 @@ class DistributionService {
     }
     // Start distributing content to platforms
     async startDistribution(campaignId) {
-        const campaign = await storage_1.storage.getDistributionCampaign(campaignId);
+        const campaign = await storage.getDistributionCampaign(campaignId);
         if (!campaign)
             throw new Error('Campaign not found');
         // Update campaign status
-        await storage_1.storage.updateDistributionCampaign(campaignId, {
+        await storage.updateDistributionCampaign(campaignId, {
             status: 'publishing',
         });
         // Get content versions
-        const versions = await storage_1.storage.getContentVersionsBySession(campaign.sessionId);
+        const versions = await storage.getContentVersionsBySession(campaign.sessionId);
         // Distribute to each platform
         const distributionTasks = campaign.platforms.map(platform => this.distributeToSinglePlatform(campaign, platform, versions));
         const results = await Promise.allSettled(distributionTasks);
         // Check if all succeeded
         const allSucceeded = results.every(r => r.status === 'fulfilled');
         // Update campaign status
-        await storage_1.storage.updateDistributionCampaign(campaignId, {
+        await storage.updateDistributionCampaign(campaignId, {
             status: allSucceeded ? 'published' : 'failed',
             publishedAt: new Date(),
         });
@@ -131,12 +125,12 @@ class DistributionService {
             hashtags,
             mentions,
         };
-        const distribution = await storage_1.storage.createPlatformDistribution(distributionData);
+        const distribution = await storage.createPlatformDistribution(distributionData);
         try {
             // Publish to platform (simulated)
             const result = await this.publishToPlatform(platform, matchingVersion, caption, hashtags);
             // Update with success
-            await storage_1.storage.updatePlatformDistribution(distribution.id, {
+            await storage.updatePlatformDistribution(distribution.id, {
                 status: 'published',
                 platformPostId: result.postId,
                 platformUrl: result.url,
@@ -146,7 +140,7 @@ class DistributionService {
         }
         catch (error) {
             // Update with failure
-            await storage_1.storage.updatePlatformDistribution(distribution.id, {
+            await storage.updatePlatformDistribution(distribution.id, {
                 status: 'failed',
                 errorMessage: error instanceof Error ? error.message : 'Publishing failed',
             });
@@ -168,18 +162,18 @@ class DistributionService {
     async preparePlatformContent(campaign, platform) {
         const settings = campaign.distributionSettings;
         // Generate AI-optimized caption if not provided
-        let caption = (settings === null || settings === void 0 ? void 0 : settings.caption) || '';
+        let caption = settings?.caption || '';
         if (!caption) {
             caption = await this.generateAICaption(campaign.sessionId, platform);
         }
         // Generate trending hashtags
-        let hashtags = (settings === null || settings === void 0 ? void 0 : settings.suggestedHashtags) || [];
-        if (settings === null || settings === void 0 ? void 0 : settings.autoHashtags) {
+        let hashtags = settings?.suggestedHashtags || [];
+        if (settings?.autoHashtags) {
             const trendingHashtags = await this.getTrendingHashtags(platform);
             hashtags = [...hashtags, ...trendingHashtags];
         }
         // Process mentions
-        const mentions = (settings === null || settings === void 0 ? void 0 : settings.mentions) || [];
+        const mentions = settings?.mentions || [];
         return { caption, hashtags, mentions };
     }
     // Publish to platform (simulated API call)
@@ -194,17 +188,17 @@ class DistributionService {
         // In production, this would make actual API calls to social platforms
         // Using OAuth tokens stored securely for each creator
         // Return simulated result
-        const postId = `${platform}_${(0, nanoid_1.nanoid)()}`;
+        const postId = `${platform}_${nanoid()}`;
         const url = `https://${platform}.com/post/${postId}`;
         return { postId, url };
     }
     // Generate marketing assets (QR code and smart link)
     async generateMarketingAssets(sessionId) {
         // Generate smart link
-        const smartLinkId = (0, nanoid_1.nanoid)(10);
+        const smartLinkId = nanoid(10);
         const smartLinkUrl = `https://link.girlfanz.com/${smartLinkId}`;
         // Generate QR code for smart link
-        const qrCodeDataUrl = await qrcode_1.default.toDataURL(smartLinkUrl, {
+        const qrCodeDataUrl = await QRCode.toDataURL(smartLinkUrl, {
             width: 500,
             margin: 2,
             color: {
@@ -221,7 +215,7 @@ class DistributionService {
             contentType: 'image/png',
         });
         // Store smart link mapping in database
-        await storage_1.storage.createSmartLink({
+        await storage.createSmartLink({
             id: smartLinkId,
             sessionId,
             targetUrl: `/content/${sessionId}`,
@@ -234,17 +228,17 @@ class DistributionService {
     }
     // Generate AI-optimized caption
     async generateAICaption(sessionId, platform) {
-        const session = await storage_1.storage.getContentSession(sessionId);
+        const session = await storage.getContentSession(sessionId);
         // In production: Use AI to generate platform-optimized captions
         // Consider character limits, platform culture, engagement patterns
         const platformCaptions = {
-            instagram: `✨ New content alert! ${(session === null || session === void 0 ? void 0 : session.title) || 'Check this out'} 💕 Link in bio!`,
-            tiktok: `${(session === null || session === void 0 ? void 0 : session.title) || 'You won\'t believe this'} 🔥 #fyp #viral`,
-            twitter: `Just dropped: ${(session === null || session === void 0 ? void 0 : session.title) || 'New content'} 🚀`,
+            instagram: `✨ New content alert! ${session?.title || 'Check this out'} 💕 Link in bio!`,
+            tiktok: `${session?.title || 'You won\'t believe this'} 🔥 #fyp #viral`,
+            twitter: `Just dropped: ${session?.title || 'New content'} 🚀`,
             snapchat: `Swipe up for exclusive content! 👆`,
-            youtube: `${(session === null || session === void 0 ? void 0 : session.title) || 'New Video'} | Full video out now!`,
+            youtube: `${session?.title || 'New Video'} | Full video out now!`,
         };
-        return platformCaptions[platform] || `Check out my new content! ${(session === null || session === void 0 ? void 0 : session.title) || ''}`;
+        return platformCaptions[platform] || `Check out my new content! ${session?.title || ''}`;
     }
     // Get trending hashtags for platform
     async getTrendingHashtags(platform) {
@@ -284,10 +278,10 @@ class DistributionService {
     }
     // Get campaign analytics
     async getCampaignAnalytics(campaignId) {
-        const campaign = await storage_1.storage.getDistributionCampaign(campaignId);
+        const campaign = await storage.getDistributionCampaign(campaignId);
         if (!campaign)
             throw new Error('Campaign not found');
-        const distributions = await storage_1.storage.getPlatformDistributions(campaignId);
+        const distributions = await storage.getPlatformDistributions(campaignId);
         // Aggregate metrics from all platforms
         const metrics = {
             totalReach: 0,
@@ -306,8 +300,8 @@ class DistributionService {
             campaign,
             distributions,
             metrics,
-            smartLinkClicks: await storage_1.storage.getSmartLinkClicks(campaign.smartLinkUrl),
-            qrCodeScans: await storage_1.storage.getQRCodeScans(campaign.qrCodeUrl),
+            smartLinkClicks: await storage.getSmartLinkClicks(campaign.smartLinkUrl),
+            qrCodeScans: await storage.getQRCodeScans(campaign.qrCodeUrl),
         };
     }
     // Automated retargeting for non-converters
@@ -324,5 +318,4 @@ class DistributionService {
         return campaigns;
     }
 }
-exports.DistributionService = DistributionService;
-exports.distributionService = new DistributionService();
+export const distributionService = new DistributionService();

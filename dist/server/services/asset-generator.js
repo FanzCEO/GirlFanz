@@ -1,9 +1,6 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.AssetGeneratorService = void 0;
-const storage_1 = require("../storage");
-const objectStorage_1 = require("../objectStorage");
-class AssetGeneratorService {
+import { storage } from '../storage';
+import { ObjectStorageService } from '../objectStorage';
+export class AssetGeneratorService {
     constructor() {
         // Meme templates
         this.memeTemplates = {
@@ -13,11 +10,11 @@ class AssetGeneratorService {
             'surprised_pikachu': { bottomText: true },
             'this_is_fine': { topText: true, bottomText: true },
         };
-        this.objectStorage = new objectStorage_1.ObjectStorageService();
+        this.objectStorage = new ObjectStorageService();
     }
     // Generate all requested assets
     async generateAssets(sessionId, options) {
-        const session = await storage_1.storage.getContentSession(sessionId);
+        const session = await storage.getContentSession(sessionId);
         if (!session)
             throw new Error('Session not found');
         const results = [];
@@ -73,7 +70,7 @@ class AssetGeneratorService {
                         size,
                     },
                 };
-                const asset = await storage_1.storage.createGeneratedAsset(assetData);
+                const asset = await storage.createGeneratedAsset(assetData);
                 assets.push(asset);
             }
         }
@@ -123,7 +120,7 @@ class AssetGeneratorService {
                 segment,
             },
         };
-        const asset = await storage_1.storage.createGeneratedAsset(assetData);
+        const asset = await storage.createGeneratedAsset(assetData);
         assets.push(asset);
         return {
             type: 'gif',
@@ -174,7 +171,7 @@ class AssetGeneratorService {
                 })),
             },
         };
-        const asset = await storage_1.storage.createGeneratedAsset(assetData);
+        const asset = await storage.createGeneratedAsset(assetData);
         assets.push(asset);
         return {
             type: 'preview',
@@ -221,7 +218,7 @@ class AssetGeneratorService {
                 totalDuration: highlights.length * options.clipDuration,
             },
         };
-        const asset = await storage_1.storage.createGeneratedAsset(assetData);
+        const asset = await storage.createGeneratedAsset(assetData);
         assets.push(asset);
         return {
             type: 'highlights',
@@ -269,7 +266,7 @@ class AssetGeneratorService {
                 segments: segments.length,
             },
         };
-        const asset = await storage_1.storage.createGeneratedAsset(assetData);
+        const asset = await storage.createGeneratedAsset(assetData);
         assets.push(asset);
         return {
             type: 'teaser',
@@ -314,7 +311,7 @@ class AssetGeneratorService {
                         autoCaption: options.autoCaption,
                     },
                 };
-                const asset = await storage_1.storage.createGeneratedAsset(assetData);
+                const asset = await storage.createGeneratedAsset(assetData);
                 assets.push(asset);
             }
         }
@@ -348,7 +345,10 @@ class AssetGeneratorService {
     async rankThumbnailCandidates(candidates) {
         // Score based on multiple factors
         return candidates
-            .map(candidate => (Object.assign(Object.assign({}, candidate), { score: this.calculateThumbnailScore(candidate) })))
+            .map(candidate => ({
+            ...candidate,
+            score: this.calculateThumbnailScore(candidate),
+        }))
             .sort((a, b) => b.score - a.score);
     }
     calculateThumbnailScore(candidate) {
@@ -370,7 +370,10 @@ class AssetGeneratorService {
             key: uploadKey,
             body: thumbnailBuffer,
             contentType: `image/${format}`,
-            metadata: Object.assign({ sessionId: session.id }, size),
+            metadata: {
+                sessionId: session.id,
+                ...size,
+            },
         });
         return { url: result.url };
     }
@@ -537,4 +540,3 @@ class AssetGeneratorService {
         return Buffer.from('meme_image');
     }
 }
-exports.AssetGeneratorService = AssetGeneratorService;

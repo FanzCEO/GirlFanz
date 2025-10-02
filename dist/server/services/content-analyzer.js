@@ -1,8 +1,5 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ContentAnalyzerService = void 0;
-const storage_1 = require("../storage");
-class ContentAnalyzerService {
+import { storage } from '../storage';
+export class ContentAnalyzerService {
     constructor() {
         // Trend database (mock data - in production, this would be from a trend API)
         this.trendingTopics = {
@@ -25,7 +22,7 @@ class ContentAnalyzerService {
     }
     // Analyze content comprehensively
     async analyzeContent(sessionId) {
-        const session = await storage_1.storage.getContentSession(sessionId);
+        const session = await storage.getContentSession(sessionId);
         if (!session)
             throw new Error('Session not found');
         console.log(`Analyzing content for session ${sessionId}`);
@@ -441,7 +438,7 @@ class ContentAnalyzerService {
     // Store analysis results
     async storeAnalysis(analysis) {
         // In production: Store in database for future reference
-        await storage_1.storage.updateContentSession(analysis.sessionId, {
+        await storage.updateContentSession(analysis.sessionId, {
             metadata: {
                 analysis: {
                     timestamp: analysis.timestamp,
@@ -534,4 +531,3 @@ class ContentAnalyzerService {
         return topics[dayOffset % topics.length];
     }
 }
-exports.ContentAnalyzerService = ContentAnalyzerService;

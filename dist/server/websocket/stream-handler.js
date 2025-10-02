@@ -1,16 +1,12 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.streamWebSocketHandler = exports.StreamWebSocketHandler = void 0;
-exports.initStreamWebSocketHandler = initStreamWebSocketHandler;
-const ws_1 = require("ws");
-const streaming_1 = require("../services/streaming");
-const storage_1 = require("../storage");
-const verification_1 = require("../services/verification");
-class StreamWebSocketHandler {
+import { WebSocket } from 'ws';
+import { streamingService } from '../services/streaming';
+import { storage } from '../storage';
+import { verificationService } from '../services/verification';
+export class StreamWebSocketHandler {
     constructor(wss) {
         this.connections = new Map();
         this.wss = wss;
-        streaming_1.streamingService.setWebSocketServer(wss);
+        streamingService.setWebSocketServer(wss);
         // Setup heartbeat to detect disconnected clients
         this.setupHeartbeat();
     }
@@ -133,7 +129,7 @@ class StreamWebSocketHandler {
     async handleAuthentication(ws, data) {
         const { userId, token } = data;
         // Verify user exists
-        const user = await storage_1.storage.getUser(userId);
+        const user = await storage.getUser(userId);
         if (!user) {
             return this.sendError(ws, 'Invalid user');
         }
@@ -155,7 +151,7 @@ class StreamWebSocketHandler {
         if (!ws.userId) {
             return this.sendError(ws, 'Authentication required');
         }
-        const session = await streaming_1.streamingService.createStream(ws.userId, data);
+        const session = await streamingService.createStream(ws.userId, data);
         ws.sessionId = session.id;
         this.sendMessage(ws, {
             type: 'stream_created',
@@ -169,7 +165,7 @@ class StreamWebSocketHandler {
     }
     // Join stream handler
     async handleJoinStream(ws, sessionId, userId, data) {
-        const session = streaming_1.streamingService.getSession(sessionId);
+        const session = streamingService.getSession(sessionId);
         if (!session) {
             return this.sendError(ws, 'Stream not found');
         }
@@ -182,11 +178,11 @@ class StreamWebSocketHandler {
             }
             // Check verification for co-stars
             if (data.role === 'costar') {
-                const verification = await verification_1.verificationService.getUserVerificationStatus(userId);
+                const verification = await verificationService.getUserVerificationStatus(userId);
                 if (!verification.verified) {
                     return this.sendError(ws, 'Verification required to join as co-star');
                 }
-                await streaming_1.streamingService.addCoStar(sessionId, userId, true);
+                await streamingService.addCoStar(sessionId, userId, true);
             }
             this.sendMessage(ws, {
                 type: 'joined_as_participant',
@@ -205,7 +201,7 @@ class StreamWebSocketHandler {
         }
         else {
             // Joining as viewer
-            await streaming_1.streamingService.addViewer(sessionId, userId, ws);
+            await streamingService.addViewer(sessionId, userId, ws);
             this.sendMessage(ws, {
                 type: 'joined_as_viewer',
                 data: {
@@ -219,14 +215,14 @@ class StreamWebSocketHandler {
     }
     // Leave stream handler
     async handleLeaveStream(ws, sessionId, userId) {
-        const session = streaming_1.streamingService.getSession(sessionId);
+        const session = streamingService.getSession(sessionId);
         if (!session)
             return;
         if (session.participants.has(userId)) {
-            await streaming_1.streamingService.removeCoStar(sessionId, userId);
+            await streamingService.removeCoStar(sessionId, userId);
         }
         else {
-            await streaming_1.streamingService.removeViewer(sessionId, userId);
+            await streamingService.removeViewer(sessionId, userId);
         }
         ws.sessionId = undefined;
         this.sendMessage(ws, {
@@ -236,7 +232,7 @@ class StreamWebSocketHandler {
     }
     // Start stream handler
     async handleStartStream(ws, sessionId) {
-        const session = streaming_1.streamingService.getSession(sessionId);
+        const session = streamingService.getSession(sessionId);
         if (!session) {
             return this.sendError(ws, 'Stream not found');
         }
@@ -244,7 +240,7 @@ class StreamWebSocketHandler {
         if (ws.userId !== session.creatorId) {
             return this.sendError(ws, 'Only host can start the stream');
         }
-        await streaming_1.streamingService.startStream(sessionId);
+        await streamingService.startStream(sessionId);
         this.sendMessage(ws, {
             type: 'stream_started',
             data: {
@@ -255,7 +251,7 @@ class StreamWebSocketHandler {
     }
     // End stream handler
     async handleEndStream(ws, sessionId) {
-        const session = streaming_1.streamingService.getSession(sessionId);
+        const session = streamingService.getSession(sessionId);
         if (!session) {
             return this.sendError(ws, 'Stream not found');
         }
@@ -263,7 +259,7 @@ class StreamWebSocketHandler {
         if (ws.userId !== session.creatorId) {
             return this.sendError(ws, 'Only host can end the stream');
         }
-        await streaming_1.streamingService.endStream(sessionId);
+        await streamingService.endStream(sessionId);
         this.sendMessage(ws, {
             type: 'stream_ended',
             data: {
@@ -275,7 +271,7 @@ class StreamWebSocketHandler {
     }
     // Invite co-star handler
     async handleInviteCoStar(ws, sessionId, data) {
-        const session = streaming_1.streamingService.getSession(sessionId);
+        const session = streamingService.getSession(sessionId);
         if (!session) {
             return this.sendError(ws, 'Stream not found');
         }
@@ -283,7 +279,7 @@ class StreamWebSocketHandler {
         if (ws.userId !== session.creatorId) {
             return this.sendError(ws, 'Only host can invite co-stars');
         }
-        await streaming_1.streamingService.addCoStar(sessionId, data.userId, data.requireVerification !== false);
+        await streamingService.addCoStar(sessionId, data.userId, data.requireVerification !== false);
         // Notify invited user if connected
         const invitedWs = this.connections.get(data.userId);
         if (invitedWs) {
@@ -303,7 +299,7 @@ class StreamWebSocketHandler {
     }
     // Remove co-star handler
     async handleRemoveCoStar(ws, sessionId, coStarId) {
-        const session = streaming_1.streamingService.getSession(sessionId);
+        const session = streamingService.getSession(sessionId);
         if (!session) {
             return this.sendError(ws, 'Stream not found');
         }
@@ -311,7 +307,7 @@ class StreamWebSocketHandler {
         if (ws.userId !== session.creatorId) {
             return this.sendError(ws, 'Only host can remove co-stars');
         }
-        await streaming_1.streamingService.removeCoStar(sessionId, coStarId);
+        await streamingService.removeCoStar(sessionId, coStarId);
         // Notify removed user
         const removedWs = this.connections.get(coStarId);
         if (removedWs) {
@@ -329,25 +325,25 @@ class StreamWebSocketHandler {
     async handleChatMessage(ws, sessionId, data) {
         if (!ws.userId)
             return;
-        await streaming_1.streamingService.sendChatMessage(sessionId, ws.userId, data.message, data.messageType || 'text');
+        await streamingService.sendChatMessage(sessionId, ws.userId, data.message, data.messageType || 'text');
     }
     // Gift handler
     async handleGift(ws, sessionId, data) {
         if (!ws.userId)
             return;
-        await streaming_1.streamingService.sendGift(sessionId, ws.userId, data.receiverId, data.giftType, data.giftValue, data.quantity || 1, data.message);
+        await streamingService.sendGift(sessionId, ws.userId, data.receiverId, data.giftType, data.giftValue, data.quantity || 1, data.message);
     }
     // Reaction handler
     async handleReaction(ws, sessionId, data) {
         if (!ws.userId)
             return;
-        await streaming_1.streamingService.sendReaction(sessionId, ws.userId, data.reactionType, data.intensity || 1);
+        await streamingService.sendReaction(sessionId, ws.userId, data.reactionType, data.intensity || 1);
     }
     // WebRTC signaling handler
     async handleWebRTCSignaling(ws, sessionId, signalType, data) {
         if (!ws.userId)
             return;
-        const session = streaming_1.streamingService.getSession(sessionId);
+        const session = streamingService.getSession(sessionId);
         if (!session) {
             return this.sendError(ws, 'Stream not found');
         }
@@ -355,11 +351,14 @@ class StreamWebSocketHandler {
         if (!session.participants.has(ws.userId)) {
             return this.sendError(ws, 'Not a participant in this stream');
         }
-        await streaming_1.streamingService.handleSignaling(sessionId, ws.userId, Object.assign({ type: signalType }, data));
+        await streamingService.handleSignaling(sessionId, ws.userId, {
+            type: signalType,
+            ...data
+        });
     }
     // Update stream settings handler
     async handleUpdateStreamSettings(ws, sessionId, data) {
-        const session = streaming_1.streamingService.getSession(sessionId);
+        const session = streamingService.getSession(sessionId);
         if (!session) {
             return this.sendError(ws, 'Stream not found');
         }
@@ -368,7 +367,7 @@ class StreamWebSocketHandler {
             return this.sendError(ws, 'Only host can update settings');
         }
         // Update settings in database
-        await storage_1.storage.updateLiveStream(session.streamId, data);
+        await storage.updateLiveStream(session.streamId, data);
         this.sendMessage(ws, {
             type: 'settings_updated',
             data
@@ -378,7 +377,7 @@ class StreamWebSocketHandler {
     async handleToggleAudio(ws, sessionId, enabled) {
         if (!ws.userId)
             return;
-        const session = streaming_1.streamingService.getSession(sessionId);
+        const session = streamingService.getSession(sessionId);
         if (!session) {
             return this.sendError(ws, 'Stream not found');
         }
@@ -400,7 +399,7 @@ class StreamWebSocketHandler {
     async handleToggleVideo(ws, sessionId, enabled) {
         if (!ws.userId)
             return;
-        const session = streaming_1.streamingService.getSession(sessionId);
+        const session = streamingService.getSession(sessionId);
         if (!session) {
             return this.sendError(ws, 'Stream not found');
         }
@@ -437,14 +436,13 @@ class StreamWebSocketHandler {
     }
     // Request highlight handler
     async handleRequestHighlight(ws, sessionId, data) {
-        var _a;
-        const session = streaming_1.streamingService.getSession(sessionId);
+        const session = streamingService.getSession(sessionId);
         if (!session || session.status !== 'live') {
             return this.sendError(ws, 'Stream not active');
         }
         // Mark current moment as highlight
-        const timestamp = Math.floor((Date.now() - (((_a = session.startedAt) === null || _a === void 0 ? void 0 : _a.getTime()) || 0)) / 1000);
-        await storage_1.storage.createStreamHighlight({
+        const timestamp = Math.floor((Date.now() - (session.startedAt?.getTime() || 0)) / 1000);
+        await storage.createStreamHighlight({
             streamId: session.streamId,
             title: data.title,
             startTime: Math.max(0, timestamp - (data.duration || 30)),
@@ -459,7 +457,7 @@ class StreamWebSocketHandler {
     }
     // Get analytics handler
     async handleGetAnalytics(ws, sessionId) {
-        const session = streaming_1.streamingService.getSession(sessionId);
+        const session = streamingService.getSession(sessionId);
         if (!session) {
             return this.sendError(ws, 'Stream not found');
         }
@@ -470,7 +468,7 @@ class StreamWebSocketHandler {
     }
     // Pin message handler
     async handlePinMessage(ws, sessionId, messageId) {
-        const session = streaming_1.streamingService.getSession(sessionId);
+        const session = streamingService.getSession(sessionId);
         if (!session) {
             return this.sendError(ws, 'Stream not found');
         }
@@ -491,7 +489,7 @@ class StreamWebSocketHandler {
     }
     // Moderate user handler
     async handleModerateUser(ws, sessionId, data) {
-        const session = streaming_1.streamingService.getSession(sessionId);
+        const session = streamingService.getSession(sessionId);
         if (!session) {
             return this.sendError(ws, 'Stream not found');
         }
@@ -502,7 +500,7 @@ class StreamWebSocketHandler {
         }
         // Apply moderation action
         if (data.action === 'ban' || data.action === 'timeout') {
-            await streaming_1.streamingService.removeViewer(sessionId, data.userId);
+            await streamingService.removeViewer(sessionId, data.userId);
             // Notify banned user
             const bannedWs = this.connections.get(data.userId);
             if (bannedWs) {
@@ -524,7 +522,7 @@ class StreamWebSocketHandler {
     // Disconnection handler
     handleDisconnection(ws) {
         if (ws.userId && ws.sessionId) {
-            const session = streaming_1.streamingService.getSession(ws.sessionId);
+            const session = streamingService.getSession(ws.sessionId);
             if (session) {
                 if (session.participants.has(ws.userId)) {
                     // Participant disconnected
@@ -535,7 +533,7 @@ class StreamWebSocketHandler {
                 }
                 else {
                     // Viewer disconnected
-                    streaming_1.streamingService.removeViewer(ws.sessionId, ws.userId);
+                    streamingService.removeViewer(ws.sessionId, ws.userId);
                 }
             }
             this.connections.delete(ws.userId);
@@ -543,7 +541,7 @@ class StreamWebSocketHandler {
     }
     // Helper methods
     sendMessage(ws, message) {
-        if (ws.readyState === ws_1.WebSocket.OPEN) {
+        if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify(message));
         }
     }
@@ -556,14 +554,12 @@ class StreamWebSocketHandler {
     broadcastToSession(session, message) {
         const messageStr = JSON.stringify(message);
         session.participants.forEach((participant) => {
-            var _a;
-            if (((_a = participant.connection) === null || _a === void 0 ? void 0 : _a.readyState) === ws_1.WebSocket.OPEN) {
+            if (participant.connection?.readyState === WebSocket.OPEN) {
                 participant.connection.send(messageStr);
             }
         });
         session.viewers.forEach((viewer) => {
-            var _a;
-            if (((_a = viewer.connection) === null || _a === void 0 ? void 0 : _a.readyState) === ws_1.WebSocket.OPEN) {
+            if (viewer.connection?.readyState === WebSocket.OPEN) {
                 viewer.connection.send(messageStr);
             }
         });
@@ -571,8 +567,7 @@ class StreamWebSocketHandler {
     broadcastToParticipants(session, message) {
         const messageStr = JSON.stringify(message);
         session.participants.forEach((participant) => {
-            var _a;
-            if (((_a = participant.connection) === null || _a === void 0 ? void 0 : _a.readyState) === ws_1.WebSocket.OPEN) {
+            if (participant.connection?.readyState === WebSocket.OPEN) {
                 participant.connection.send(messageStr);
             }
         });
@@ -597,8 +592,9 @@ class StreamWebSocketHandler {
         this.connections.clear();
     }
 }
-exports.StreamWebSocketHandler = StreamWebSocketHandler;
-function initStreamWebSocketHandler(wss) {
-    exports.streamWebSocketHandler = new StreamWebSocketHandler(wss);
-    return exports.streamWebSocketHandler;
+// Export singleton instance
+export let streamWebSocketHandler;
+export function initStreamWebSocketHandler(wss) {
+    streamWebSocketHandler = new StreamWebSocketHandler(wss);
+    return streamWebSocketHandler;
 }

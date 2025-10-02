@@ -1,25 +1,10 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.isAuthenticated = void 0;
-exports.getSession = getSession;
-exports.generateToken = generateToken;
-exports.verifyToken = verifyToken;
-exports.hashPassword = hashPassword;
-exports.verifyPassword = verifyPassword;
-exports.generateSecureToken = generateSecureToken;
-exports.sendPasswordResetEmail = sendPasswordResetEmail;
-exports.sendVerificationEmail = sendVerificationEmail;
-exports.setupAuth = setupAuth;
-const bcrypt_1 = __importDefault(require("bcrypt"));
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const crypto_1 = __importDefault(require("crypto"));
-const nodemailer_1 = __importDefault(require("nodemailer"));
-const express_session_1 = __importDefault(require("express-session"));
-const connect_pg_simple_1 = __importDefault(require("connect-pg-simple"));
-const storage_1 = require("./storage");
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import nodemailer from 'nodemailer';
+import session from 'express-session';
+import connectPg from 'connect-pg-simple';
+import { storage } from './storage';
 if (!process.env.JWT_SECRET) {
     console.error('CRITICAL: JWT_SECRET environment variable must be set for production use!');
     console.error('Generate a secure secret with: openssl rand -base64 64');
@@ -27,10 +12,10 @@ if (!process.env.JWT_SECRET) {
         throw new Error('JWT_SECRET is required in production');
     }
 }
-const JWT_SECRET = process.env.JWT_SECRET || crypto_1.default.randomBytes(32).toString('hex');
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 const BCRYPT_ROUNDS = 12;
 // Email transporter (configure with your SMTP details)
-const emailTransporter = nodemailer_1.default.createTransport({
+const emailTransporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT || '587'),
     secure: false,
@@ -40,16 +25,16 @@ const emailTransporter = nodemailer_1.default.createTransport({
     },
 });
 // Session configuration for scalability
-function getSession() {
+export function getSession() {
     const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-    const pgStore = (0, connect_pg_simple_1.default)(express_session_1.default);
+    const pgStore = connectPg(session);
     const sessionStore = new pgStore({
         conString: process.env.DATABASE_URL,
         createTableIfMissing: false,
         ttl: sessionTtl,
         tableName: 'sessions',
     });
-    return (0, express_session_1.default)({
+    return session({
         secret: process.env.SESSION_SECRET,
         store: sessionStore,
         resave: false,
@@ -63,8 +48,8 @@ function getSession() {
     });
 }
 // Generate JWT token
-function generateToken(user) {
-    return jsonwebtoken_1.default.sign({
+export function generateToken(user) {
+    return jwt.sign({
         sub: user.id,
         email: user.email,
         role: user.role,
@@ -72,9 +57,9 @@ function generateToken(user) {
     }, JWT_SECRET, { expiresIn: '7d' });
 }
 // Verify JWT token
-function verifyToken(token) {
+export function verifyToken(token) {
     try {
-        const decoded = jsonwebtoken_1.default.verify(token, JWT_SECRET);
+        const decoded = jwt.verify(token, JWT_SECRET);
         return {
             id: decoded.sub,
             email: decoded.email,
@@ -87,19 +72,19 @@ function verifyToken(token) {
     }
 }
 // Hash password
-async function hashPassword(password) {
-    return bcrypt_1.default.hash(password, BCRYPT_ROUNDS);
+export async function hashPassword(password) {
+    return bcrypt.hash(password, BCRYPT_ROUNDS);
 }
 // Verify password
-async function verifyPassword(password, hash) {
-    return bcrypt_1.default.compare(password, hash);
+export async function verifyPassword(password, hash) {
+    return bcrypt.compare(password, hash);
 }
 // Generate secure random token
-function generateSecureToken() {
-    return crypto_1.default.randomBytes(32).toString('hex');
+export function generateSecureToken() {
+    return crypto.randomBytes(32).toString('hex');
 }
 // Send password reset email
-async function sendPasswordResetEmail(email, token) {
+export async function sendPasswordResetEmail(email, token) {
     const resetUrl = `${process.env.APP_URL || 'http://localhost:5000'}/reset-password?token=${token}`;
     await emailTransporter.sendMail({
         from: process.env.SMTP_FROM || 'noreply@girlfanz.com',
@@ -114,7 +99,7 @@ async function sendPasswordResetEmail(email, token) {
     });
 }
 // Send email verification
-async function sendVerificationEmail(email, token) {
+export async function sendVerificationEmail(email, token) {
     const verifyUrl = `${process.env.APP_URL || 'http://localhost:5000'}/verify-email?token=${token}`;
     await emailTransporter.sendMail({
         from: process.env.SMTP_FROM || 'noreply@girlfanz.com',
@@ -128,10 +113,10 @@ async function sendVerificationEmail(email, token) {
     });
 }
 // Authentication middleware
-const isAuthenticated = async (req, res, next) => {
+export const isAuthenticated = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
-        const token = (authHeader === null || authHeader === void 0 ? void 0 : authHeader.startsWith('Bearer ')) ? authHeader.substring(7) : null;
+        const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
         if (!token) {
             return res.status(401).json({ message: 'Unauthorized' });
         }
@@ -147,9 +132,8 @@ const isAuthenticated = async (req, res, next) => {
         res.status(401).json({ message: 'Unauthorized' });
     }
 };
-exports.isAuthenticated = isAuthenticated;
 // Setup auth routes
-async function setupAuth(app) {
+export async function setupAuth(app) {
     app.set('trust proxy', 1);
     app.use(getSession());
     // Register
@@ -164,7 +148,7 @@ async function setupAuth(app) {
                 return res.status(400).json({ message: 'Password must be at least 8 characters' });
             }
             // Check if user exists
-            const existingUser = await storage_1.storage.getUserByEmail(email);
+            const existingUser = await storage.getUserByEmail(email);
             if (existingUser) {
                 return res.status(400).json({ message: 'Email already registered' });
             }
@@ -172,7 +156,7 @@ async function setupAuth(app) {
             const hashedPassword = await hashPassword(password);
             const hashedSecurityAnswer = securityAnswer ? await hashPassword(securityAnswer.toLowerCase().trim()) : null;
             // Create user
-            const user = await storage_1.storage.createUser({
+            const user = await storage.createUser({
                 email,
                 password: hashedPassword,
                 firstName,
@@ -185,7 +169,7 @@ async function setupAuth(app) {
             // Generate verification token
             const verificationToken = generateSecureToken();
             const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-            await storage_1.storage.createEmailVerificationToken({
+            await storage.createEmailVerificationToken({
                 userId: user.id,
                 token: verificationToken,
                 expiresAt,
@@ -224,7 +208,7 @@ async function setupAuth(app) {
                 return res.status(400).json({ message: 'Email and password are required' });
             }
             // Get user
-            const user = await storage_1.storage.getUserByEmail(email);
+            const user = await storage.getUserByEmail(email);
             if (!user || !user.password) {
                 return res.status(401).json({ message: 'Invalid email or password' });
             }
@@ -262,10 +246,10 @@ async function setupAuth(app) {
         }
     });
     // Get current user
-    app.get('/api/auth/user', exports.isAuthenticated, async (req, res) => {
+    app.get('/api/auth/user', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const user = await storage_1.storage.getUser(userId);
+            const user = await storage.getUser(userId);
             if (!user) {
                 return res.status(404).json({ message: 'User not found' });
             }
@@ -290,7 +274,7 @@ async function setupAuth(app) {
             if (!email) {
                 return res.status(400).json({ message: 'Email is required' });
             }
-            const user = await storage_1.storage.getUserByEmail(email);
+            const user = await storage.getUserByEmail(email);
             // Always return success to prevent email enumeration
             res.json({ message: 'If an account exists, a password reset link has been sent' });
             if (!user) {
@@ -299,7 +283,7 @@ async function setupAuth(app) {
             // Generate reset token
             const resetToken = generateSecureToken();
             const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-            await storage_1.storage.createPasswordResetToken({
+            await storage.createPasswordResetToken({
                 userId: user.id,
                 token: resetToken,
                 expiresAt,
@@ -323,7 +307,7 @@ async function setupAuth(app) {
                 return res.status(400).json({ message: 'Password must be at least 8 characters' });
             }
             // Get token
-            const resetToken = await storage_1.storage.getPasswordResetToken(token);
+            const resetToken = await storage.getPasswordResetToken(token);
             if (!resetToken || resetToken.used) {
                 return res.status(400).json({ message: 'Invalid or expired token' });
             }
@@ -334,11 +318,11 @@ async function setupAuth(app) {
             // Hash new password
             const hashedPassword = await hashPassword(newPassword);
             // Update user password
-            await storage_1.storage.updateUser(resetToken.userId, {
+            await storage.updateUser(resetToken.userId, {
                 password: hashedPassword,
             });
             // Mark token as used
-            await storage_1.storage.markPasswordResetTokenUsed(token);
+            await storage.markPasswordResetTokenUsed(token);
             res.json({ message: 'Password reset successful' });
         }
         catch (error) {
@@ -354,7 +338,7 @@ async function setupAuth(app) {
                 return res.status(400).json({ message: 'Security question and answer are required' });
             }
             // Find user by security question
-            const users = await storage_1.storage.getUsersBySecurityQuestion(securityQuestion);
+            const users = await storage.getUsersBySecurityQuestion(securityQuestion);
             // Try to match security answer
             for (const user of users) {
                 if (user.securityAnswer) {
@@ -386,7 +370,7 @@ async function setupAuth(app) {
             if (!token) {
                 return res.status(400).json({ message: 'Token is required' });
             }
-            const verificationToken = await storage_1.storage.getEmailVerificationToken(token);
+            const verificationToken = await storage.getEmailVerificationToken(token);
             if (!verificationToken || verificationToken.used) {
                 return res.status(400).json({ message: 'Invalid or expired token' });
             }
@@ -394,11 +378,11 @@ async function setupAuth(app) {
                 return res.status(400).json({ message: 'Token has expired' });
             }
             // Update user
-            await storage_1.storage.updateUser(verificationToken.userId, {
+            await storage.updateUser(verificationToken.userId, {
                 emailVerified: true,
             });
             // Mark token as used
-            await storage_1.storage.markEmailVerificationTokenUsed(token);
+            await storage.markEmailVerificationTokenUsed(token);
             res.json({ message: 'Email verified successfully' });
         }
         catch (error) {
@@ -408,8 +392,7 @@ async function setupAuth(app) {
     });
     // Logout (optional - mainly for session cleanup)
     app.post('/api/auth/logout', (req, res) => {
-        var _a;
-        (_a = req.session) === null || _a === void 0 ? void 0 : _a.destroy((err) => {
+        req.session?.destroy((err) => {
             if (err) {
                 return res.status(500).json({ message: 'Logout failed' });
             }

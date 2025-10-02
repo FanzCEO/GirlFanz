@@ -1,25 +1,22 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.contentCreationService = exports.ContentCreationService = void 0;
-const storage_1 = require("../storage");
-const objectStorage_1 = require("../objectStorage");
-class ContentCreationService {
+import { storage } from '../storage';
+import { ObjectStorageService } from '../objectStorage';
+export class ContentCreationService {
     constructor() {
-        this.objectStorage = new objectStorage_1.ObjectStorageService();
+        this.objectStorage = new ObjectStorageService();
     }
     // Verify creator before allowing content creation
     async verifyCreatorAccess(userId) {
-        const user = await storage_1.storage.getUser(userId);
+        const user = await storage.getUser(userId);
         if (!user)
             return false;
         // Check if user is a creator and has verified KYC
-        const kycVerification = await storage_1.storage.getKycVerification(userId);
+        const kycVerification = await storage.getKycVerification(userId);
         if (!kycVerification || kycVerification.status !== 'verified') {
             throw new Error('KYC verification required before content creation');
         }
         // Check age verification
-        const profile = await storage_1.storage.getProfile(userId);
-        if (!(profile === null || profile === void 0 ? void 0 : profile.ageVerified)) {
+        const profile = await storage.getProfile(userId);
+        if (!profile?.ageVerified) {
             throw new Error('Age verification required before content creation');
         }
         return true;
@@ -36,7 +33,7 @@ class ContentCreationService {
             sourceType: options.sourceType,
             status: 'draft',
         };
-        const session = await storage_1.storage.createContentSession(sessionData);
+        const session = await storage.createContentSession(sessionData);
         return session;
     }
     // Handle file upload from device
@@ -54,7 +51,11 @@ class ContentCreationService {
             key: uploadKey,
             body: options.file,
             contentType: options.mimeType,
-            metadata: Object.assign({ creatorId, sessionId: session.id }, options.metadata),
+            metadata: {
+                creatorId,
+                sessionId: session.id,
+                ...options.metadata,
+            },
         });
         // Get file dimensions for video/image
         let dimensions = null;
@@ -62,7 +63,7 @@ class ContentCreationService {
             dimensions = await this.extractMediaDimensions(options.file, options.mimeType);
         }
         // Update session with file info
-        await storage_1.storage.updateContentSession(session.id, {
+        await storage.updateContentSession(session.id, {
             originalFileUrl: uploadResult.url,
             originalFileSize: options.file.byteLength,
             originalDimensions: dimensions,
@@ -97,7 +98,7 @@ class ContentCreationService {
             },
         });
         // Update session
-        await storage_1.storage.updateContentSession(session.id, {
+        await storage.updateContentSession(session.id, {
             originalFileUrl: uploadResult.url,
             originalFileSize: processedVideo.byteLength,
             metadata: { cameraSettings: options },
@@ -121,7 +122,7 @@ class ContentCreationService {
             }
         }
         // Create live stream record
-        const stream = await storage_1.storage.createLiveStream({
+        const stream = await storage.createLiveStream({
             creatorId,
             title: options.title,
             description: options.description,
@@ -133,7 +134,7 @@ class ContentCreationService {
         // Add co-stars to stream
         if (options.coStarIds) {
             for (const coStarId of options.coStarIds) {
-                await storage_1.storage.addLiveStreamCoStar({
+                await storage.addLiveStreamCoStar({
                     streamId: stream.id,
                     coStarId,
                     verificationStatus: 'verified',
@@ -156,8 +157,8 @@ class ContentCreationService {
     }
     // Verify co-star for live streaming
     async verifyCoStar(userId) {
-        const kycVerification = await storage_1.storage.getKycVerification(userId);
-        return (kycVerification === null || kycVerification === void 0 ? void 0 : kycVerification.status) === 'verified';
+        const kycVerification = await storage.getKycVerification(userId);
+        return kycVerification?.status === 'verified';
     }
     // Generate unique stream key
     generateStreamKey() {
@@ -185,9 +186,9 @@ class ContentCreationService {
     // Trigger AI processing for the content
     async triggerAIProcessing(sessionId) {
         // Create editing task
-        await storage_1.storage.createEditingTask({
+        await storage.createEditingTask({
             sessionId,
-            creatorId: (await storage_1.storage.getContentSession(sessionId)).creatorId,
+            creatorId: (await storage.getContentSession(sessionId)).creatorId,
             status: 'pending',
             editingOptions: {
                 autoCut: true,
@@ -202,43 +203,45 @@ class ContentCreationService {
     }
     // Get content creation session with all details
     async getSession(sessionId) {
-        const session = await storage_1.storage.getContentSession(sessionId);
+        const session = await storage.getContentSession(sessionId);
         if (!session)
             return null;
         const [editingTasks, contentVersions, generatedAssets, analytics] = await Promise.all([
-            storage_1.storage.getEditingTasksBySession(sessionId),
-            storage_1.storage.getContentVersionsBySession(sessionId),
-            storage_1.storage.getGeneratedAssetsBySession(sessionId),
-            storage_1.storage.getContentAnalytics(sessionId),
+            storage.getEditingTasksBySession(sessionId),
+            storage.getContentVersionsBySession(sessionId),
+            storage.getGeneratedAssetsBySession(sessionId),
+            storage.getContentAnalytics(sessionId),
         ]);
-        return Object.assign(Object.assign({}, session), { editingTasks,
+        return {
+            ...session,
+            editingTasks,
             contentVersions,
             generatedAssets,
-            analytics });
+            analytics,
+        };
     }
     // Get all sessions for a creator
     async getCreatorSessions(creatorId, limit = 20) {
-        return storage_1.storage.getContentSessionsByCreator(creatorId, limit);
+        return storage.getContentSessionsByCreator(creatorId, limit);
     }
     // Update session metadata
     async updateSession(sessionId, updates) {
-        return storage_1.storage.updateContentSession(sessionId, updates);
+        return storage.updateContentSession(sessionId, updates);
     }
     // Delete session and all related content
     async deleteSession(sessionId) {
-        const session = await storage_1.storage.getContentSession(sessionId);
+        const session = await storage.getContentSession(sessionId);
         if (!session)
             return;
         // Delete from object storage
-        const contentVersions = await storage_1.storage.getContentVersionsBySession(sessionId);
+        const contentVersions = await storage.getContentVersionsBySession(sessionId);
         for (const version of contentVersions) {
             if (version.fileUrl) {
                 await this.objectStorage.deleteObject(version.fileUrl);
             }
         }
         // Delete from database
-        await storage_1.storage.deleteContentSession(sessionId);
+        await storage.deleteContentSession(sessionId);
     }
 }
-exports.ContentCreationService = ContentCreationService;
-exports.contentCreationService = new ContentCreationService();
+export const contentCreationService = new ContentCreationService();

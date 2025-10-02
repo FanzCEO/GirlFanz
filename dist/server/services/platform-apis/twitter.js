@@ -1,25 +1,19 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.TwitterAPI = void 0;
-const crypto_1 = __importDefault(require("crypto"));
-const oauth_1_0a_1 = __importDefault(require("oauth-1.0a"));
-class TwitterAPI {
+import crypto from 'crypto';
+import OAuth from 'oauth-1.0a';
+export class TwitterAPI {
     constructor(config) {
         this.baseUrl = 'https://api.twitter.com/2';
         this.uploadUrl = 'https://upload.twitter.com/1.1';
         this.config = config;
         if (config.apiKey && config.apiSecret) {
-            this.oauth = new oauth_1_0a_1.default({
+            this.oauth = new OAuth({
                 consumer: {
                     key: config.apiKey,
                     secret: config.apiSecret,
                 },
                 signature_method: 'HMAC-SHA1',
                 hash_function(base_string, key) {
-                    return crypto_1.default.createHmac('sha1', key).update(base_string).digest('base64');
+                    return crypto.createHmac('sha1', key).update(base_string).digest('base64');
                 },
             });
         }
@@ -210,7 +204,6 @@ class TwitterAPI {
     }
     // Get trending topics
     async getTrendingTopics(location) {
-        var _a;
         const woeid = location ? await this.getLocationWOEID(location) : 1; // 1 = Worldwide
         const endpoint = `https://api.twitter.com/1.1/trends/place.json`;
         const params = { id: woeid.toString() };
@@ -222,7 +215,7 @@ class TwitterAPI {
             return this.getDefaultTrendingTopics();
         }
         const data = await response.json();
-        const trends = ((_a = data[0]) === null || _a === void 0 ? void 0 : _a.trends) || [];
+        const trends = data[0]?.trends || [];
         return trends.map((trend) => ({
             name: trend.name,
             volume: trend.tweet_volume || 0,
@@ -326,8 +319,7 @@ class TwitterAPI {
         throw new Error('No authentication configured');
     }
     getMediaType(url) {
-        var _a;
-        const extension = (_a = url.split('.').pop()) === null || _a === void 0 ? void 0 : _a.toLowerCase();
+        const extension = url.split('.').pop()?.toLowerCase();
         const mimeTypes = {
             jpg: 'image/jpeg',
             jpeg: 'image/jpeg',
@@ -368,7 +360,7 @@ class TwitterAPI {
     async scheduleTweet(tweetData, scheduledTime) {
         // Twitter doesn't have native scheduling API
         // This would integrate with a scheduling service
-        const scheduledId = crypto_1.default.randomBytes(16).toString('hex');
+        const scheduledId = crypto.randomBytes(16).toString('hex');
         // Store in queue for scheduled publishing
         return { scheduledId };
     }
@@ -384,4 +376,3 @@ class TwitterAPI {
         return { success: response.ok };
     }
 }
-exports.TwitterAPI = TwitterAPI;

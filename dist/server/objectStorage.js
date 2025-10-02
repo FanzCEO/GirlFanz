@@ -1,12 +1,9 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ObjectStorageService = exports.ObjectNotFoundError = exports.objectStorageClient = void 0;
-const storage_1 = require("@google-cloud/storage");
-const crypto_1 = require("crypto");
-const objectAcl_1 = require("./objectAcl");
+import { Storage } from "@google-cloud/storage";
+import { randomUUID } from "crypto";
+import { ObjectPermission, canAccessObject, getObjectAclPolicy, setObjectAclPolicy, } from "./objectAcl";
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 // The object storage client is used to interact with the object storage service.
-exports.objectStorageClient = new storage_1.Storage({
+export const objectStorageClient = new Storage({
     credentials: {
         audience: "replit",
         subject_token_type: "access_token",
@@ -23,16 +20,15 @@ exports.objectStorageClient = new storage_1.Storage({
     },
     projectId: "",
 });
-class ObjectNotFoundError extends Error {
+export class ObjectNotFoundError extends Error {
     constructor() {
         super("Object not found");
         this.name = "ObjectNotFoundError";
         Object.setPrototypeOf(this, ObjectNotFoundError.prototype);
     }
 }
-exports.ObjectNotFoundError = ObjectNotFoundError;
 // The object storage service is used to interact with the object storage service.
-class ObjectStorageService {
+export class ObjectStorageService {
     constructor() { }
     // Gets the public object search paths.
     getPublicObjectSearchPaths() {
@@ -62,7 +58,7 @@ class ObjectStorageService {
             const fullPath = `${searchPath}/${filePath}`;
             // Full path format: /<bucket_name>/<object_name>
             const { bucketName, objectName } = parseObjectPath(fullPath);
-            const bucket = exports.objectStorageClient.bucket(bucketName);
+            const bucket = objectStorageClient.bucket(bucketName);
             const file = bucket.file(objectName);
             // Check if file exists
             const [exists] = await file.exists();
@@ -78,8 +74,8 @@ class ObjectStorageService {
             // Get file metadata
             const [metadata] = await file.getMetadata();
             // Get the ACL policy for the object.
-            const aclPolicy = await (0, objectAcl_1.getObjectAclPolicy)(file);
-            const isPublic = (aclPolicy === null || aclPolicy === void 0 ? void 0 : aclPolicy.visibility) === "public";
+            const aclPolicy = await getObjectAclPolicy(file);
+            const isPublic = aclPolicy?.visibility === "public";
             // Set appropriate headers
             res.set({
                 "Content-Type": metadata.contentType || "application/octet-stream",
@@ -110,7 +106,7 @@ class ObjectStorageService {
             throw new Error("PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
                 "tool and set PRIVATE_OBJECT_DIR env var.");
         }
-        const objectId = (0, crypto_1.randomUUID)();
+        const objectId = randomUUID();
         const fullPath = `${privateObjectDir}/uploads/${objectId}`;
         const { bucketName, objectName } = parseObjectPath(fullPath);
         // Sign URL for PUT method with TTL
@@ -137,7 +133,7 @@ class ObjectStorageService {
         }
         const objectEntityPath = `${entityDir}${entityId}`;
         const { bucketName, objectName } = parseObjectPath(objectEntityPath);
-        const bucket = exports.objectStorageClient.bucket(bucketName);
+        const bucket = objectStorageClient.bucket(bucketName);
         const objectFile = bucket.file(objectName);
         const [exists] = await objectFile.exists();
         if (!exists) {
@@ -170,19 +166,49 @@ class ObjectStorageService {
             return normalizedPath;
         }
         const objectFile = await this.getObjectEntityFile(normalizedPath);
-        await (0, objectAcl_1.setObjectAclPolicy)(objectFile, aclPolicy);
+        await setObjectAclPolicy(objectFile, aclPolicy);
         return normalizedPath;
     }
     // Checks if the user can access the object entity.
     async canAccessObjectEntity({ userId, objectFile, requestedPermission, }) {
-        return (0, objectAcl_1.canAccessObject)({
+        return canAccessObject({
             userId,
             objectFile,
-            requestedPermission: requestedPermission !== null && requestedPermission !== void 0 ? requestedPermission : objectAcl_1.ObjectPermission.READ,
+            requestedPermission: requestedPermission ?? ObjectPermission.READ,
         });
     }
+    // Upload an object to storage
+    async uploadObject(params) {
+        const { key, body, contentType, metadata, aclPolicy } = params;
+        const privateObjectDir = this.getPrivateObjectDir();
+        const fullPath = `${privateObjectDir}/${key}`;
+        const { bucketName, objectName } = parseObjectPath(fullPath);
+        const bucket = objectStorageClient.bucket(bucketName);
+        const file = bucket.file(objectName);
+        // Upload the content with options
+        await file.save(body, {
+            contentType,
+            metadata,
+        });
+        // Set ACL policy if provided
+        if (aclPolicy) {
+            await setObjectAclPolicy(file, aclPolicy);
+        }
+        // Return normalized path
+        const url = `/objects/${key}`;
+        return { url, key };
+    }
+    // Delete an object from storage
+    async deleteObject(key) {
+        const privateObjectDir = this.getPrivateObjectDir();
+        const fullPath = `${privateObjectDir}/${key}`;
+        const { bucketName, objectName } = parseObjectPath(fullPath);
+        const bucket = objectStorageClient.bucket(bucketName);
+        const file = bucket.file(objectName);
+        // Delete the file
+        await file.delete();
+    }
 }
-exports.ObjectStorageService = ObjectStorageService;
 function parseObjectPath(path) {
     if (!path.startsWith("/")) {
         path = `/${path}`;

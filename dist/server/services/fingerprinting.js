@@ -1,12 +1,6 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.contentFingerprintingService = exports.ContentFingerprintingService = void 0;
-const crypto_1 = __importDefault(require("crypto"));
-const storage_1 = require("../storage");
-class ContentFingerprintingService {
+import crypto from 'crypto';
+import { storage } from '../storage';
+export class ContentFingerprintingService {
     constructor() {
         this.algorithms = ['md5', 'sha256', 'perceptual_hash'];
     }
@@ -14,8 +8,8 @@ class ContentFingerprintingService {
     async generateFingerprint(mediaId, fileBuffer, metadata) {
         try {
             // Generate multiple signature types
-            const md5Hash = crypto_1.default.createHash('md5').update(fileBuffer).digest('hex');
-            const sha256Hash = crypto_1.default.createHash('sha256').update(fileBuffer).digest('hex');
+            const md5Hash = crypto.createHash('md5').update(fileBuffer).digest('hex');
+            const sha256Hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
             // Create composite signature
             const signature = this.createCompositeSignature(fileBuffer, metadata);
             const fingerprint = {
@@ -43,7 +37,7 @@ class ContentFingerprintingService {
     createCompositeSignature(fileBuffer, metadata) {
         const signatures = [];
         // File hash signature
-        const fileHash = crypto_1.default.createHash('sha256').update(fileBuffer).digest('hex');
+        const fileHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
         signatures.push(`file:${fileHash.substring(0, 16)}`);
         // Size-based signature
         const sizeSignature = this.generateSizeSignature(fileBuffer.length);
@@ -63,7 +57,7 @@ class ContentFingerprintingService {
         const timestamp = Date.now().toString(36);
         const compositeSignature = signatures.join('|') + `|ts:${timestamp}`;
         // Create final hash of the composite
-        return crypto_1.default.createHash('md5').update(compositeSignature).digest('hex');
+        return crypto.createHash('md5').update(compositeSignature).digest('hex');
     }
     // Generate size-based signature for duplicate detection
     generateSizeSignature(fileSize) {
@@ -87,12 +81,12 @@ class ContentFingerprintingService {
     // Check for potential duplicates or similar content
     async findSimilarContent(mediaId, threshold = 0.8) {
         try {
-            const targetMedia = await storage_1.storage.getMediaAsset(mediaId);
-            if (!(targetMedia === null || targetMedia === void 0 ? void 0 : targetMedia.forensicSignature)) {
+            const targetMedia = await storage.getMediaAsset(mediaId);
+            if (!targetMedia?.forensicSignature) {
                 return [];
             }
             // Get all media with forensic signatures
-            const allMedia = await storage_1.storage.getMediaAssetsByOwner('', 1000); // Get all media
+            const allMedia = await storage.getMediaAssetsByOwner('', 1000); // Get all media
             const matches = [];
             for (const media of allMedia) {
                 if (media.id === mediaId || !media.forensicSignature)
@@ -136,7 +130,7 @@ class ContentFingerprintingService {
     }
     // Store fingerprint in database
     async storeFingerprint(fingerprint) {
-        await storage_1.storage.updateMediaAsset(fingerprint.mediaId, {
+        await storage.updateMediaAsset(fingerprint.mediaId, {
             forensicSignature: fingerprint.signature,
             updatedAt: new Date()
         });
@@ -144,8 +138,8 @@ class ContentFingerprintingService {
     // Verify content integrity
     async verifyContentIntegrity(mediaId, currentFileBuffer) {
         try {
-            const media = await storage_1.storage.getMediaAsset(mediaId);
-            if (!(media === null || media === void 0 ? void 0 : media.forensicSignature)) {
+            const media = await storage.getMediaAsset(mediaId);
+            if (!media?.forensicSignature) {
                 return { isValid: false, confidence: 0 };
             }
             // Generate new fingerprint for current file
@@ -176,7 +170,7 @@ class ContentFingerprintingService {
             metadata
         };
         const watermarkString = JSON.stringify(watermarkData);
-        return crypto_1.default.createHash('sha256').update(watermarkString).digest('hex');
+        return crypto.createHash('sha256').update(watermarkString).digest('hex');
     }
     // Detect unauthorized distribution
     async detectUnauthorizedDistribution(signature, sourceUrl) {
@@ -194,5 +188,4 @@ class ContentFingerprintingService {
         };
     }
 }
-exports.ContentFingerprintingService = ContentFingerprintingService;
-exports.contentFingerprintingService = new ContentFingerprintingService();
+export const contentFingerprintingService = new ContentFingerprintingService();

@@ -1,221 +1,191 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.storage = exports.DatabaseStorage = void 0;
-const schema_1 = require("../shared/schema");
-const db_1 = require("./db");
-const drizzle_orm_1 = require("drizzle-orm");
-class DatabaseStorage {
+import { users, profiles, mediaAssets, messages, moderationQueue, payoutAccounts, payoutRequests, subscriptions, transactions, auditLogs, kycVerifications, supportTickets, supportMessages, knowledgeArticles, tutorials, tutorialSteps, tutorialProgress, fanzTransactions, refundRequests, fanzWallets, walletTransactions, fanTrustScores, trustAuditLogs, creatorRefundPolicies, feedPosts, postMedia, postEngagement, userFollows, ageVerifications, sponsoredPosts, postLikes, postUnlocks, contentCreationSessions, editingTasks, contentVersions, distributionCampaigns, platformDistributions, contentAnalytics, generatedAssets, creatorStudioSettings, liveStreamCoStars, liveStreams, streamParticipants, streamChatMessages, streamGifts, streamReactions, streamHighlights, streamRecordings, streamViewers, streamAnalytics, nftCollections, nftTokens, nftTransactions, royaltyDistributions, blockchainWallets, ipfsRecords, marketplaceIntegrations, } from "../shared/schema";
+import { db } from "./db";
+import { eq, desc, and, or, sql } from "drizzle-orm";
+export class DatabaseStorage {
     // User operations
     async getUser(id) {
-        const [user] = await db_1.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, id));
+        const [user] = await db.select().from(users).where(eq(users.id, id));
         return user;
     }
     async getUserByUsername(username) {
-        const [user] = await db_1.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.username, username));
+        const [user] = await db.select().from(users).where(eq(users.username, username));
         return user;
     }
     async getUserByEmail(email) {
-        const [user] = await db_1.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.email, email));
+        const [user] = await db.select().from(users).where(eq(users.email, email));
         return user;
     }
     async upsertUser(userData) {
-        const [user] = await db_1.db
-            .insert(schema_1.users)
+        const [user] = await db
+            .insert(users)
             .values(userData)
             .onConflictDoUpdate({
-            target: schema_1.users.id,
-            set: Object.assign(Object.assign({}, userData), { updatedAt: new Date() }),
+            target: users.id,
+            set: {
+                ...userData,
+                updatedAt: new Date(),
+            },
         })
             .returning();
         return user;
     }
     async createUser(userData) {
-        const [user] = await db_1.db
-            .insert(schema_1.users)
+        const [user] = await db
+            .insert(users)
             .values(userData)
             .returning();
         return user;
     }
     async updateUser(id, updates) {
-        const [user] = await db_1.db
-            .update(schema_1.users)
-            .set(Object.assign(Object.assign({}, updates), { updatedAt: new Date() }))
-            .where((0, drizzle_orm_1.eq)(schema_1.users.id, id))
+        const [user] = await db
+            .update(users)
+            .set({ ...updates, updatedAt: new Date() })
+            .where(eq(users.id, id))
             .returning();
         return user;
     }
     async getUsersBySecurityQuestion(question) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.users)
-            .where((0, drizzle_orm_1.eq)(schema_1.users.securityQuestion, question));
+            .from(users)
+            .where(eq(users.securityQuestion, question));
     }
     // Password reset tokens
     async createPasswordResetToken(tokenData) {
-        const { passwordResetTokens } = await Promise.resolve().then(() => __importStar(require('../shared/schema')));
-        const [token] = await db_1.db
+        const { passwordResetTokens } = await import('../shared/schema');
+        const [token] = await db
             .insert(passwordResetTokens)
             .values(tokenData)
             .returning();
         return token;
     }
     async getPasswordResetToken(token) {
-        const { passwordResetTokens } = await Promise.resolve().then(() => __importStar(require('../shared/schema')));
-        const [resetToken] = await db_1.db
+        const { passwordResetTokens } = await import('../shared/schema');
+        const [resetToken] = await db
             .select()
             .from(passwordResetTokens)
-            .where((0, drizzle_orm_1.eq)(passwordResetTokens.token, token));
+            .where(eq(passwordResetTokens.token, token));
         return resetToken;
     }
     async markPasswordResetTokenUsed(token) {
-        const { passwordResetTokens } = await Promise.resolve().then(() => __importStar(require('../shared/schema')));
-        await db_1.db
+        const { passwordResetTokens } = await import('../shared/schema');
+        await db
             .update(passwordResetTokens)
             .set({ used: true })
-            .where((0, drizzle_orm_1.eq)(passwordResetTokens.token, token));
+            .where(eq(passwordResetTokens.token, token));
     }
     // Email verification tokens
     async createEmailVerificationToken(tokenData) {
-        const { emailVerificationTokens } = await Promise.resolve().then(() => __importStar(require('../shared/schema')));
-        const [token] = await db_1.db
+        const { emailVerificationTokens } = await import('../shared/schema');
+        const [token] = await db
             .insert(emailVerificationTokens)
             .values(tokenData)
             .returning();
         return token;
     }
     async getEmailVerificationToken(token) {
-        const { emailVerificationTokens } = await Promise.resolve().then(() => __importStar(require('../shared/schema')));
-        const [verificationToken] = await db_1.db
+        const { emailVerificationTokens } = await import('../shared/schema');
+        const [verificationToken] = await db
             .select()
             .from(emailVerificationTokens)
-            .where((0, drizzle_orm_1.eq)(emailVerificationTokens.token, token));
+            .where(eq(emailVerificationTokens.token, token));
         return verificationToken;
     }
     async markEmailVerificationTokenUsed(token) {
-        const { emailVerificationTokens } = await Promise.resolve().then(() => __importStar(require('../shared/schema')));
-        await db_1.db
+        const { emailVerificationTokens } = await import('../shared/schema');
+        await db
             .update(emailVerificationTokens)
             .set({ used: true })
-            .where((0, drizzle_orm_1.eq)(emailVerificationTokens.token, token));
+            .where(eq(emailVerificationTokens.token, token));
     }
     // Profile operations
     async getProfile(userId) {
-        const [profile] = await db_1.db
+        const [profile] = await db
             .select()
-            .from(schema_1.profiles)
-            .where((0, drizzle_orm_1.eq)(schema_1.profiles.userId, userId));
+            .from(profiles)
+            .where(eq(profiles.userId, userId));
         return profile;
     }
     async getProfileWithUser(userId) {
-        const [result] = await db_1.db
+        const [result] = await db
             .select()
-            .from(schema_1.profiles)
-            .innerJoin(schema_1.users, (0, drizzle_orm_1.eq)(schema_1.profiles.userId, schema_1.users.id))
-            .where((0, drizzle_orm_1.eq)(schema_1.profiles.userId, userId));
+            .from(profiles)
+            .innerJoin(users, eq(profiles.userId, users.id))
+            .where(eq(profiles.userId, userId));
         if (!result)
             return undefined;
-        return Object.assign(Object.assign({}, result.profiles), { user: result.users });
+        return {
+            ...result.profiles,
+            user: result.users,
+        };
     }
     async createProfile(profileData) {
-        const [profile] = await db_1.db
-            .insert(schema_1.profiles)
+        const [profile] = await db
+            .insert(profiles)
             .values(profileData)
             .returning();
         return profile;
     }
     async updateProfile(userId, updates) {
-        const [profile] = await db_1.db
-            .update(schema_1.profiles)
-            .set(Object.assign(Object.assign({}, updates), { updatedAt: new Date() }))
-            .where((0, drizzle_orm_1.eq)(schema_1.profiles.userId, userId))
+        const [profile] = await db
+            .update(profiles)
+            .set({ ...updates, updatedAt: new Date() })
+            .where(eq(profiles.userId, userId))
             .returning();
         return profile;
     }
     // Media operations
     async getMediaAsset(id) {
-        const [media] = await db_1.db
+        const [media] = await db
             .select()
-            .from(schema_1.mediaAssets)
-            .where((0, drizzle_orm_1.eq)(schema_1.mediaAssets.id, id));
+            .from(mediaAssets)
+            .where(eq(mediaAssets.id, id));
         return media;
     }
     async getMediaAssetsByOwner(ownerId, limit = 20) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.mediaAssets)
-            .where((0, drizzle_orm_1.eq)(schema_1.mediaAssets.ownerId, ownerId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.mediaAssets.createdAt))
+            .from(mediaAssets)
+            .where(eq(mediaAssets.ownerId, ownerId))
+            .orderBy(desc(mediaAssets.createdAt))
             .limit(limit);
     }
     async createMediaAsset(mediaData) {
-        const [media] = await db_1.db
-            .insert(schema_1.mediaAssets)
+        const [media] = await db
+            .insert(mediaAssets)
             .values(mediaData)
             .returning();
         return media;
     }
     async updateMediaAsset(id, updates) {
-        const [media] = await db_1.db
-            .update(schema_1.mediaAssets)
-            .set(Object.assign(Object.assign({}, updates), { updatedAt: new Date() }))
-            .where((0, drizzle_orm_1.eq)(schema_1.mediaAssets.id, id))
+        const [media] = await db
+            .update(mediaAssets)
+            .set({ ...updates, updatedAt: new Date() })
+            .where(eq(mediaAssets.id, id))
             .returning();
         return media;
     }
     // Messaging operations
     async getMessages(senderId, receiverId, limit = 50) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.messages)
-            .where((0, drizzle_orm_1.or)((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.messages.senderId, senderId), (0, drizzle_orm_1.eq)(schema_1.messages.receiverId, receiverId)), (0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.messages.senderId, receiverId), (0, drizzle_orm_1.eq)(schema_1.messages.receiverId, senderId))))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.messages.createdAt))
+            .from(messages)
+            .where(or(and(eq(messages.senderId, senderId), eq(messages.receiverId, receiverId)), and(eq(messages.senderId, receiverId), eq(messages.receiverId, senderId))))
+            .orderBy(desc(messages.createdAt))
             .limit(limit);
     }
     async getConversations(userId) {
         // Get latest message for each conversation
-        const conversations = await db_1.db
+        const conversations = await db
             .select({
-            otherUserId: (0, drizzle_orm_1.sql) `CASE WHEN ${schema_1.messages.senderId} = ${userId} THEN ${schema_1.messages.receiverId} ELSE ${schema_1.messages.senderId} END`.as('other_user_id'),
-            lastMessage: schema_1.messages.content,
-            lastMessageTime: schema_1.messages.createdAt,
-            isRead: schema_1.messages.isRead,
+            otherUserId: sql `CASE WHEN ${messages.senderId} = ${userId} THEN ${messages.receiverId} ELSE ${messages.senderId} END`.as('other_user_id'),
+            lastMessage: messages.content,
+            lastMessageTime: messages.createdAt,
+            isRead: messages.isRead,
         })
-            .from(schema_1.messages)
-            .where((0, drizzle_orm_1.or)((0, drizzle_orm_1.eq)(schema_1.messages.senderId, userId), (0, drizzle_orm_1.eq)(schema_1.messages.receiverId, userId)))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.messages.createdAt));
+            .from(messages)
+            .where(or(eq(messages.senderId, userId), eq(messages.receiverId, userId)))
+            .orderBy(desc(messages.createdAt));
         // Group by conversation and get the latest message
         const conversationMap = new Map();
         conversations.forEach(conv => {
@@ -227,96 +197,97 @@ class DatabaseStorage {
         return Array.from(conversationMap.values());
     }
     async createMessage(messageData) {
-        const [message] = await db_1.db
-            .insert(schema_1.messages)
+        const [message] = await db
+            .insert(messages)
             .values(messageData)
             .returning();
         return message;
     }
     async markMessageAsRead(id) {
-        await db_1.db
-            .update(schema_1.messages)
+        await db
+            .update(messages)
             .set({ isRead: true })
-            .where((0, drizzle_orm_1.eq)(schema_1.messages.id, id));
+            .where(eq(messages.id, id));
     }
     // Moderation operations
     async getModerationQueue(status, limit = 50) {
-        let query = db_1.db
+        let query = db
             .select()
-            .from(schema_1.moderationQueue)
-            .innerJoin(schema_1.mediaAssets, (0, drizzle_orm_1.eq)(schema_1.moderationQueue.mediaId, schema_1.mediaAssets.id))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.moderationQueue.createdAt))
+            .from(moderationQueue)
+            .innerJoin(mediaAssets, eq(moderationQueue.mediaId, mediaAssets.id))
+            .orderBy(desc(moderationQueue.createdAt))
             .limit(limit);
         if (status) {
-            query = query.where((0, drizzle_orm_1.eq)(schema_1.moderationQueue.status, status));
+            query = query.where(eq(moderationQueue.status, status));
         }
         const results = await query;
-        return results.map(r => (Object.assign(Object.assign({}, r.moderation_queue), { media: r.media_assets })));
+        return results.map(r => ({
+            ...r.moderation_queue,
+            media: r.media_assets,
+        }));
     }
     async createModerationItem(itemData) {
-        const [item] = await db_1.db
-            .insert(schema_1.moderationQueue)
+        const [item] = await db
+            .insert(moderationQueue)
             .values(itemData)
             .returning();
         return item;
     }
     async updateModerationItem(id, updates) {
-        const [item] = await db_1.db
-            .update(schema_1.moderationQueue)
-            .set(Object.assign(Object.assign({}, updates), { reviewedAt: new Date() }))
-            .where((0, drizzle_orm_1.eq)(schema_1.moderationQueue.id, id))
+        const [item] = await db
+            .update(moderationQueue)
+            .set({ ...updates, reviewedAt: new Date() })
+            .where(eq(moderationQueue.id, id))
             .returning();
         return item;
     }
     // Payout operations
     async getPayoutAccounts(userId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.payoutAccounts)
-            .where((0, drizzle_orm_1.eq)(schema_1.payoutAccounts.userId, userId));
+            .from(payoutAccounts)
+            .where(eq(payoutAccounts.userId, userId));
     }
     async getPayoutRequests(userId, limit = 20) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.payoutRequests)
-            .where((0, drizzle_orm_1.eq)(schema_1.payoutRequests.userId, userId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.payoutRequests.createdAt))
+            .from(payoutRequests)
+            .where(eq(payoutRequests.userId, userId))
+            .orderBy(desc(payoutRequests.createdAt))
             .limit(limit);
     }
     // Analytics operations
     async getUserStats(userId) {
-        var _a, _b;
         const profile = await this.getProfile(userId);
-        const mediaCount = await db_1.db
-            .select({ count: (0, drizzle_orm_1.sql) `count(*)` })
-            .from(schema_1.mediaAssets)
-            .where((0, drizzle_orm_1.eq)(schema_1.mediaAssets.ownerId, userId));
-        const totalViews = await db_1.db
-            .select({ total: (0, drizzle_orm_1.sql) `sum(${schema_1.mediaAssets.views})` })
-            .from(schema_1.mediaAssets)
-            .where((0, drizzle_orm_1.eq)(schema_1.mediaAssets.ownerId, userId));
+        const mediaCount = await db
+            .select({ count: sql `count(*)` })
+            .from(mediaAssets)
+            .where(eq(mediaAssets.ownerId, userId));
+        const totalViews = await db
+            .select({ total: sql `sum(${mediaAssets.views})` })
+            .from(mediaAssets)
+            .where(eq(mediaAssets.ownerId, userId));
         return {
-            totalEarnings: (profile === null || profile === void 0 ? void 0 : profile.totalEarnings) || 0,
-            fanCount: (profile === null || profile === void 0 ? void 0 : profile.fanCount) || 0,
-            contentPosts: ((_a = mediaCount[0]) === null || _a === void 0 ? void 0 : _a.count) || 0,
-            totalViews: ((_b = totalViews[0]) === null || _b === void 0 ? void 0 : _b.total) || 0,
+            totalEarnings: profile?.totalEarnings || 0,
+            fanCount: profile?.fanCount || 0,
+            contentPosts: mediaCount[0]?.count || 0,
+            totalViews: totalViews[0]?.total || 0,
             engagement: 94.2, // Calculate based on actual metrics
         };
     }
     async getSystemHealth() {
-        var _a, _b;
         // Check database connection
-        const dbCheck = await db_1.db.select({ count: (0, drizzle_orm_1.sql) `count(*)` }).from(schema_1.users);
+        const dbCheck = await db.select({ count: sql `count(*)` }).from(users);
         // Get moderation queue count
-        const pendingModeration = await db_1.db
-            .select({ count: (0, drizzle_orm_1.sql) `count(*)` })
-            .from(schema_1.moderationQueue)
-            .where((0, drizzle_orm_1.eq)(schema_1.moderationQueue.status, 'pending'));
+        const pendingModeration = await db
+            .select({ count: sql `count(*)` })
+            .from(moderationQueue)
+            .where(eq(moderationQueue.status, 'pending'));
         // Get active user count
-        const activeUsers = await db_1.db
-            .select({ count: (0, drizzle_orm_1.sql) `count(*)` })
-            .from(schema_1.users)
-            .where((0, drizzle_orm_1.eq)(schema_1.users.status, 'active'));
+        const activeUsers = await db
+            .select({ count: sql `count(*)` })
+            .from(users)
+            .where(eq(users.status, 'active'));
         return {
             database: {
                 status: 'healthy',
@@ -335,212 +306,212 @@ class DatabaseStorage {
             },
             websocket: {
                 status: 'active',
-                connections: ((_a = activeUsers[0]) === null || _a === void 0 ? void 0 : _a.count) || 0,
+                connections: activeUsers[0]?.count || 0,
                 latency: '28ms',
             },
             moderation: {
-                pending: ((_b = pendingModeration[0]) === null || _b === void 0 ? void 0 : _b.count) || 0,
+                pending: pendingModeration[0]?.count || 0,
                 status: 'operational',
             },
         };
     }
     // Audit operations
     async createAuditLog(logData) {
-        const [log] = await db_1.db
-            .insert(schema_1.auditLogs)
+        const [log] = await db
+            .insert(auditLogs)
             .values(logData)
             .returning();
         return log;
     }
     // Subscription operations
     async getSubscription(userId, creatorId) {
-        const [subscription] = await db_1.db
+        const [subscription] = await db
             .select()
-            .from(schema_1.subscriptions)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.subscriptions.userId, userId), (0, drizzle_orm_1.eq)(schema_1.subscriptions.creatorId, creatorId)));
+            .from(subscriptions)
+            .where(and(eq(subscriptions.userId, userId), eq(subscriptions.creatorId, creatorId)));
         return subscription;
     }
     async getSubscriptionsAsFan(userId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.subscriptions)
-            .where((0, drizzle_orm_1.eq)(schema_1.subscriptions.userId, userId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.subscriptions.createdAt));
+            .from(subscriptions)
+            .where(eq(subscriptions.userId, userId))
+            .orderBy(desc(subscriptions.createdAt));
     }
     async getSubscriptionsAsCreator(userId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.subscriptions)
-            .where((0, drizzle_orm_1.eq)(schema_1.subscriptions.creatorId, userId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.subscriptions.createdAt));
+            .from(subscriptions)
+            .where(eq(subscriptions.creatorId, userId))
+            .orderBy(desc(subscriptions.createdAt));
     }
     async createSubscription(subscriptionData) {
-        const [subscription] = await db_1.db
-            .insert(schema_1.subscriptions)
+        const [subscription] = await db
+            .insert(subscriptions)
             .values(subscriptionData)
             .returning();
         return subscription;
     }
     async updateSubscription(id, updates) {
-        const [subscription] = await db_1.db
-            .update(schema_1.subscriptions)
-            .set(Object.assign(Object.assign({}, updates), { updatedAt: new Date() }))
-            .where((0, drizzle_orm_1.eq)(schema_1.subscriptions.id, id))
+        const [subscription] = await db
+            .update(subscriptions)
+            .set({ ...updates, updatedAt: new Date() })
+            .where(eq(subscriptions.id, id))
             .returning();
         return subscription;
     }
     // Transaction operations
     async getTransactionsAsBuyer(userId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.transactions)
-            .where((0, drizzle_orm_1.eq)(schema_1.transactions.userId, userId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.transactions.createdAt));
+            .from(transactions)
+            .where(eq(transactions.userId, userId))
+            .orderBy(desc(transactions.createdAt));
     }
     async getTransactionsAsCreator(userId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.transactions)
-            .where((0, drizzle_orm_1.eq)(schema_1.transactions.creatorId, userId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.transactions.createdAt));
+            .from(transactions)
+            .where(eq(transactions.creatorId, userId))
+            .orderBy(desc(transactions.createdAt));
     }
     async createTransaction(transactionData) {
-        const [transaction] = await db_1.db
-            .insert(schema_1.transactions)
+        const [transaction] = await db
+            .insert(transactions)
             .values(transactionData)
             .returning();
         return transaction;
     }
     async updateTransaction(id, updates) {
-        const [transaction] = await db_1.db
-            .update(schema_1.transactions)
+        const [transaction] = await db
+            .update(transactions)
             .set(updates)
-            .where((0, drizzle_orm_1.eq)(schema_1.transactions.id, id))
+            .where(eq(transactions.id, id))
             .returning();
         return transaction;
     }
     // KYC operations
     async getKycVerification(userId) {
-        const [verification] = await db_1.db
+        const [verification] = await db
             .select()
-            .from(schema_1.kycVerifications)
-            .where((0, drizzle_orm_1.eq)(schema_1.kycVerifications.userId, userId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.kycVerifications.createdAt))
+            .from(kycVerifications)
+            .where(eq(kycVerifications.userId, userId))
+            .orderBy(desc(kycVerifications.createdAt))
             .limit(1);
         return verification;
     }
     async getKycVerificationByType(userId, documentType) {
-        const [verification] = await db_1.db
+        const [verification] = await db
             .select()
-            .from(schema_1.kycVerifications)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.kycVerifications.userId, userId), (0, drizzle_orm_1.eq)(schema_1.kycVerifications.documentType, documentType)))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.kycVerifications.createdAt))
+            .from(kycVerifications)
+            .where(and(eq(kycVerifications.userId, userId), eq(kycVerifications.documentType, documentType)))
+            .orderBy(desc(kycVerifications.createdAt))
             .limit(1);
         return verification;
     }
     async createKycVerification(verificationData) {
-        const [verification] = await db_1.db
-            .insert(schema_1.kycVerifications)
+        const [verification] = await db
+            .insert(kycVerifications)
             .values(verificationData)
             .returning();
         return verification;
     }
     // Audit operations  
     async createAuditLog(logData) {
-        const [auditLog] = await db_1.db
-            .insert(schema_1.auditLogs)
+        const [auditLog] = await db
+            .insert(auditLogs)
             .values(logData)
             .returning();
         return auditLog;
     }
     // Support Ticket operations
     async getSupportTickets(userId, status) {
-        let query = db_1.db.select().from(schema_1.supportTickets);
+        let query = db.select().from(supportTickets);
         const conditions = [];
         if (userId)
-            conditions.push((0, drizzle_orm_1.eq)(schema_1.supportTickets.userId, userId));
+            conditions.push(eq(supportTickets.userId, userId));
         if (status)
-            conditions.push((0, drizzle_orm_1.eq)(schema_1.supportTickets.status, status));
+            conditions.push(eq(supportTickets.status, status));
         if (conditions.length > 0) {
-            query = query.where(conditions.length === 1 ? conditions[0] : (0, drizzle_orm_1.and)(...conditions));
+            query = query.where(conditions.length === 1 ? conditions[0] : and(...conditions));
         }
-        return await query.orderBy((0, drizzle_orm_1.desc)(schema_1.supportTickets.createdAt));
+        return await query.orderBy(desc(supportTickets.createdAt));
     }
     async getSupportTicket(id) {
-        const [ticket] = await db_1.db
+        const [ticket] = await db
             .select()
-            .from(schema_1.supportTickets)
-            .where((0, drizzle_orm_1.eq)(schema_1.supportTickets.id, id));
+            .from(supportTickets)
+            .where(eq(supportTickets.id, id));
         return ticket;
     }
     async createSupportTicket(ticketData) {
-        const [ticket] = await db_1.db
-            .insert(schema_1.supportTickets)
+        const [ticket] = await db
+            .insert(supportTickets)
             .values(ticketData)
             .returning();
         return ticket;
     }
     async updateSupportTicket(id, updates) {
-        const [ticket] = await db_1.db
-            .update(schema_1.supportTickets)
-            .set(Object.assign(Object.assign({}, updates), { updatedAt: new Date() }))
-            .where((0, drizzle_orm_1.eq)(schema_1.supportTickets.id, id))
+        const [ticket] = await db
+            .update(supportTickets)
+            .set({ ...updates, updatedAt: new Date() })
+            .where(eq(supportTickets.id, id))
             .returning();
         return ticket;
     }
     async getSupportMessages(ticketId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.supportMessages)
-            .where((0, drizzle_orm_1.eq)(schema_1.supportMessages.ticketId, ticketId))
-            .orderBy(schema_1.supportMessages.createdAt);
+            .from(supportMessages)
+            .where(eq(supportMessages.ticketId, ticketId))
+            .orderBy(supportMessages.createdAt);
     }
     async createSupportMessage(messageData) {
-        const [message] = await db_1.db
-            .insert(schema_1.supportMessages)
+        const [message] = await db
+            .insert(supportMessages)
             .values(messageData)
             .returning();
         return message;
     }
     // Knowledge Base operations
     async getKnowledgeArticles(category, searchQuery) {
-        let query = db_1.db.select().from(schema_1.knowledgeArticles);
-        const conditions = [(0, drizzle_orm_1.eq)(schema_1.knowledgeArticles.status, 'published')];
+        let query = db.select().from(knowledgeArticles);
+        const conditions = [eq(knowledgeArticles.status, 'published')];
         if (category) {
             // Filter articles that have the category in their tags array
-            conditions.push((0, drizzle_orm_1.sql) `${schema_1.knowledgeArticles.tags} @> ARRAY[${category}]::text[]`);
+            conditions.push(sql `${knowledgeArticles.tags} @> ARRAY[${category}]::text[]`);
         }
         if (conditions.length > 0) {
-            query = query.where((0, drizzle_orm_1.and)(...conditions));
+            query = query.where(and(...conditions));
         }
-        return await query.orderBy((0, drizzle_orm_1.desc)(schema_1.knowledgeArticles.updatedAt));
+        return await query.orderBy(desc(knowledgeArticles.updatedAt));
     }
     async getKnowledgeArticle(id) {
-        const [article] = await db_1.db
+        const [article] = await db
             .select()
-            .from(schema_1.knowledgeArticles)
-            .where((0, drizzle_orm_1.eq)(schema_1.knowledgeArticles.id, id));
+            .from(knowledgeArticles)
+            .where(eq(knowledgeArticles.id, id));
         return article;
     }
     async getKnowledgeArticleBySlug(slug) {
-        const [article] = await db_1.db
+        const [article] = await db
             .select()
-            .from(schema_1.knowledgeArticles)
-            .where((0, drizzle_orm_1.eq)(schema_1.knowledgeArticles.slug, slug));
+            .from(knowledgeArticles)
+            .where(eq(knowledgeArticles.slug, slug));
         return article;
     }
     async createKnowledgeArticle(articleData) {
-        const [article] = await db_1.db
-            .insert(schema_1.knowledgeArticles)
+        const [article] = await db
+            .insert(knowledgeArticles)
             .values(articleData)
             .returning();
         return article;
     }
     async updateKnowledgeArticle(id, updates) {
-        const [article] = await db_1.db
-            .update(schema_1.knowledgeArticles)
-            .set(Object.assign(Object.assign({}, updates), { updatedAt: new Date() }))
-            .where((0, drizzle_orm_1.eq)(schema_1.knowledgeArticles.id, id))
+        const [article] = await db
+            .update(knowledgeArticles)
+            .set({ ...updates, updatedAt: new Date() })
+            .where(eq(knowledgeArticles.id, id))
             .returning();
         return article;
     }
@@ -549,11 +520,11 @@ class DatabaseStorage {
         // For now, implement a enhanced text search that simulates semantic similarity
         // In production, this would use actual vector embeddings with cosine similarity
         const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 2);
-        const articles = await db_1.db
+        const articles = await db
             .select()
-            .from(schema_1.knowledgeArticles)
-            .where((0, drizzle_orm_1.eq)(schema_1.knowledgeArticles.status, 'published'))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.knowledgeArticles.publishedAt))
+            .from(knowledgeArticles)
+            .where(eq(knowledgeArticles.status, 'published'))
+            .orderBy(desc(knowledgeArticles.publishedAt))
             .limit(50);
         // Score articles based on term frequency and relevance
         const scoredArticles = articles.map(article => {
@@ -583,42 +554,42 @@ class DatabaseStorage {
     async getRecommendedArticles(userId, limit = 5) {
         // Get user's recently viewed articles and find related content
         // For now, return popular articles with similar tags
-        const recentArticles = await db_1.db
-            .select({ tags: schema_1.knowledgeArticles.tags })
-            .from(schema_1.knowledgeArticles)
-            .where((0, drizzle_orm_1.eq)(schema_1.knowledgeArticles.status, 'published'))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.knowledgeArticles.publishedAt))
+        const recentArticles = await db
+            .select({ tags: knowledgeArticles.tags })
+            .from(knowledgeArticles)
+            .where(eq(knowledgeArticles.status, 'published'))
+            .orderBy(desc(knowledgeArticles.publishedAt))
             .limit(10);
         const allTags = recentArticles.flatMap(a => a.tags || []);
         const popularTags = [...new Set(allTags)].slice(0, 5);
         if (popularTags.length === 0) {
             return this.getPopularArticles(limit);
         }
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.knowledgeArticles)
-            .where((0, drizzle_orm_1.eq)(schema_1.knowledgeArticles.status, 'published'))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.knowledgeArticles.publishedAt))
+            .from(knowledgeArticles)
+            .where(eq(knowledgeArticles.status, 'published'))
+            .orderBy(desc(knowledgeArticles.publishedAt))
             .limit(limit);
     }
     async getPopularArticles(limit = 5) {
         // Return articles ordered by a popularity score (views, recency, ratings)
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.knowledgeArticles)
-            .where((0, drizzle_orm_1.eq)(schema_1.knowledgeArticles.status, 'published'))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.knowledgeArticles.publishedAt))
+            .from(knowledgeArticles)
+            .where(eq(knowledgeArticles.status, 'published'))
+            .orderBy(desc(knowledgeArticles.publishedAt))
             .limit(limit);
     }
     async getTrendingArticles(timeframe = '7d', limit = 5) {
         // Get articles that are trending in the specified timeframe
         const days = timeframe === '24h' ? 1 : timeframe === '7d' ? 7 : 30;
         const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.knowledgeArticles)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.knowledgeArticles.status, 'published'), (0, drizzle_orm_1.sql) `${schema_1.knowledgeArticles.publishedAt} >= ${cutoffDate}`))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.knowledgeArticles.publishedAt))
+            .from(knowledgeArticles)
+            .where(and(eq(knowledgeArticles.status, 'published'), sql `${knowledgeArticles.publishedAt} >= ${cutoffDate}`))
+            .orderBy(desc(knowledgeArticles.publishedAt))
             .limit(limit);
     }
     async recordKnowledgeView(articleId, userId) {
@@ -633,19 +604,18 @@ class DatabaseStorage {
         });
     }
     async getArticleAnalytics(articleId) {
-        var _a, _b;
         // Get analytics for a specific article
-        const viewCount = await db_1.db
-            .select({ count: (0, drizzle_orm_1.sql) `count(*)` })
-            .from(schema_1.auditLogs)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.auditLogs.targetType, 'knowledge_article'), (0, drizzle_orm_1.eq)(schema_1.auditLogs.targetId, articleId), (0, drizzle_orm_1.eq)(schema_1.auditLogs.action, 'article_view')));
-        const recentViews = await db_1.db
-            .select({ count: (0, drizzle_orm_1.sql) `count(*)` })
-            .from(schema_1.auditLogs)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.auditLogs.targetType, 'knowledge_article'), (0, drizzle_orm_1.eq)(schema_1.auditLogs.targetId, articleId), (0, drizzle_orm_1.eq)(schema_1.auditLogs.action, 'article_view'), (0, drizzle_orm_1.sql) `${schema_1.auditLogs.createdAt} >= NOW() - INTERVAL '7 days'`));
+        const viewCount = await db
+            .select({ count: sql `count(*)` })
+            .from(auditLogs)
+            .where(and(eq(auditLogs.targetType, 'knowledge_article'), eq(auditLogs.targetId, articleId), eq(auditLogs.action, 'article_view')));
+        const recentViews = await db
+            .select({ count: sql `count(*)` })
+            .from(auditLogs)
+            .where(and(eq(auditLogs.targetType, 'knowledge_article'), eq(auditLogs.targetId, articleId), eq(auditLogs.action, 'article_view'), sql `${auditLogs.createdAt} >= NOW() - INTERVAL '7 days'`));
         return {
-            totalViews: ((_a = viewCount[0]) === null || _a === void 0 ? void 0 : _a.count) || 0,
-            recentViews: ((_b = recentViews[0]) === null || _b === void 0 ? void 0 : _b.count) || 0,
+            totalViews: viewCount[0]?.count || 0,
+            recentViews: recentViews[0]?.count || 0,
             engagement: Math.floor(Math.random() * 40) + 60, // Simulated engagement score
             avgTimeOnPage: Math.floor(Math.random() * 120) + 60, // Simulated reading time
         };
@@ -654,10 +624,10 @@ class DatabaseStorage {
         if (partialQuery.length < 2)
             return [];
         // Get suggestions based on article titles and popular tags
-        const titleSuggestions = await db_1.db
-            .select({ title: schema_1.knowledgeArticles.title })
-            .from(schema_1.knowledgeArticles)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.knowledgeArticles.status, 'published'), (0, drizzle_orm_1.sql) `LOWER(${schema_1.knowledgeArticles.title}) LIKE LOWER(${'%' + partialQuery + '%'})`))
+        const titleSuggestions = await db
+            .select({ title: knowledgeArticles.title })
+            .from(knowledgeArticles)
+            .where(and(eq(knowledgeArticles.status, 'published'), sql `LOWER(${knowledgeArticles.title}) LIKE LOWER(${'%' + partialQuery + '%'})`))
             .limit(5);
         const suggestions = titleSuggestions.map(item => item.title);
         // Add common search terms based on tags
@@ -670,65 +640,65 @@ class DatabaseStorage {
     }
     // Tutorial operations
     async getTutorials(userRole, category) {
-        let query = db_1.db.select().from(schema_1.tutorials);
-        let conditions = [(0, drizzle_orm_1.eq)(schema_1.tutorials.status, 'published')];
+        let query = db.select().from(tutorials);
+        let conditions = [eq(tutorials.status, 'published')];
         if (userRole && userRole !== 'all') {
-            conditions.push((0, drizzle_orm_1.or)((0, drizzle_orm_1.eq)(schema_1.tutorials.roleTarget, userRole), (0, drizzle_orm_1.eq)(schema_1.tutorials.roleTarget, 'all')));
+            conditions.push(or(eq(tutorials.roleTarget, userRole), eq(tutorials.roleTarget, 'all')));
         }
-        return await query.where((0, drizzle_orm_1.and)(...conditions)).orderBy(schema_1.tutorials.createdAt, schema_1.tutorials.title);
+        return await query.where(and(...conditions)).orderBy(tutorials.createdAt, tutorials.title);
     }
     async getTutorial(id) {
-        const [tutorial] = await db_1.db
+        const [tutorial] = await db
             .select()
-            .from(schema_1.tutorials)
-            .where((0, drizzle_orm_1.eq)(schema_1.tutorials.id, id));
+            .from(tutorials)
+            .where(eq(tutorials.id, id));
         return tutorial;
     }
     async createTutorial(tutorialData) {
-        const [tutorial] = await db_1.db
-            .insert(schema_1.tutorials)
+        const [tutorial] = await db
+            .insert(tutorials)
             .values(tutorialData)
             .returning();
         return tutorial;
     }
     async getTutorialSteps(tutorialId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.tutorialSteps)
-            .where((0, drizzle_orm_1.eq)(schema_1.tutorialSteps.tutorialId, tutorialId))
-            .orderBy(schema_1.tutorialSteps.stepNumber);
+            .from(tutorialSteps)
+            .where(eq(tutorialSteps.tutorialId, tutorialId))
+            .orderBy(tutorialSteps.stepNumber);
     }
     async getTutorialProgress(userId, tutorialId) {
-        const [progress] = await db_1.db
+        const [progress] = await db
             .select()
-            .from(schema_1.tutorialProgress)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.tutorialProgress.userId, userId), (0, drizzle_orm_1.eq)(schema_1.tutorialProgress.tutorialId, tutorialId)));
+            .from(tutorialProgress)
+            .where(and(eq(tutorialProgress.userId, userId), eq(tutorialProgress.tutorialId, tutorialId)));
         return progress;
     }
     async updateTutorialProgress(userId, tutorialId, stepIndex) {
         // Get tutorial steps to determine if tutorial is complete
-        const steps = await db_1.db
+        const steps = await db
             .select()
-            .from(schema_1.tutorialSteps)
-            .where((0, drizzle_orm_1.eq)(schema_1.tutorialSteps.tutorialId, tutorialId))
-            .orderBy(schema_1.tutorialSteps.stepNumber);
+            .from(tutorialSteps)
+            .where(eq(tutorialSteps.tutorialId, tutorialId))
+            .orderBy(tutorialSteps.stepNumber);
         const totalSteps = steps.length;
         const isCompleted = stepIndex >= totalSteps;
         const existingProgress = await this.getTutorialProgress(userId, tutorialId);
         if (existingProgress) {
-            const [progress] = await db_1.db
-                .update(schema_1.tutorialProgress)
+            const [progress] = await db
+                .update(tutorialProgress)
                 .set({
                 completedStep: stepIndex,
                 completedAt: isCompleted ? new Date() : null
             })
-                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.tutorialProgress.userId, userId), (0, drizzle_orm_1.eq)(schema_1.tutorialProgress.tutorialId, tutorialId)))
+                .where(and(eq(tutorialProgress.userId, userId), eq(tutorialProgress.tutorialId, tutorialId)))
                 .returning();
             return progress;
         }
         else {
-            const [progress] = await db_1.db
-                .insert(schema_1.tutorialProgress)
+            const [progress] = await db
+                .insert(tutorialProgress)
                 .values({
                 userId,
                 tutorialId,
@@ -745,152 +715,152 @@ class DatabaseStorage {
     async verifyTransaction(params) {
         const conditions = [];
         if (params.fanId)
-            conditions.push((0, drizzle_orm_1.eq)(schema_1.fanzTransactions.fanId, params.fanId));
+            conditions.push(eq(fanzTransactions.fanId, params.fanId));
         if (params.creatorId)
-            conditions.push((0, drizzle_orm_1.eq)(schema_1.fanzTransactions.creatorId, params.creatorId));
+            conditions.push(eq(fanzTransactions.creatorId, params.creatorId));
         if (params.gateway)
-            conditions.push((0, drizzle_orm_1.eq)(schema_1.fanzTransactions.gateway, params.gateway));
+            conditions.push(eq(fanzTransactions.gateway, params.gateway));
         if (params.txid)
-            conditions.push((0, drizzle_orm_1.eq)(schema_1.fanzTransactions.txid, params.txid));
+            conditions.push(eq(fanzTransactions.txid, params.txid));
         if (params.email)
-            conditions.push((0, drizzle_orm_1.eq)(schema_1.fanzTransactions.email, params.email));
+            conditions.push(eq(fanzTransactions.email, params.email));
         if (params.walletAddress)
-            conditions.push((0, drizzle_orm_1.eq)(schema_1.fanzTransactions.walletAddress, params.walletAddress));
+            conditions.push(eq(fanzTransactions.walletAddress, params.walletAddress));
         if (params.last4)
-            conditions.push((0, drizzle_orm_1.eq)(schema_1.fanzTransactions.last4, params.last4));
-        const [transaction] = await db_1.db
+            conditions.push(eq(fanzTransactions.last4, params.last4));
+        const [transaction] = await db
             .select()
-            .from(schema_1.fanzTransactions)
-            .where((0, drizzle_orm_1.and)(...conditions))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.fanzTransactions.createdAt))
+            .from(fanzTransactions)
+            .where(and(...conditions))
+            .orderBy(desc(fanzTransactions.createdAt))
             .limit(1);
         return transaction;
     }
     async getTransaction(id) {
-        const [transaction] = await db_1.db
+        const [transaction] = await db
             .select()
-            .from(schema_1.fanzTransactions)
-            .where((0, drizzle_orm_1.eq)(schema_1.fanzTransactions.id, id));
+            .from(fanzTransactions)
+            .where(eq(fanzTransactions.id, id));
         return transaction;
     }
     async getRefundByTransaction(transactionId) {
-        const [refund] = await db_1.db
+        const [refund] = await db
             .select()
-            .from(schema_1.refundRequests)
-            .where((0, drizzle_orm_1.eq)(schema_1.refundRequests.transactionId, transactionId));
+            .from(refundRequests)
+            .where(eq(refundRequests.transactionId, transactionId));
         return refund;
     }
     async getCreatorRefundPolicy(creatorId) {
-        const [policy] = await db_1.db
+        const [policy] = await db
             .select()
-            .from(schema_1.creatorRefundPolicies)
-            .where((0, drizzle_orm_1.eq)(schema_1.creatorRefundPolicies.creatorId, creatorId));
+            .from(creatorRefundPolicies)
+            .where(eq(creatorRefundPolicies.creatorId, creatorId));
         return policy;
     }
     async createRefundRequest(requestData) {
-        const [refund] = await db_1.db
-            .insert(schema_1.refundRequests)
+        const [refund] = await db
+            .insert(refundRequests)
             .values(requestData)
             .returning();
         return refund;
     }
     async createTrustAuditLog(logData) {
-        const [log] = await db_1.db
-            .insert(schema_1.trustAuditLogs)
+        const [log] = await db
+            .insert(trustAuditLogs)
             .values(logData)
             .returning();
         return log;
     }
     async getCreatorRefundRequests(creatorId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.refundRequests)
-            .where((0, drizzle_orm_1.eq)(schema_1.refundRequests.creatorId, creatorId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.refundRequests.createdAt));
+            .from(refundRequests)
+            .where(eq(refundRequests.creatorId, creatorId))
+            .orderBy(desc(refundRequests.createdAt));
     }
     async getRefundRequest(id) {
-        const [refund] = await db_1.db
+        const [refund] = await db
             .select()
-            .from(schema_1.refundRequests)
-            .where((0, drizzle_orm_1.eq)(schema_1.refundRequests.id, id));
+            .from(refundRequests)
+            .where(eq(refundRequests.id, id));
         return refund;
     }
     async updateRefundRequest(id, updates) {
-        const [refund] = await db_1.db
-            .update(schema_1.refundRequests)
+        const [refund] = await db
+            .update(refundRequests)
             .set(updates)
-            .where((0, drizzle_orm_1.eq)(schema_1.refundRequests.id, id))
+            .where(eq(refundRequests.id, id))
             .returning();
         return refund;
     }
     async getFanzWallet(userId) {
-        const [wallet] = await db_1.db
+        const [wallet] = await db
             .select()
-            .from(schema_1.fanzWallets)
-            .where((0, drizzle_orm_1.eq)(schema_1.fanzWallets.userId, userId));
+            .from(fanzWallets)
+            .where(eq(fanzWallets.userId, userId));
         return wallet;
     }
     async createFanzWallet(data) {
-        const [wallet] = await db_1.db
-            .insert(schema_1.fanzWallets)
+        const [wallet] = await db
+            .insert(fanzWallets)
             .values(data)
             .returning();
         return wallet;
     }
     async getWalletTransactions(walletId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.walletTransactions)
-            .where((0, drizzle_orm_1.eq)(schema_1.walletTransactions.walletId, walletId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.walletTransactions.createdAt));
+            .from(walletTransactions)
+            .where(eq(walletTransactions.walletId, walletId))
+            .orderBy(desc(walletTransactions.createdAt));
     }
     async createWalletTransaction(transactionData) {
-        const [transaction] = await db_1.db
-            .insert(schema_1.walletTransactions)
+        const [transaction] = await db
+            .insert(walletTransactions)
             .values(transactionData)
             .returning();
         return transaction;
     }
     async updateFanzWallet(id, updates) {
-        const [wallet] = await db_1.db
-            .update(schema_1.fanzWallets)
+        const [wallet] = await db
+            .update(fanzWallets)
             .set(updates)
-            .where((0, drizzle_orm_1.eq)(schema_1.fanzWallets.id, id))
+            .where(eq(fanzWallets.id, id))
             .returning();
         return wallet;
     }
     async getFanTrustScore(fanId) {
-        const [score] = await db_1.db
+        const [score] = await db
             .select()
-            .from(schema_1.fanTrustScores)
-            .where((0, drizzle_orm_1.eq)(schema_1.fanTrustScores.fanId, fanId));
+            .from(fanTrustScores)
+            .where(eq(fanTrustScores.fanId, fanId));
         return score;
     }
     async createFanTrustScore(data) {
-        const [score] = await db_1.db
-            .insert(schema_1.fanTrustScores)
+        const [score] = await db
+            .insert(fanTrustScores)
             .values(data)
             .returning();
         return score;
     }
     async getAllRefundRequests() {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.refundRequests)
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.refundRequests.createdAt));
+            .from(refundRequests)
+            .orderBy(desc(refundRequests.createdAt));
     }
     async createCreatorRefundPolicy(data) {
-        const [policy] = await db_1.db
-            .insert(schema_1.creatorRefundPolicies)
+        const [policy] = await db
+            .insert(creatorRefundPolicies)
             .values(data)
             .returning();
         return policy;
     }
     async updateCreatorRefundPolicy(creatorId, updates) {
-        const [policy] = await db_1.db
-            .update(schema_1.creatorRefundPolicies)
+        const [policy] = await db
+            .update(creatorRefundPolicies)
             .set(updates)
-            .where((0, drizzle_orm_1.eq)(schema_1.creatorRefundPolicies.creatorId, creatorId))
+            .where(eq(creatorRefundPolicies.creatorId, creatorId))
             .returning();
         return policy;
     }
@@ -901,43 +871,43 @@ class DatabaseStorage {
         const limit = params.limit || 20;
         const userId = params.userId;
         // Get user's subscriptions
-        const userSubs = await db_1.db
-            .select({ creatorId: schema_1.subscriptions.creatorId })
-            .from(schema_1.subscriptions)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.subscriptions.userId, userId), (0, drizzle_orm_1.eq)(schema_1.subscriptions.status, 'active')));
+        const userSubs = await db
+            .select({ creatorId: subscriptions.creatorId })
+            .from(subscriptions)
+            .where(and(eq(subscriptions.userId, userId), eq(subscriptions.status, 'active')));
         const subscribedCreatorIds = userSubs.map(s => s.creatorId);
         // Get user's follows
-        const userFollows_result = await db_1.db
-            .select({ creatorId: schema_1.userFollows.creatorId })
-            .from(schema_1.userFollows)
-            .where((0, drizzle_orm_1.eq)(schema_1.userFollows.followerId, userId));
+        const userFollows_result = await db
+            .select({ creatorId: userFollows.creatorId })
+            .from(userFollows)
+            .where(eq(userFollows.followerId, userId));
         const followedCreatorIds = userFollows_result.map(f => f.creatorId);
         // Build query for mixed feed
         const conditions = [];
         // Include posts from subscribed creators
         if (subscribedCreatorIds.length > 0) {
-            conditions.push((0, drizzle_orm_1.sql) `${schema_1.feedPosts.creatorId} IN (${drizzle_orm_1.sql.join(subscribedCreatorIds.map(id => (0, drizzle_orm_1.sql) `${id}`), (0, drizzle_orm_1.sql) `, `)})`);
+            conditions.push(sql `${feedPosts.creatorId} IN (${sql.join(subscribedCreatorIds.map(id => sql `${id}`), sql `, `)})`);
         }
         // Include posts from followed creators
         if (followedCreatorIds.length > 0) {
-            conditions.push((0, drizzle_orm_1.sql) `${schema_1.feedPosts.creatorId} IN (${drizzle_orm_1.sql.join(followedCreatorIds.map(id => (0, drizzle_orm_1.sql) `${id}`), (0, drizzle_orm_1.sql) `, `)})`);
+            conditions.push(sql `${feedPosts.creatorId} IN (${sql.join(followedCreatorIds.map(id => sql `${id}`), sql `, `)})`);
         }
         // Include free preview posts
-        conditions.push((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.feedPosts.isFreePreview, true), (0, drizzle_orm_1.eq)(schema_1.feedPosts.isPublished, true)));
+        conditions.push(and(eq(feedPosts.isFreePreview, true), eq(feedPosts.isPublished, true)));
         // Build final where clause with cursor if provided
         let finalWhereClause;
         if (params.cursor) {
-            const cursorCondition = (0, drizzle_orm_1.sql) `${schema_1.feedPosts.createdAt} < (SELECT created_at FROM feed_posts WHERE id = ${params.cursor})`;
-            finalWhereClause = conditions.length > 0 ? (0, drizzle_orm_1.and)((0, drizzle_orm_1.or)(...conditions), cursorCondition) : cursorCondition;
+            const cursorCondition = sql `${feedPosts.createdAt} < (SELECT created_at FROM feed_posts WHERE id = ${params.cursor})`;
+            finalWhereClause = conditions.length > 0 ? and(or(...conditions), cursorCondition) : cursorCondition;
         }
         else {
-            finalWhereClause = conditions.length > 0 ? (0, drizzle_orm_1.or)(...conditions) : undefined;
+            finalWhereClause = conditions.length > 0 ? or(...conditions) : undefined;
         }
-        const posts = await db_1.db
+        const posts = await db
             .select()
-            .from(schema_1.feedPosts)
+            .from(feedPosts)
             .where(finalWhereClause)
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.feedPosts.createdAt))
+            .orderBy(desc(feedPosts.createdAt))
             .limit(limit + 1);
         const hasMore = posts.length > limit;
         const returnPosts = hasMore ? posts.slice(0, limit) : posts;
@@ -945,151 +915,151 @@ class DatabaseStorage {
         return { posts: returnPosts, nextCursor };
     }
     async getPost(id) {
-        const [post] = await db_1.db
+        const [post] = await db
             .select()
-            .from(schema_1.feedPosts)
-            .where((0, drizzle_orm_1.eq)(schema_1.feedPosts.id, id));
+            .from(feedPosts)
+            .where(eq(feedPosts.id, id));
         return post;
     }
     async createPost(postData) {
-        const [post] = await db_1.db
-            .insert(schema_1.feedPosts)
+        const [post] = await db
+            .insert(feedPosts)
             .values(postData)
             .returning();
         // Create engagement record
-        await db_1.db.insert(schema_1.postEngagement).values({ postId: post.id });
+        await db.insert(postEngagement).values({ postId: post.id });
         return post;
     }
     async updatePost(id, updates) {
-        const [post] = await db_1.db
-            .update(schema_1.feedPosts)
-            .set(Object.assign(Object.assign({}, updates), { updatedAt: new Date() }))
-            .where((0, drizzle_orm_1.eq)(schema_1.feedPosts.id, id))
+        const [post] = await db
+            .update(feedPosts)
+            .set({ ...updates, updatedAt: new Date() })
+            .where(eq(feedPosts.id, id))
             .returning();
         return post;
     }
     async deletePost(id) {
-        await db_1.db.delete(schema_1.feedPosts).where((0, drizzle_orm_1.eq)(schema_1.feedPosts.id, id));
+        await db.delete(feedPosts).where(eq(feedPosts.id, id));
     }
     // Post Media operations
     async getPostMedia(postId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.postMedia)
-            .where((0, drizzle_orm_1.eq)(schema_1.postMedia.postId, postId))
-            .orderBy(schema_1.postMedia.sortOrder);
+            .from(postMedia)
+            .where(eq(postMedia.postId, postId))
+            .orderBy(postMedia.sortOrder);
     }
     async createPostMedia(mediaData) {
-        const [media] = await db_1.db
-            .insert(schema_1.postMedia)
+        const [media] = await db
+            .insert(postMedia)
             .values(mediaData)
             .returning();
         return media;
     }
     async deletePostMedia(id) {
-        await db_1.db.delete(schema_1.postMedia).where((0, drizzle_orm_1.eq)(schema_1.postMedia.id, id));
+        await db.delete(postMedia).where(eq(postMedia.id, id));
     }
     // Post Engagement operations
     async getPostEngagement(postId) {
-        const [engagement] = await db_1.db
+        const [engagement] = await db
             .select()
-            .from(schema_1.postEngagement)
-            .where((0, drizzle_orm_1.eq)(schema_1.postEngagement.postId, postId));
+            .from(postEngagement)
+            .where(eq(postEngagement.postId, postId));
         return engagement;
     }
     async incrementPostView(postId) {
-        await db_1.db
-            .update(schema_1.postEngagement)
+        await db
+            .update(postEngagement)
             .set({
-            views: (0, drizzle_orm_1.sql) `${schema_1.postEngagement.views} + 1`,
+            views: sql `${postEngagement.views} + 1`,
             updatedAt: new Date()
         })
-            .where((0, drizzle_orm_1.eq)(schema_1.postEngagement.postId, postId));
+            .where(eq(postEngagement.postId, postId));
     }
     async likePost(postId, userId) {
         // Check if already liked
-        const [existing] = await db_1.db
+        const [existing] = await db
             .select()
-            .from(schema_1.postLikes)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.postLikes.postId, postId), (0, drizzle_orm_1.eq)(schema_1.postLikes.userId, userId)));
+            .from(postLikes)
+            .where(and(eq(postLikes.postId, postId), eq(postLikes.userId, userId)));
         if (!existing) {
-            await db_1.db.insert(schema_1.postLikes).values({ postId, userId });
-            await db_1.db
-                .update(schema_1.postEngagement)
+            await db.insert(postLikes).values({ postId, userId });
+            await db
+                .update(postEngagement)
                 .set({
-                likes: (0, drizzle_orm_1.sql) `${schema_1.postEngagement.likes} + 1`,
+                likes: sql `${postEngagement.likes} + 1`,
                 updatedAt: new Date()
             })
-                .where((0, drizzle_orm_1.eq)(schema_1.postEngagement.postId, postId));
+                .where(eq(postEngagement.postId, postId));
         }
     }
     async unlikePost(postId, userId) {
-        const deleted = await db_1.db
-            .delete(schema_1.postLikes)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.postLikes.postId, postId), (0, drizzle_orm_1.eq)(schema_1.postLikes.userId, userId)))
+        const deleted = await db
+            .delete(postLikes)
+            .where(and(eq(postLikes.postId, postId), eq(postLikes.userId, userId)))
             .returning();
         if (deleted.length > 0) {
-            await db_1.db
-                .update(schema_1.postEngagement)
+            await db
+                .update(postEngagement)
                 .set({
-                likes: (0, drizzle_orm_1.sql) `${schema_1.postEngagement.likes} - 1`,
+                likes: sql `${postEngagement.likes} - 1`,
                 updatedAt: new Date()
             })
-                .where((0, drizzle_orm_1.eq)(schema_1.postEngagement.postId, postId));
+                .where(eq(postEngagement.postId, postId));
         }
     }
     // User Follows operations
     async followCreator(followerId, creatorId) {
-        const [follow] = await db_1.db
-            .insert(schema_1.userFollows)
+        const [follow] = await db
+            .insert(userFollows)
             .values({ followerId, creatorId })
             .returning();
         return follow;
     }
     async unfollowCreator(followerId, creatorId) {
-        await db_1.db
-            .delete(schema_1.userFollows)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.userFollows.followerId, followerId), (0, drizzle_orm_1.eq)(schema_1.userFollows.creatorId, creatorId)));
+        await db
+            .delete(userFollows)
+            .where(and(eq(userFollows.followerId, followerId), eq(userFollows.creatorId, creatorId)));
     }
     async getFollowing(userId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.userFollows)
-            .where((0, drizzle_orm_1.eq)(schema_1.userFollows.followerId, userId));
+            .from(userFollows)
+            .where(eq(userFollows.followerId, userId));
     }
     async getFollowers(creatorId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.userFollows)
-            .where((0, drizzle_orm_1.eq)(schema_1.userFollows.creatorId, creatorId));
+            .from(userFollows)
+            .where(eq(userFollows.creatorId, creatorId));
     }
     async isFollowing(followerId, creatorId) {
-        const [result] = await db_1.db
+        const [result] = await db
             .select()
-            .from(schema_1.userFollows)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.userFollows.followerId, followerId), (0, drizzle_orm_1.eq)(schema_1.userFollows.creatorId, creatorId)));
+            .from(userFollows)
+            .where(and(eq(userFollows.followerId, followerId), eq(userFollows.creatorId, creatorId)));
         return !!result;
     }
     // Age Verification operations
     async getAgeVerification(userId) {
-        const [verification] = await db_1.db
+        const [verification] = await db
             .select()
-            .from(schema_1.ageVerifications)
-            .where((0, drizzle_orm_1.eq)(schema_1.ageVerifications.userId, userId));
+            .from(ageVerifications)
+            .where(eq(ageVerifications.userId, userId));
         return verification;
     }
     async createAgeVerification(verificationData) {
-        const [verification] = await db_1.db
-            .insert(schema_1.ageVerifications)
+        const [verification] = await db
+            .insert(ageVerifications)
             .values(verificationData)
             .returning();
         return verification;
     }
     async updateAgeVerification(userId, updates) {
-        const [verification] = await db_1.db
-            .update(schema_1.ageVerifications)
-            .set(Object.assign(Object.assign({}, updates), { updatedAt: new Date() }))
-            .where((0, drizzle_orm_1.eq)(schema_1.ageVerifications.userId, userId))
+        const [verification] = await db
+            .update(ageVerifications)
+            .set({ ...updates, updatedAt: new Date() })
+            .where(eq(ageVerifications.userId, userId))
             .returning();
         return verification;
     }
@@ -1097,43 +1067,43 @@ class DatabaseStorage {
     async getSponsoredPosts(params) {
         const limit = params.limit || 10;
         if (params.isActive !== undefined) {
-            return await db_1.db
+            return await db
                 .select()
-                .from(schema_1.sponsoredPosts)
-                .where((0, drizzle_orm_1.eq)(schema_1.sponsoredPosts.isActive, params.isActive))
+                .from(sponsoredPosts)
+                .where(eq(sponsoredPosts.isActive, params.isActive))
                 .limit(limit);
         }
-        return await db_1.db.select().from(schema_1.sponsoredPosts).limit(limit);
+        return await db.select().from(sponsoredPosts).limit(limit);
     }
     async createSponsoredPost(postData) {
-        const [ad] = await db_1.db
-            .insert(schema_1.sponsoredPosts)
+        const [ad] = await db
+            .insert(sponsoredPosts)
             .values(postData)
             .returning();
         return ad;
     }
     async incrementAdImpression(adId) {
-        await db_1.db
-            .update(schema_1.sponsoredPosts)
+        await db
+            .update(sponsoredPosts)
             .set({
-            impressions: (0, drizzle_orm_1.sql) `${schema_1.sponsoredPosts.impressions} + 1`,
+            impressions: sql `${sponsoredPosts.impressions} + 1`,
             updatedAt: new Date()
         })
-            .where((0, drizzle_orm_1.eq)(schema_1.sponsoredPosts.id, adId));
+            .where(eq(sponsoredPosts.id, adId));
     }
     async incrementAdClick(adId) {
-        await db_1.db
-            .update(schema_1.sponsoredPosts)
+        await db
+            .update(sponsoredPosts)
             .set({
-            clicks: (0, drizzle_orm_1.sql) `${schema_1.sponsoredPosts.clicks} + 1`,
+            clicks: sql `${sponsoredPosts.clicks} + 1`,
             updatedAt: new Date()
         })
-            .where((0, drizzle_orm_1.eq)(schema_1.sponsoredPosts.id, adId));
+            .where(eq(sponsoredPosts.id, adId));
     }
     // Post Unlocks operations
     async unlockPost(postId, userId, transactionId, amount) {
-        const [unlock] = await db_1.db
-            .insert(schema_1.postUnlocks)
+        const [unlock] = await db
+            .insert(postUnlocks)
             .values({
             postId,
             userId,
@@ -1142,220 +1112,220 @@ class DatabaseStorage {
         })
             .returning();
         // Increment unlock count
-        await db_1.db
-            .update(schema_1.postEngagement)
+        await db
+            .update(postEngagement)
             .set({
-            unlocks: (0, drizzle_orm_1.sql) `${schema_1.postEngagement.unlocks} + 1`,
+            unlocks: sql `${postEngagement.unlocks} + 1`,
             updatedAt: new Date()
         })
-            .where((0, drizzle_orm_1.eq)(schema_1.postEngagement.postId, postId));
+            .where(eq(postEngagement.postId, postId));
         return unlock;
     }
     async isPostUnlocked(postId, userId) {
-        const [unlock] = await db_1.db
+        const [unlock] = await db
             .select()
-            .from(schema_1.postUnlocks)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.postUnlocks.postId, postId), (0, drizzle_orm_1.eq)(schema_1.postUnlocks.userId, userId)));
+            .from(postUnlocks)
+            .where(and(eq(postUnlocks.postId, postId), eq(postUnlocks.userId, userId)));
         return !!unlock;
     }
     async getUserUnlockedPosts(userId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.postUnlocks)
-            .where((0, drizzle_orm_1.eq)(schema_1.postUnlocks.userId, userId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.postUnlocks.createdAt));
+            .from(postUnlocks)
+            .where(eq(postUnlocks.userId, userId))
+            .orderBy(desc(postUnlocks.createdAt));
     }
     // Content Creation operations
     async getContentSession(id) {
-        const [session] = await db_1.db
+        const [session] = await db
             .select()
-            .from(schema_1.contentCreationSessions)
-            .where((0, drizzle_orm_1.eq)(schema_1.contentCreationSessions.id, id));
+            .from(contentCreationSessions)
+            .where(eq(contentCreationSessions.id, id));
         return session;
     }
     async getContentSessionsByCreator(creatorId, limit = 20) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.contentCreationSessions)
-            .where((0, drizzle_orm_1.eq)(schema_1.contentCreationSessions.creatorId, creatorId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.contentCreationSessions.createdAt))
+            .from(contentCreationSessions)
+            .where(eq(contentCreationSessions.creatorId, creatorId))
+            .orderBy(desc(contentCreationSessions.createdAt))
             .limit(limit);
     }
     async createContentSession(sessionData) {
-        const [session] = await db_1.db
-            .insert(schema_1.contentCreationSessions)
+        const [session] = await db
+            .insert(contentCreationSessions)
             .values(sessionData)
             .returning();
         return session;
     }
     async updateContentSession(id, updates) {
-        const [session] = await db_1.db
-            .update(schema_1.contentCreationSessions)
-            .set(Object.assign(Object.assign({}, updates), { updatedAt: new Date() }))
-            .where((0, drizzle_orm_1.eq)(schema_1.contentCreationSessions.id, id))
+        const [session] = await db
+            .update(contentCreationSessions)
+            .set({ ...updates, updatedAt: new Date() })
+            .where(eq(contentCreationSessions.id, id))
             .returning();
         return session;
     }
     async deleteContentSession(id) {
-        await db_1.db.delete(schema_1.contentCreationSessions).where((0, drizzle_orm_1.eq)(schema_1.contentCreationSessions.id, id));
+        await db.delete(contentCreationSessions).where(eq(contentCreationSessions.id, id));
     }
     // Editing Task operations
     async getEditingTask(id) {
-        const [task] = await db_1.db
+        const [task] = await db
             .select()
-            .from(schema_1.editingTasks)
-            .where((0, drizzle_orm_1.eq)(schema_1.editingTasks.id, id));
+            .from(editingTasks)
+            .where(eq(editingTasks.id, id));
         return task;
     }
     async getEditingTaskBySession(sessionId) {
-        const [task] = await db_1.db
+        const [task] = await db
             .select()
-            .from(schema_1.editingTasks)
-            .where((0, drizzle_orm_1.eq)(schema_1.editingTasks.sessionId, sessionId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.editingTasks.createdAt))
+            .from(editingTasks)
+            .where(eq(editingTasks.sessionId, sessionId))
+            .orderBy(desc(editingTasks.createdAt))
             .limit(1);
         return task;
     }
     async getEditingTasksBySession(sessionId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.editingTasks)
-            .where((0, drizzle_orm_1.eq)(schema_1.editingTasks.sessionId, sessionId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.editingTasks.createdAt));
+            .from(editingTasks)
+            .where(eq(editingTasks.sessionId, sessionId))
+            .orderBy(desc(editingTasks.createdAt));
     }
     async createEditingTask(taskData) {
-        const [task] = await db_1.db
-            .insert(schema_1.editingTasks)
+        const [task] = await db
+            .insert(editingTasks)
             .values(taskData)
             .returning();
         return task;
     }
     async updateEditingTask(id, updates) {
-        const [task] = await db_1.db
-            .update(schema_1.editingTasks)
+        const [task] = await db
+            .update(editingTasks)
             .set(updates)
-            .where((0, drizzle_orm_1.eq)(schema_1.editingTasks.id, id))
+            .where(eq(editingTasks.id, id))
             .returning();
         return task;
     }
     // Content Version operations
     async getContentVersionsBySession(sessionId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.contentVersions)
-            .where((0, drizzle_orm_1.eq)(schema_1.contentVersions.sessionId, sessionId))
-            .orderBy(schema_1.contentVersions.aspectRatio);
+            .from(contentVersions)
+            .where(eq(contentVersions.sessionId, sessionId))
+            .orderBy(contentVersions.aspectRatio);
     }
     async createContentVersion(versionData) {
-        const [version] = await db_1.db
-            .insert(schema_1.contentVersions)
+        const [version] = await db
+            .insert(contentVersions)
             .values(versionData)
             .returning();
         return version;
     }
     // Generated Asset operations
     async getGeneratedAssetsBySession(sessionId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.generatedAssets)
-            .where((0, drizzle_orm_1.eq)(schema_1.generatedAssets.sessionId, sessionId))
-            .orderBy(schema_1.generatedAssets.assetType);
+            .from(generatedAssets)
+            .where(eq(generatedAssets.sessionId, sessionId))
+            .orderBy(generatedAssets.assetType);
     }
     async createGeneratedAsset(assetData) {
-        const [asset] = await db_1.db
-            .insert(schema_1.generatedAssets)
+        const [asset] = await db
+            .insert(generatedAssets)
             .values(assetData)
             .returning();
         return asset;
     }
     // Distribution Campaign operations
     async getDistributionCampaign(id) {
-        const [campaign] = await db_1.db
+        const [campaign] = await db
             .select()
-            .from(schema_1.distributionCampaigns)
-            .where((0, drizzle_orm_1.eq)(schema_1.distributionCampaigns.id, id));
+            .from(distributionCampaigns)
+            .where(eq(distributionCampaigns.id, id));
         return campaign;
     }
     async createDistributionCampaign(campaignData) {
-        const [campaign] = await db_1.db
-            .insert(schema_1.distributionCampaigns)
+        const [campaign] = await db
+            .insert(distributionCampaigns)
             .values(campaignData)
             .returning();
         return campaign;
     }
     async updateDistributionCampaign(id, updates) {
-        const [campaign] = await db_1.db
-            .update(schema_1.distributionCampaigns)
+        const [campaign] = await db
+            .update(distributionCampaigns)
             .set(updates)
-            .where((0, drizzle_orm_1.eq)(schema_1.distributionCampaigns.id, id))
+            .where(eq(distributionCampaigns.id, id))
             .returning();
         return campaign;
     }
     // Platform Distribution operations
     async getPlatformDistributions(campaignId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.platformDistributions)
-            .where((0, drizzle_orm_1.eq)(schema_1.platformDistributions.campaignId, campaignId));
+            .from(platformDistributions)
+            .where(eq(platformDistributions.campaignId, campaignId));
     }
     async createPlatformDistribution(distributionData) {
-        const [distribution] = await db_1.db
-            .insert(schema_1.platformDistributions)
+        const [distribution] = await db
+            .insert(platformDistributions)
             .values(distributionData)
             .returning();
         return distribution;
     }
     async updatePlatformDistribution(id, updates) {
-        const [distribution] = await db_1.db
-            .update(schema_1.platformDistributions)
+        const [distribution] = await db
+            .update(platformDistributions)
             .set(updates)
-            .where((0, drizzle_orm_1.eq)(schema_1.platformDistributions.id, id))
+            .where(eq(platformDistributions.id, id))
             .returning();
         return distribution;
     }
     // Content Analytics operations
     async getContentAnalytics(sessionId) {
-        const [analytics] = await db_1.db
+        const [analytics] = await db
             .select()
-            .from(schema_1.contentAnalytics)
-            .where((0, drizzle_orm_1.eq)(schema_1.contentAnalytics.sessionId, sessionId));
+            .from(contentAnalytics)
+            .where(eq(contentAnalytics.sessionId, sessionId));
         return analytics;
     }
     async createContentAnalytics(analyticsData) {
-        const [analytics] = await db_1.db
-            .insert(schema_1.contentAnalytics)
+        const [analytics] = await db
+            .insert(contentAnalytics)
             .values(analyticsData)
             .returning();
         return analytics;
     }
     async updateContentAnalytics(sessionId, updates) {
-        const [analytics] = await db_1.db
-            .update(schema_1.contentAnalytics)
-            .set(Object.assign(Object.assign({}, updates), { updatedAt: new Date() }))
-            .where((0, drizzle_orm_1.eq)(schema_1.contentAnalytics.sessionId, sessionId))
+        const [analytics] = await db
+            .update(contentAnalytics)
+            .set({ ...updates, updatedAt: new Date() })
+            .where(eq(contentAnalytics.sessionId, sessionId))
             .returning();
         return analytics;
     }
     // Creator Studio Settings operations
     async getCreatorStudioSettings(creatorId) {
-        const [settings] = await db_1.db
+        const [settings] = await db
             .select()
-            .from(schema_1.creatorStudioSettings)
-            .where((0, drizzle_orm_1.eq)(schema_1.creatorStudioSettings.creatorId, creatorId));
+            .from(creatorStudioSettings)
+            .where(eq(creatorStudioSettings.creatorId, creatorId));
         return settings;
     }
     async createCreatorStudioSettings(settingsData) {
-        const [settings] = await db_1.db
-            .insert(schema_1.creatorStudioSettings)
+        const [settings] = await db
+            .insert(creatorStudioSettings)
             .values(settingsData)
             .returning();
         return settings;
     }
     async updateCreatorStudioSettings(creatorId, updates) {
-        const [settings] = await db_1.db
-            .update(schema_1.creatorStudioSettings)
-            .set(Object.assign(Object.assign({}, updates), { updatedAt: new Date() }))
-            .where((0, drizzle_orm_1.eq)(schema_1.creatorStudioSettings.creatorId, creatorId))
+        const [settings] = await db
+            .update(creatorStudioSettings)
+            .set({ ...updates, updatedAt: new Date() })
+            .where(eq(creatorStudioSettings.creatorId, creatorId))
             .returning();
         return settings;
     }
@@ -1375,410 +1345,410 @@ class DatabaseStorage {
     }
     // Live Stream operations
     async createLiveStream(streamData) {
-        const { liveStreams } = await Promise.resolve().then(() => __importStar(require('../shared/schema')));
-        const [stream] = await db_1.db
+        const { liveStreams } = await import('../shared/schema');
+        const [stream] = await db
             .insert(liveStreams)
             .values(streamData)
             .returning();
         return stream;
     }
     async addLiveStreamCoStar(data) {
-        const [coStar] = await db_1.db
-            .insert(schema_1.liveStreamCoStars)
+        const [coStar] = await db
+            .insert(liveStreamCoStars)
             .values(data)
             .returning();
         return coStar;
     }
     async updateLiveStream(id, updates) {
-        const [stream] = await db_1.db
-            .update(schema_1.liveStreams)
-            .set(Object.assign(Object.assign({}, updates), { updatedAt: new Date() }))
-            .where((0, drizzle_orm_1.eq)(schema_1.liveStreams.id, id))
+        const [stream] = await db
+            .update(liveStreams)
+            .set({ ...updates, updatedAt: new Date() })
+            .where(eq(liveStreams.id, id))
             .returning();
         return stream;
     }
     async getLiveStream(id) {
-        const [stream] = await db_1.db
+        const [stream] = await db
             .select()
-            .from(schema_1.liveStreams)
-            .where((0, drizzle_orm_1.eq)(schema_1.liveStreams.id, id));
+            .from(liveStreams)
+            .where(eq(liveStreams.id, id));
         return stream;
     }
     async getLiveStreamByKey(streamKey) {
-        const [stream] = await db_1.db
+        const [stream] = await db
             .select()
-            .from(schema_1.liveStreams)
-            .where((0, drizzle_orm_1.eq)(schema_1.liveStreams.streamKey, streamKey));
+            .from(liveStreams)
+            .where(eq(liveStreams.streamKey, streamKey));
         return stream;
     }
     // Stream Participant operations
     async addStreamParticipant(participant) {
-        const [result] = await db_1.db
-            .insert(schema_1.streamParticipants)
+        const [result] = await db
+            .insert(streamParticipants)
             .values(participant)
             .returning();
         return result;
     }
     async updateStreamParticipant(streamId, userId, updates) {
-        const [result] = await db_1.db
-            .update(schema_1.streamParticipants)
+        const [result] = await db
+            .update(streamParticipants)
             .set(updates)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.streamParticipants.streamId, streamId), (0, drizzle_orm_1.eq)(schema_1.streamParticipants.userId, userId)))
+            .where(and(eq(streamParticipants.streamId, streamId), eq(streamParticipants.userId, userId)))
             .returning();
         return result;
     }
     async getStreamParticipants(streamId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.streamParticipants)
-            .where((0, drizzle_orm_1.eq)(schema_1.streamParticipants.streamId, streamId));
+            .from(streamParticipants)
+            .where(eq(streamParticipants.streamId, streamId));
     }
     // Stream Viewer operations
     async addStreamViewer(viewer) {
-        const [result] = await db_1.db
-            .insert(schema_1.streamViewers)
+        const [result] = await db
+            .insert(streamViewers)
             .values(viewer)
             .returning();
         return result;
     }
     async updateStreamViewer(streamId, userId, updates) {
-        const [result] = await db_1.db
-            .update(schema_1.streamViewers)
+        const [result] = await db
+            .update(streamViewers)
             .set(updates)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.streamViewers.streamId, streamId), (0, drizzle_orm_1.eq)(schema_1.streamViewers.userId, userId)))
+            .where(and(eq(streamViewers.streamId, streamId), eq(streamViewers.userId, userId)))
             .returning();
         return result;
     }
     async getStreamViewers(streamId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.streamViewers)
-            .where((0, drizzle_orm_1.eq)(schema_1.streamViewers.streamId, streamId));
+            .from(streamViewers)
+            .where(eq(streamViewers.streamId, streamId));
     }
     // Stream Chat operations
     async addStreamChatMessage(message) {
-        const [result] = await db_1.db
-            .insert(schema_1.streamChatMessages)
+        const [result] = await db
+            .insert(streamChatMessages)
             .values(message)
             .returning();
         return result;
     }
     async getStreamChatMessages(streamId, limit = 100) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.streamChatMessages)
-            .where((0, drizzle_orm_1.eq)(schema_1.streamChatMessages.streamId, streamId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.streamChatMessages.createdAt))
+            .from(streamChatMessages)
+            .where(eq(streamChatMessages.streamId, streamId))
+            .orderBy(desc(streamChatMessages.createdAt))
             .limit(limit);
     }
     // Stream Gift operations
     async addStreamGift(gift) {
-        const [result] = await db_1.db
-            .insert(schema_1.streamGifts)
+        const [result] = await db
+            .insert(streamGifts)
             .values(gift)
             .returning();
         return result;
     }
     async getStreamGifts(streamId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.streamGifts)
-            .where((0, drizzle_orm_1.eq)(schema_1.streamGifts.streamId, streamId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.streamGifts.createdAt));
+            .from(streamGifts)
+            .where(eq(streamGifts.streamId, streamId))
+            .orderBy(desc(streamGifts.createdAt));
     }
     // Stream Reaction operations
     async addStreamReaction(reaction) {
-        const [result] = await db_1.db
-            .insert(schema_1.streamReactions)
+        const [result] = await db
+            .insert(streamReactions)
             .values(reaction)
             .returning();
         return result;
     }
     async getStreamReactions(streamId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.streamReactions)
-            .where((0, drizzle_orm_1.eq)(schema_1.streamReactions.streamId, streamId));
+            .from(streamReactions)
+            .where(eq(streamReactions.streamId, streamId));
     }
     // Stream Highlight operations
     async createStreamHighlight(highlight) {
-        const [result] = await db_1.db
-            .insert(schema_1.streamHighlights)
+        const [result] = await db
+            .insert(streamHighlights)
             .values(highlight)
             .returning();
         return result;
     }
     async getStreamHighlights(streamId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.streamHighlights)
-            .where((0, drizzle_orm_1.eq)(schema_1.streamHighlights.streamId, streamId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.streamHighlights.score));
+            .from(streamHighlights)
+            .where(eq(streamHighlights.streamId, streamId))
+            .orderBy(desc(streamHighlights.score));
     }
     // Stream Recording operations
     async createStreamRecording(recording) {
-        const [result] = await db_1.db
-            .insert(schema_1.streamRecordings)
+        const [result] = await db
+            .insert(streamRecordings)
             .values(recording)
             .returning();
         return result;
     }
     async updateStreamRecording(id, updates) {
-        const [result] = await db_1.db
-            .update(schema_1.streamRecordings)
+        const [result] = await db
+            .update(streamRecordings)
             .set(updates)
-            .where((0, drizzle_orm_1.eq)(schema_1.streamRecordings.id, id))
+            .where(eq(streamRecordings.id, id))
             .returning();
         return result;
     }
     async getStreamRecording(streamId) {
-        const [recording] = await db_1.db
+        const [recording] = await db
             .select()
-            .from(schema_1.streamRecordings)
-            .where((0, drizzle_orm_1.eq)(schema_1.streamRecordings.streamId, streamId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.streamRecordings.createdAt))
+            .from(streamRecordings)
+            .where(eq(streamRecordings.streamId, streamId))
+            .orderBy(desc(streamRecordings.createdAt))
             .limit(1);
         return recording;
     }
     // Stream Analytics operations
     async createStreamAnalytics(analytics) {
-        const [result] = await db_1.db
-            .insert(schema_1.streamAnalytics)
+        const [result] = await db
+            .insert(streamAnalytics)
             .values(analytics)
             .returning();
         return result;
     }
     async updateStreamAnalytics(streamId, updates) {
-        const [result] = await db_1.db
-            .update(schema_1.streamAnalytics)
-            .set(Object.assign(Object.assign({}, updates), { updatedAt: new Date() }))
-            .where((0, drizzle_orm_1.eq)(schema_1.streamAnalytics.streamId, streamId))
+        const [result] = await db
+            .update(streamAnalytics)
+            .set({ ...updates, updatedAt: new Date() })
+            .where(eq(streamAnalytics.streamId, streamId))
             .returning();
         return result;
     }
     async getStreamAnalytics(streamId) {
-        const [analytics] = await db_1.db
+        const [analytics] = await db
             .select()
-            .from(schema_1.streamAnalytics)
-            .where((0, drizzle_orm_1.eq)(schema_1.streamAnalytics.streamId, streamId));
+            .from(streamAnalytics)
+            .where(eq(streamAnalytics.streamId, streamId));
         return analytics;
     }
     // NFT Collection operations
     async getNftCollection(id) {
-        const [collection] = await db_1.db
+        const [collection] = await db
             .select()
-            .from(schema_1.nftCollections)
-            .where((0, drizzle_orm_1.eq)(schema_1.nftCollections.id, id));
+            .from(nftCollections)
+            .where(eq(nftCollections.id, id));
         return collection;
     }
     async getNftCollectionsByCreator(creatorId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.nftCollections)
-            .where((0, drizzle_orm_1.eq)(schema_1.nftCollections.creatorId, creatorId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.nftCollections.createdAt));
+            .from(nftCollections)
+            .where(eq(nftCollections.creatorId, creatorId))
+            .orderBy(desc(nftCollections.createdAt));
     }
     async createNftCollection(collectionData) {
-        const [collection] = await db_1.db
-            .insert(schema_1.nftCollections)
+        const [collection] = await db
+            .insert(nftCollections)
             .values(collectionData)
             .returning();
         return collection;
     }
     async updateNftCollection(id, updates) {
-        const [collection] = await db_1.db
-            .update(schema_1.nftCollections)
-            .set(Object.assign(Object.assign({}, updates), { updatedAt: new Date() }))
-            .where((0, drizzle_orm_1.eq)(schema_1.nftCollections.id, id))
+        const [collection] = await db
+            .update(nftCollections)
+            .set({ ...updates, updatedAt: new Date() })
+            .where(eq(nftCollections.id, id))
             .returning();
         return collection;
     }
     // NFT Token operations
     async getNftToken(id) {
-        const [token] = await db_1.db
+        const [token] = await db
             .select()
-            .from(schema_1.nftTokens)
-            .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.id, id));
+            .from(nftTokens)
+            .where(eq(nftTokens.id, id));
         return token;
     }
     async getNftTokensByOwner(ownerId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.nftTokens)
-            .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.ownerId, ownerId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.nftTokens.createdAt));
+            .from(nftTokens)
+            .where(eq(nftTokens.ownerId, ownerId))
+            .orderBy(desc(nftTokens.createdAt));
     }
     async getNftTokensByCollection(collectionId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.nftTokens)
-            .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.collectionId, collectionId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.nftTokens.createdAt));
+            .from(nftTokens)
+            .where(eq(nftTokens.collectionId, collectionId))
+            .orderBy(desc(nftTokens.createdAt));
     }
     async createNftToken(tokenData) {
-        const [token] = await db_1.db
-            .insert(schema_1.nftTokens)
+        const [token] = await db
+            .insert(nftTokens)
             .values(tokenData)
             .returning();
         return token;
     }
     async updateNftToken(id, updates) {
-        const [token] = await db_1.db
-            .update(schema_1.nftTokens)
-            .set(Object.assign(Object.assign({}, updates), { updatedAt: new Date() }))
-            .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.id, id))
+        const [token] = await db
+            .update(nftTokens)
+            .set({ ...updates, updatedAt: new Date() })
+            .where(eq(nftTokens.id, id))
             .returning();
         return token;
     }
     // NFT Transaction operations
     async getNftTransactionsByToken(tokenId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.nftTransactions)
-            .where((0, drizzle_orm_1.eq)(schema_1.nftTransactions.tokenId, tokenId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.nftTransactions.createdAt));
+            .from(nftTransactions)
+            .where(eq(nftTransactions.tokenId, tokenId))
+            .orderBy(desc(nftTransactions.createdAt));
     }
     async getNftTransactionsByUser(userId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.nftTransactions)
-            .where((0, drizzle_orm_1.or)((0, drizzle_orm_1.eq)(schema_1.nftTransactions.fromUserId, userId), (0, drizzle_orm_1.eq)(schema_1.nftTransactions.toUserId, userId)))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.nftTransactions.createdAt));
+            .from(nftTransactions)
+            .where(or(eq(nftTransactions.fromUserId, userId), eq(nftTransactions.toUserId, userId)))
+            .orderBy(desc(nftTransactions.createdAt));
     }
     async createNftTransaction(transactionData) {
-        const [transaction] = await db_1.db
-            .insert(schema_1.nftTransactions)
+        const [transaction] = await db
+            .insert(nftTransactions)
             .values(transactionData)
             .returning();
         return transaction;
     }
     async updateNftTransaction(id, updates) {
-        const [transaction] = await db_1.db
-            .update(schema_1.nftTransactions)
+        const [transaction] = await db
+            .update(nftTransactions)
             .set(updates)
-            .where((0, drizzle_orm_1.eq)(schema_1.nftTransactions.id, id))
+            .where(eq(nftTransactions.id, id))
             .returning();
         return transaction;
     }
     // Blockchain Wallet operations
     async getBlockchainWallet(userId, blockchain) {
-        let query = db_1.db
+        let query = db
             .select()
-            .from(schema_1.blockchainWallets)
-            .where((0, drizzle_orm_1.eq)(schema_1.blockchainWallets.userId, userId));
+            .from(blockchainWallets)
+            .where(eq(blockchainWallets.userId, userId));
         if (blockchain) {
-            query = query.where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.blockchainWallets.userId, userId), (0, drizzle_orm_1.eq)(schema_1.blockchainWallets.blockchain, blockchain)));
+            query = query.where(and(eq(blockchainWallets.userId, userId), eq(blockchainWallets.blockchain, blockchain)));
         }
         const [wallet] = await query;
         return wallet;
     }
     async getBlockchainWalletsByUser(userId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.blockchainWallets)
-            .where((0, drizzle_orm_1.eq)(schema_1.blockchainWallets.userId, userId));
+            .from(blockchainWallets)
+            .where(eq(blockchainWallets.userId, userId));
     }
     async createBlockchainWallet(walletData) {
-        const [wallet] = await db_1.db
-            .insert(schema_1.blockchainWallets)
+        const [wallet] = await db
+            .insert(blockchainWallets)
             .values(walletData)
             .returning();
         return wallet;
     }
     async updateBlockchainWallet(id, updates) {
-        const [wallet] = await db_1.db
-            .update(schema_1.blockchainWallets)
-            .set(Object.assign(Object.assign({}, updates), { updatedAt: new Date() }))
-            .where((0, drizzle_orm_1.eq)(schema_1.blockchainWallets.id, id))
+        const [wallet] = await db
+            .update(blockchainWallets)
+            .set({ ...updates, updatedAt: new Date() })
+            .where(eq(blockchainWallets.id, id))
             .returning();
         return wallet;
     }
     // Royalty Distribution operations
     async getRoyaltyDistributionsByToken(tokenId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.royaltyDistributions)
-            .where((0, drizzle_orm_1.eq)(schema_1.royaltyDistributions.tokenId, tokenId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.royaltyDistributions.createdAt));
+            .from(royaltyDistributions)
+            .where(eq(royaltyDistributions.tokenId, tokenId))
+            .orderBy(desc(royaltyDistributions.createdAt));
     }
     async getRoyaltyDistributionsByRecipient(recipientId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.royaltyDistributions)
-            .where((0, drizzle_orm_1.eq)(schema_1.royaltyDistributions.recipientId, recipientId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.royaltyDistributions.createdAt));
+            .from(royaltyDistributions)
+            .where(eq(royaltyDistributions.recipientId, recipientId))
+            .orderBy(desc(royaltyDistributions.createdAt));
     }
     async createRoyaltyDistribution(distributionData) {
-        const [distribution] = await db_1.db
-            .insert(schema_1.royaltyDistributions)
+        const [distribution] = await db
+            .insert(royaltyDistributions)
             .values(distributionData)
             .returning();
         return distribution;
     }
     async updateRoyaltyDistribution(id, updates) {
-        const [distribution] = await db_1.db
-            .update(schema_1.royaltyDistributions)
+        const [distribution] = await db
+            .update(royaltyDistributions)
             .set(updates)
-            .where((0, drizzle_orm_1.eq)(schema_1.royaltyDistributions.id, id))
+            .where(eq(royaltyDistributions.id, id))
             .returning();
         return distribution;
     }
     // IPFS Record operations
     async getIpfsRecordsByUser(userId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.ipfsRecords)
-            .where((0, drizzle_orm_1.eq)(schema_1.ipfsRecords.userId, userId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.ipfsRecords.createdAt));
+            .from(ipfsRecords)
+            .where(eq(ipfsRecords.userId, userId))
+            .orderBy(desc(ipfsRecords.createdAt));
     }
     async getIpfsRecordByHash(ipfsHash) {
-        const [record] = await db_1.db
+        const [record] = await db
             .select()
-            .from(schema_1.ipfsRecords)
-            .where((0, drizzle_orm_1.eq)(schema_1.ipfsRecords.ipfsHash, ipfsHash));
+            .from(ipfsRecords)
+            .where(eq(ipfsRecords.ipfsHash, ipfsHash));
         return record;
     }
     async createIpfsRecord(recordData) {
-        const [record] = await db_1.db
-            .insert(schema_1.ipfsRecords)
+        const [record] = await db
+            .insert(ipfsRecords)
             .values(recordData)
             .returning();
         return record;
     }
     async updateIpfsRecord(id, updates) {
-        const [record] = await db_1.db
-            .update(schema_1.ipfsRecords)
+        const [record] = await db
+            .update(ipfsRecords)
             .set(updates)
-            .where((0, drizzle_orm_1.eq)(schema_1.ipfsRecords.id, id))
+            .where(eq(ipfsRecords.id, id))
             .returning();
         return record;
     }
     // Marketplace Integration operations
     async getMarketplaceIntegration(userId, marketplace) {
-        const [integration] = await db_1.db
+        const [integration] = await db
             .select()
-            .from(schema_1.marketplaceIntegrations)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.marketplaceIntegrations.userId, userId), (0, drizzle_orm_1.eq)(schema_1.marketplaceIntegrations.marketplace, marketplace)));
+            .from(marketplaceIntegrations)
+            .where(and(eq(marketplaceIntegrations.userId, userId), eq(marketplaceIntegrations.marketplace, marketplace)));
         return integration;
     }
     async getMarketplaceIntegrationsByUser(userId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.marketplaceIntegrations)
-            .where((0, drizzle_orm_1.eq)(schema_1.marketplaceIntegrations.userId, userId));
+            .from(marketplaceIntegrations)
+            .where(eq(marketplaceIntegrations.userId, userId));
     }
     async createMarketplaceIntegration(integrationData) {
-        const [integration] = await db_1.db
-            .insert(schema_1.marketplaceIntegrations)
+        const [integration] = await db
+            .insert(marketplaceIntegrations)
             .values(integrationData)
             .returning();
         return integration;
     }
     async updateMarketplaceIntegration(id, updates) {
-        const [integration] = await db_1.db
-            .update(schema_1.marketplaceIntegrations)
-            .set(Object.assign(Object.assign({}, updates), { updatedAt: new Date() }))
-            .where((0, drizzle_orm_1.eq)(schema_1.marketplaceIntegrations.id, id))
+        const [integration] = await db
+            .update(marketplaceIntegrations)
+            .set({ ...updates, updatedAt: new Date() })
+            .where(eq(marketplaceIntegrations.id, id))
             .returning();
         return integration;
     }
@@ -1787,42 +1757,41 @@ class DatabaseStorage {
         return await this.getContentSessionsByCreator(userId);
     }
     async deleteContentSession(id, ownerId) {
-        await db_1.db
-            .delete(schema_1.contentCreationSessions)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.contentCreationSessions.id, id), (0, drizzle_orm_1.eq)(schema_1.contentCreationSessions.creatorId, ownerId)));
+        await db
+            .delete(contentCreationSessions)
+            .where(and(eq(contentCreationSessions.id, id), eq(contentCreationSessions.creatorId, ownerId)));
     }
     async getKycVerificationsByUserId(userId) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.kycVerifications)
-            .where((0, drizzle_orm_1.eq)(schema_1.kycVerifications.userId, userId))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.kycVerifications.createdAt));
+            .from(kycVerifications)
+            .where(eq(kycVerifications.userId, userId))
+            .orderBy(desc(kycVerifications.createdAt));
     }
     async getKycVerificationsInDateRange(startDate, endDate) {
-        return await db_1.db
+        return await db
             .select()
-            .from(schema_1.kycVerifications)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.sql) `${schema_1.kycVerifications.createdAt} >= ${startDate}`, (0, drizzle_orm_1.sql) `${schema_1.kycVerifications.createdAt} <= ${endDate}`))
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.kycVerifications.createdAt));
+            .from(kycVerifications)
+            .where(and(sql `${kycVerifications.createdAt} >= ${startDate}`, sql `${kycVerifications.createdAt} <= ${endDate}`))
+            .orderBy(desc(kycVerifications.createdAt));
     }
     async createRecord2257(recordData) {
-        const { records2257 } = await Promise.resolve().then(() => __importStar(require('../shared/schema')));
-        const [record] = await db_1.db
+        const { records2257 } = await import('../shared/schema');
+        const [record] = await db
             .insert(records2257)
             .values(recordData)
             .returning();
         return record;
     }
     async getAuditLogsInDateRange(startDate, endDate, actionPattern) {
-        let query = db_1.db
+        let query = db
             .select()
-            .from(schema_1.auditLogs)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.sql) `${schema_1.auditLogs.createdAt} >= ${startDate}`, (0, drizzle_orm_1.sql) `${schema_1.auditLogs.createdAt} <= ${endDate}`));
+            .from(auditLogs)
+            .where(and(sql `${auditLogs.createdAt} >= ${startDate}`, sql `${auditLogs.createdAt} <= ${endDate}`));
         if (actionPattern) {
-            query = query.where((0, drizzle_orm_1.sql) `${schema_1.auditLogs.action} LIKE ${`%${actionPattern}%`}`);
+            query = query.where(sql `${auditLogs.action} LIKE ${`%${actionPattern}%`}`);
         }
-        return await query.orderBy((0, drizzle_orm_1.desc)(schema_1.auditLogs.createdAt));
+        return await query.orderBy(desc(auditLogs.createdAt));
     }
 }
-exports.DatabaseStorage = DatabaseStorage;
-exports.storage = new DatabaseStorage();
+export const storage = new DatabaseStorage();

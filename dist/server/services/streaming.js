@@ -1,15 +1,9 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.streamingService = exports.StreamingService = void 0;
-const ws_1 = require("ws");
-const crypto_1 = __importDefault(require("crypto"));
-const storage_1 = require("../storage");
-const verification_1 = require("./verification");
-const ai_editor_1 = require("./ai-editor");
-class StreamingService {
+import { WebSocket } from 'ws';
+import crypto from 'crypto';
+import { storage } from '../storage';
+import { verificationService } from './verification';
+import { aiEditorService } from './ai-editor';
+export class StreamingService {
     constructor() {
         this.sessions = new Map();
         this.ICE_SERVERS = [
@@ -28,19 +22,19 @@ class StreamingService {
     // Create a new streaming session
     async createStream(creatorId, config) {
         // Verify creator
-        const creator = await storage_1.storage.getUser(creatorId);
+        const creator = await storage.getUser(creatorId);
         if (!creator) {
             throw new Error('Creator not found');
         }
         // Check verification status
-        const verificationStatus = await verification_1.verificationService.getUserVerificationStatus(creatorId);
+        const verificationStatus = await verificationService.getUserVerificationStatus(creatorId);
         if (!verificationStatus.verified && config.requiresVerification !== false) {
             throw new Error('Creator must be verified to start live streaming');
         }
         // Verify co-stars if specified
         if (config.coStarIds && config.coStarIds.length > 0) {
             for (const coStarId of config.coStarIds) {
-                const coStarVerification = await verification_1.verificationService.getUserVerificationStatus(coStarId);
+                const coStarVerification = await verificationService.getUserVerificationStatus(coStarId);
                 if (!coStarVerification.verified) {
                     throw new Error(`Co-star ${coStarId} must be verified to join stream`);
                 }
@@ -49,7 +43,7 @@ class StreamingService {
         // Generate stream key
         const streamKey = this.generateStreamKey();
         // Create stream record in database
-        const stream = await storage_1.storage.createLiveStream({
+        const stream = await storage.createLiveStream({
             creatorId,
             title: config.title,
             description: config.description,
@@ -61,7 +55,7 @@ class StreamingService {
         // Add co-stars to database
         if (config.coStarIds) {
             for (const coStarId of config.coStarIds) {
-                await storage_1.storage.addStreamParticipant({
+                await storage.addStreamParticipant({
                     streamId: stream.id,
                     userId: coStarId,
                     role: 'co-star',
@@ -72,7 +66,7 @@ class StreamingService {
         }
         // Create session
         const session = {
-            id: crypto_1.default.randomBytes(16).toString('hex'),
+            id: crypto.randomBytes(16).toString('hex'),
             streamId: stream.id,
             creatorId,
             streamKey,
@@ -112,7 +106,7 @@ class StreamingService {
         session.status = 'live';
         session.startedAt = new Date();
         // Update database
-        await storage_1.storage.updateLiveStream(session.streamId, {
+        await storage.updateLiveStream(session.streamId, {
             status: 'live',
             startedAt: session.startedAt
         });
@@ -141,7 +135,7 @@ class StreamingService {
         session.status = 'ended';
         session.endedAt = new Date();
         // Update database
-        await storage_1.storage.updateLiveStream(session.streamId, {
+        await storage.updateLiveStream(session.streamId, {
             status: 'ended',
             endedAt: session.endedAt
         });
@@ -177,12 +171,12 @@ class StreamingService {
         }
         // Check verification
         if (requireVerification) {
-            const verification = await verification_1.verificationService.getUserVerificationStatus(userId);
+            const verification = await verificationService.getUserVerificationStatus(userId);
             if (!verification.verified) {
                 throw new Error('Co-star must be verified to join stream');
             }
         }
-        const user = await storage_1.storage.getUser(userId);
+        const user = await storage.getUser(userId);
         if (!user) {
             throw new Error('User not found');
         }
@@ -197,7 +191,7 @@ class StreamingService {
             joinedAt: new Date()
         });
         // Add to database
-        await storage_1.storage.addStreamParticipant({
+        await storage.addStreamParticipant({
             streamId: session.streamId,
             userId,
             role: 'co-star',
@@ -228,7 +222,7 @@ class StreamingService {
         // Remove from session
         session.participants.delete(userId);
         // Update database
-        await storage_1.storage.updateStreamParticipant(session.streamId, userId, {
+        await storage.updateStreamParticipant(session.streamId, userId, {
             leftAt: new Date()
         });
         // Close peer connection if exists
@@ -261,7 +255,7 @@ class StreamingService {
             session.analytics.peakViewers = session.analytics.currentViewers;
         }
         // Add to database
-        await storage_1.storage.addStreamViewer({
+        await storage.addStreamViewer({
             streamId: session.streamId,
             userId,
             joinedAt: new Date()
@@ -286,7 +280,7 @@ class StreamingService {
         // Calculate watch time
         const watchTime = Math.floor((Date.now() - viewer.joinedAt.getTime()) / 1000);
         // Update database
-        await storage_1.storage.updateStreamViewer(session.streamId, userId, {
+        await storage.updateStreamViewer(session.streamId, userId, {
             leftAt: new Date(),
             watchTimeSeconds: watchTime,
             isActive: false
@@ -312,7 +306,7 @@ class StreamingService {
         if (!session) {
             throw new Error('Stream session not found');
         }
-        const user = await storage_1.storage.getUser(userId);
+        const user = await storage.getUser(userId);
         if (!user) {
             throw new Error('User not found');
         }
@@ -321,7 +315,7 @@ class StreamingService {
             throw new Error('Message contains inappropriate content');
         }
         const chatMessage = {
-            id: crypto_1.default.randomBytes(16).toString('hex'),
+            id: crypto.randomBytes(16).toString('hex'),
             userId,
             username: user.username || 'Anonymous',
             message,
@@ -332,7 +326,7 @@ class StreamingService {
         session.chatMessages.push(chatMessage);
         session.analytics.totalChatMessages++;
         // Save to database
-        await storage_1.storage.addStreamChatMessage({
+        await storage.addStreamChatMessage({
             streamId: session.streamId,
             userId,
             message,
@@ -350,7 +344,7 @@ class StreamingService {
         if (!session) {
             throw new Error('Stream session not found');
         }
-        const sender = await storage_1.storage.getUser(senderId);
+        const sender = await storage.getUser(senderId);
         if (!sender) {
             throw new Error('Sender not found');
         }
@@ -365,9 +359,9 @@ class StreamingService {
             amountCents: totalValue,
             creatorEarnings: Math.floor(totalValue * 0.8) // 80% to creator
         };
-        const savedTransaction = await storage_1.storage.createTransaction(transaction);
+        const savedTransaction = await storage.createTransaction(transaction);
         const gift = {
-            id: crypto_1.default.randomBytes(16).toString('hex'),
+            id: crypto.randomBytes(16).toString('hex'),
             senderId,
             senderUsername: sender.username || 'Anonymous',
             receiverId,
@@ -382,7 +376,7 @@ class StreamingService {
         session.analytics.totalGifts++;
         session.analytics.totalGiftValue += totalValue;
         // Save to database
-        await storage_1.storage.addStreamGift({
+        await storage.addStreamGift({
             streamId: session.streamId,
             senderId,
             receiverId,
@@ -395,7 +389,10 @@ class StreamingService {
         // Broadcast gift animation
         this.broadcastToSession(session, {
             type: 'gift_received',
-            data: Object.assign(Object.assign({}, gift), { animation: this.getGiftAnimation(giftType) })
+            data: {
+                ...gift,
+                animation: this.getGiftAnimation(giftType)
+            }
         });
         // Check for highlight (large gifts)
         if (totalValue >= 10000) { // $100+
@@ -408,7 +405,6 @@ class StreamingService {
     }
     // Send reaction
     async sendReaction(sessionId, userId, reactionType, intensity = 1) {
-        var _a;
         const session = this.sessions.get(sessionId);
         if (!session) {
             throw new Error('Stream session not found');
@@ -418,12 +414,12 @@ class StreamingService {
         session.reactions.set(reactionType, currentCount + intensity);
         session.analytics.totalReactions++;
         // Save to database
-        await storage_1.storage.addStreamReaction({
+        await storage.addStreamReaction({
             streamId: session.streamId,
             userId,
             reactionType,
             intensity,
-            timestamp: Math.floor((Date.now() - (((_a = session.startedAt) === null || _a === void 0 ? void 0 : _a.getTime()) || 0)) / 1000)
+            timestamp: Math.floor((Date.now() - (session.startedAt?.getTime() || 0)) / 1000)
         });
         // Broadcast reaction
         this.broadcastToSession(session, {
@@ -460,7 +456,7 @@ class StreamingService {
     }
     // Private methods
     generateStreamKey() {
-        return crypto_1.default.randomBytes(20).toString('hex');
+        return crypto.randomBytes(20).toString('hex');
     }
     createInitialAnalytics() {
         return {
@@ -480,13 +476,13 @@ class StreamingService {
         const messageStr = JSON.stringify(message);
         // Send to all participants
         session.participants.forEach(participant => {
-            if (participant.connection && participant.connection.readyState === ws_1.WebSocket.OPEN) {
+            if (participant.connection && participant.connection.readyState === WebSocket.OPEN) {
                 participant.connection.send(messageStr);
             }
         });
         // Send to all viewers
         session.viewers.forEach(viewer => {
-            if (viewer.connection && viewer.connection.readyState === ws_1.WebSocket.OPEN) {
+            if (viewer.connection && viewer.connection.readyState === WebSocket.OPEN) {
                 viewer.connection.send(messageStr);
             }
         });
@@ -497,20 +493,19 @@ class StreamingService {
         session.recordingUrl = `recordings/${session.streamId}/stream.mp4`;
     }
     async stopRecording(session) {
-        var _a;
         if (!session.recordingUrl)
             return;
         // Save recording info to database
-        await storage_1.storage.createStreamRecording({
+        await storage.createStreamRecording({
             streamId: session.streamId,
             recordingUrl: session.recordingUrl,
-            duration: Math.floor((Date.now() - (((_a = session.startedAt) === null || _a === void 0 ? void 0 : _a.getTime()) || 0)) / 1000),
+            duration: Math.floor((Date.now() - (session.startedAt?.getTime() || 0)) / 1000),
             status: 'processing'
         });
     }
     async saveHighlights(session) {
         for (const highlight of session.highlights) {
-            await storage_1.storage.createStreamHighlight({
+            await storage.createStreamHighlight({
                 streamId: session.streamId,
                 title: highlight.title,
                 startTime: highlight.startTime,
@@ -521,7 +516,7 @@ class StreamingService {
         }
     }
     async saveAnalytics(session) {
-        await storage_1.storage.createStreamAnalytics({
+        await storage.createStreamAnalytics({
             streamId: session.streamId,
             peakViewers: session.analytics.peakViewers,
             avgViewers: Math.floor(session.analytics.totalViewers / 2), // Simplified
@@ -547,7 +542,7 @@ class StreamingService {
         if (!session.recordingUrl)
             return;
         // Trigger AI processing for highlights and clips
-        await ai_editor_1.aiEditorService.processStreamRecording({
+        await aiEditorService.processStreamRecording({
             streamId: session.streamId,
             recordingUrl: session.recordingUrl,
             highlights: session.highlights,
@@ -574,11 +569,10 @@ class StreamingService {
         return animations[giftType] || 'floating';
     }
     addHighlight(session, data) {
-        var _a;
-        const startTime = Math.max(0, Math.floor((Date.now() - (((_a = session.startedAt) === null || _a === void 0 ? void 0 : _a.getTime()) || 0)) / 1000) - 30);
+        const startTime = Math.max(0, Math.floor((Date.now() - (session.startedAt?.getTime() || 0)) / 1000) - 30);
         const endTime = startTime + 60; // 1 minute highlight
         session.highlights.push({
-            id: crypto_1.default.randomBytes(16).toString('hex'),
+            id: crypto.randomBytes(16).toString('hex'),
             title: data.title,
             startTime,
             endTime,
@@ -615,12 +609,11 @@ class StreamingService {
     startAnalyticsTracking(session) {
         // Update viewer retention data every minute
         const interval = setInterval(() => {
-            var _a;
             if (session.status !== 'live') {
                 clearInterval(interval);
                 return;
             }
-            const minutesSinceStart = Math.floor((Date.now() - (((_a = session.startedAt) === null || _a === void 0 ? void 0 : _a.getTime()) || 0)) / 60000);
+            const minutesSinceStart = Math.floor((Date.now() - (session.startedAt?.getTime() || 0)) / 60000);
             const retentionRate = (session.analytics.currentViewers / session.analytics.peakViewers) * 100;
             session.analytics.viewerRetention[minutesSinceStart] = retentionRate;
         }, 60000);
@@ -654,6 +647,5 @@ class StreamingService {
         return Array.from(this.sessions.values()).filter(s => s.status === 'live');
     }
 }
-exports.StreamingService = StreamingService;
 // Create singleton instance
-exports.streamingService = new StreamingService();
+export const streamingService = new StreamingService();

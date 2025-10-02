@@ -1,10 +1,7 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.FormatConverterService = exports.PLATFORM_CONFIGS = void 0;
-const storage_1 = require("../storage");
-const objectStorage_1 = require("../objectStorage");
+import { storage } from '../storage';
+import { ObjectStorageService } from '../objectStorage';
 // Platform configurations
-exports.PLATFORM_CONFIGS = {
+export const PLATFORM_CONFIGS = {
     tiktok: {
         id: 'tiktok',
         name: 'TikTok',
@@ -169,20 +166,20 @@ exports.PLATFORM_CONFIGS = {
         },
     },
 };
-class FormatConverterService {
+export class FormatConverterService {
     constructor() {
         this.conversionQueue = new Map();
-        this.objectStorage = new objectStorage_1.ObjectStorageService();
+        this.objectStorage = new ObjectStorageService();
     }
     // Convert content to multiple platform formats
     async convertToFormats(sessionId, options) {
-        const session = await storage_1.storage.getContentSession(sessionId);
+        const session = await storage.getContentSession(sessionId);
         if (!session)
             throw new Error('Session not found');
         const results = [];
         // Process each platform in parallel
         const conversionPromises = options.platforms.map(async (platformId) => {
-            const config = exports.PLATFORM_CONFIGS[platformId];
+            const config = PLATFORM_CONFIGS[platformId];
             if (!config) {
                 console.warn(`Unknown platform: ${platformId}`);
                 return null;
@@ -214,7 +211,12 @@ class FormatConverterService {
             key: uploadKey,
             body: optimizedContent,
             contentType: `video/${config.format}`,
-            metadata: Object.assign({ sessionId: session.id, platform: config.id, aspectRatio: config.aspectRatio }, metadata),
+            metadata: {
+                sessionId: session.id,
+                platform: config.id,
+                aspectRatio: config.aspectRatio,
+                ...metadata,
+            },
         });
         // Generate preview if requested
         let previewUrl;
@@ -238,7 +240,7 @@ class FormatConverterService {
                 conversionOptions: options,
             },
         };
-        const version = await storage_1.storage.createContentVersion(versionData);
+        const version = await storage.createContentVersion(versionData);
         const processingTime = Date.now() - startTime;
         return {
             platform: config.id,
@@ -407,7 +409,7 @@ class FormatConverterService {
     }
     // Get supported platforms for content type
     getSupportedPlatforms(contentType) {
-        return Object.values(exports.PLATFORM_CONFIGS).filter(config => {
+        return Object.values(PLATFORM_CONFIGS).filter(config => {
             // Filter based on content type
             if (contentType === 'short' && config.maxDuration > 90) {
                 return false;
@@ -420,13 +422,12 @@ class FormatConverterService {
     }
     // Get optimal platforms for content
     getOptimalPlatforms(duration, aspectRatio) {
-        return Object.values(exports.PLATFORM_CONFIGS)
+        return Object.values(PLATFORM_CONFIGS)
             .filter(config => config.maxDuration >= duration &&
             (config.aspectRatio === aspectRatio || this.canConvertRatio(aspectRatio, config.aspectRatio)))
             .map(config => config.id);
     }
     canConvertRatio(from, to) {
-        var _a;
         // Check if aspect ratio conversion is feasible without major cropping
         const ratioMap = {
             '16:9': ['16:9', '1:1', '4:5'],
@@ -434,7 +435,6 @@ class FormatConverterService {
             '1:1': ['1:1', '4:5'],
             '4:5': ['4:5', '1:1'],
         };
-        return ((_a = ratioMap[from]) === null || _a === void 0 ? void 0 : _a.includes(to)) || false;
+        return ratioMap[from]?.includes(to) || false;
     }
 }
-exports.FormatConverterService = FormatConverterService;

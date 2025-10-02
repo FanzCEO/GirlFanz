@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.YouTubeAPI = void 0;
-class YouTubeAPI {
+export class YouTubeAPI {
     constructor(config) {
         this.baseUrl = 'https://www.googleapis.com/youtube/v3';
         this.uploadUrl = 'https://www.googleapis.com/upload/youtube/v3';
@@ -70,7 +67,6 @@ class YouTubeAPI {
     }
     // Upload and publish video
     async uploadVideo(videoData) {
-        var _a;
         if (!this.config.accessToken) {
             throw new Error('YouTube access token not configured');
         }
@@ -87,7 +83,7 @@ class YouTubeAPI {
                 status: {
                     privacyStatus: videoData.privacy,
                     selfDeclaredMadeForKids: videoData.madeForKids,
-                    publishAt: (_a = videoData.publishAt) === null || _a === void 0 ? void 0 : _a.toISOString(),
+                    publishAt: videoData.publishAt?.toISOString(),
                 },
                 recordingDetails: videoData.recordingDate ? {
                     recordingDate: videoData.recordingDate.toISOString(),
@@ -114,7 +110,6 @@ class YouTubeAPI {
         }
     }
     async performVideoUpload(videoUrl, videoResource) {
-        var _a;
         // Download video
         const videoResponse = await fetch(videoUrl);
         const videoBuffer = await videoResponse.arrayBuffer();
@@ -133,7 +128,7 @@ class YouTubeAPI {
         });
         if (!initResponse.ok) {
             const error = await initResponse.json();
-            throw new Error(`Failed to initiate upload: ${(_a = error.error) === null || _a === void 0 ? void 0 : _a.message}`);
+            throw new Error(`Failed to initiate upload: ${error.error?.message}`);
         }
         const uploadUrl = initResponse.headers.get('Location');
         if (!uploadUrl) {
@@ -193,7 +188,6 @@ class YouTubeAPI {
     }
     // Get video analytics
     async getVideoAnalytics(videoId, startDate, endDate) {
-        var _a;
         if (!this.config.accessToken) {
             throw new Error('YouTube access token not configured');
         }
@@ -217,7 +211,7 @@ class YouTubeAPI {
             return this.getMockAnalytics();
         }
         const data = await response.json();
-        const row = ((_a = data.rows) === null || _a === void 0 ? void 0 : _a[0]) || [];
+        const row = data.rows?.[0] || [];
         return {
             views: row[0] || 0,
             likes: row[1] || 0,
@@ -286,7 +280,6 @@ class YouTubeAPI {
     }
     // Get channel statistics
     async getChannelStatistics() {
-        var _a;
         if (!this.config.accessToken) {
             throw new Error('YouTube access token not configured');
         }
@@ -304,7 +297,7 @@ class YouTubeAPI {
             throw new Error(`Failed to get channel statistics: ${response.statusText}`);
         }
         const data = await response.json();
-        return ((_a = data.items) === null || _a === void 0 ? void 0 : _a[0]) || {};
+        return data.items?.[0] || {};
     }
     // Get best posting times for YouTube
     async getBestPostingTimes() {
@@ -440,4 +433,3 @@ class YouTubeAPI {
         return { success: response.status === 204 };
     }
 }
-exports.YouTubeAPI = YouTubeAPI;

@@ -1,18 +1,8 @@
-"use strict";
-var __asyncValues = (this && this.__asyncValues) || function (o) {
-    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
-    var m = o[Symbol.asyncIterator], i;
-    return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i);
-    function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
-    function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ipfsStorageService = exports.IPFSStorageService = void 0;
-const ipfs_http_client_1 = require("ipfs-http-client");
-const db_1 = require("../../db");
-const schema_1 = require("../../../shared/schema");
-const drizzle_orm_1 = require("drizzle-orm");
-const buffer_1 = require("buffer");
+import { create } from 'ipfs-http-client';
+import { db } from '../../db';
+import { ipfsRecords } from '../../../shared/schema';
+import { eq } from 'drizzle-orm';
+import { Buffer } from 'buffer';
 // IPFS configuration
 const IPFS_CONFIG = {
     host: process.env.IPFS_HOST || 'ipfs.infura.io',
@@ -29,11 +19,11 @@ const IPFS_GATEWAYS = [
     'https://cloudflare-ipfs.com/ipfs/',
     'https://gateway.ipfs.io/ipfs/'
 ];
-class IPFSStorageService {
+export class IPFSStorageService {
     constructor() {
         try {
             // Initialize IPFS client
-            this.client = (0, ipfs_http_client_1.create)({
+            this.client = create({
                 host: IPFS_CONFIG.host,
                 port: Number(IPFS_CONFIG.port),
                 protocol: IPFS_CONFIG.protocol,
@@ -60,7 +50,7 @@ class IPFSStorageService {
                     ipfsHash: mockHash,
                     fileName,
                     fileType: this.getFileType(fileName),
-                    fileSize: buffer_1.Buffer.isBuffer(file) ? file.length : file.length,
+                    fileSize: Buffer.isBuffer(file) ? file.length : file.length,
                     contentType: 'file'
                 });
                 return {
@@ -85,7 +75,7 @@ class IPFSStorageService {
                 ipfsHash,
                 fileName,
                 fileType: this.getFileType(fileName),
-                fileSize: buffer_1.Buffer.isBuffer(file) ? file.length : file.length,
+                fileSize: Buffer.isBuffer(file) ? file.length : file.length,
                 contentType: 'file'
             });
             return {
@@ -103,7 +93,7 @@ class IPFSStorageService {
     async uploadMetadata(metadata, userId, tokenId) {
         try {
             const metadataString = JSON.stringify(metadata, null, 2);
-            const metadataBuffer = buffer_1.Buffer.from(metadataString);
+            const metadataBuffer = Buffer.from(metadataString);
             if (!this.client) {
                 // Mock mode for development
                 const mockHash = `Qm${Math.random().toString(36).substr(2, 44)}`;
@@ -154,7 +144,6 @@ class IPFSStorageService {
     }
     // Upload directory to IPFS (for collections)
     async uploadDirectory(files, userId) {
-        var _a, e_1, _b, _c;
         try {
             if (!this.client) {
                 // Mock mode
@@ -162,7 +151,7 @@ class IPFSStorageService {
                 const mockFiles = files.map(file => ({
                     path: file.path,
                     hash: `Qm${Math.random().toString(36).substr(2, 44)}`,
-                    size: buffer_1.Buffer.isBuffer(file.content) ? file.content.length : file.content.length
+                    size: Buffer.isBuffer(file.content) ? file.content.length : file.content.length
                 }));
                 return {
                     rootHash: mockHash,
@@ -174,23 +163,11 @@ class IPFSStorageService {
                 content: file.content
             }));
             const results = [];
-            try {
-                for (var _d = true, _e = __asyncValues(this.client.addAll(uploadFiles, {
-                    wrapWithDirectory: true,
-                    pin: true
-                })), _f; _f = await _e.next(), _a = _f.done, !_a; _d = true) {
-                    _c = _f.value;
-                    _d = false;
-                    const result = _c;
-                    results.push(result);
-                }
-            }
-            catch (e_1_1) { e_1 = { error: e_1_1 }; }
-            finally {
-                try {
-                    if (!_d && !_a && (_b = _e.return)) await _b.call(_e);
-                }
-                finally { if (e_1) throw e_1.error; }
+            for await (const result of this.client.addAll(uploadFiles, {
+                wrapWithDirectory: true,
+                pin: true
+            })) {
+                results.push(result);
             }
             const rootResult = results.find(r => r.path === '');
             const rootHash = rootResult ? rootResult.cid.toString() : '';
@@ -224,7 +201,6 @@ class IPFSStorageService {
     }
     // Fetch content from IPFS
     async fetchFromIPFS(ipfsHash) {
-        var _a, e_2, _b, _c;
         try {
             if (!this.client) {
                 // Try fetching from public gateway in mock mode
@@ -234,25 +210,13 @@ class IPFSStorageService {
                     throw new Error(`Failed to fetch from IPFS gateway: ${response.status}`);
                 }
                 const arrayBuffer = await response.arrayBuffer();
-                return buffer_1.Buffer.from(arrayBuffer);
+                return Buffer.from(arrayBuffer);
             }
             const chunks = [];
-            try {
-                for (var _d = true, _e = __asyncValues(this.client.cat(ipfsHash)), _f; _f = await _e.next(), _a = _f.done, !_a; _d = true) {
-                    _c = _f.value;
-                    _d = false;
-                    const chunk = _c;
-                    chunks.push(chunk);
-                }
+            for await (const chunk of this.client.cat(ipfsHash)) {
+                chunks.push(chunk);
             }
-            catch (e_2_1) { e_2 = { error: e_2_1 }; }
-            finally {
-                try {
-                    if (!_d && !_a && (_b = _e.return)) await _b.call(_e);
-                }
-                finally { if (e_2) throw e_2.error; }
-            }
-            return buffer_1.Buffer.concat(chunks);
+            return Buffer.concat(chunks);
         }
         catch (error) {
             console.error('Error fetching from IPFS:', error);
@@ -268,7 +232,7 @@ class IPFSStorageService {
                 const response = await fetch(url);
                 if (response.ok) {
                     const arrayBuffer = await response.arrayBuffer();
-                    return buffer_1.Buffer.from(arrayBuffer);
+                    return Buffer.from(arrayBuffer);
                 }
             }
             catch (error) {
@@ -317,9 +281,9 @@ class IPFSStorageService {
             }
             await this.client.pin.rm(ipfsHash);
             // Update database
-            await db_1.db.update(schema_1.ipfsRecords)
+            await db.update(ipfsRecords)
                 .set({ isPinned: false })
-                .where((0, drizzle_orm_1.eq)(schema_1.ipfsRecords.ipfsHash, ipfsHash));
+                .where(eq(ipfsRecords.ipfsHash, ipfsHash));
         }
         catch (error) {
             console.error('Error unpinning content:', error);
@@ -327,21 +291,20 @@ class IPFSStorageService {
     }
     // Record IPFS upload in database
     async recordUpload(data) {
-        const [record] = await db_1.db.insert(schema_1.ipfsRecords)
+        const [record] = await db.insert(ipfsRecords)
             .values(data)
             .returning();
         return record;
     }
     // Get user's IPFS uploads
     async getUserUploads(userId) {
-        return await db_1.db.select()
-            .from(schema_1.ipfsRecords)
-            .where((0, drizzle_orm_1.eq)(schema_1.ipfsRecords.userId, userId));
+        return await db.select()
+            .from(ipfsRecords)
+            .where(eq(ipfsRecords.userId, userId));
     }
     // Get file type from filename
     getFileType(fileName) {
-        var _a;
-        const extension = ((_a = fileName.split('.').pop()) === null || _a === void 0 ? void 0 : _a.toLowerCase()) || '';
+        const extension = fileName.split('.').pop()?.toLowerCase() || '';
         const typeMap = {
             'jpg': 'image',
             'jpeg': 'image',
@@ -377,8 +340,8 @@ class IPFSStorageService {
     async encryptContent(content, encryptionKey) {
         try {
             // Simple XOR encryption for demo (use proper encryption in production)
-            const encrypted = buffer_1.Buffer.alloc(content.length);
-            const keyBuffer = buffer_1.Buffer.from(encryptionKey);
+            const encrypted = Buffer.alloc(content.length);
+            const keyBuffer = Buffer.from(encryptionKey);
             for (let i = 0; i < content.length; i++) {
                 encrypted[i] = content[i] ^ keyBuffer[i % keyBuffer.length];
             }
@@ -415,11 +378,11 @@ class IPFSStorageService {
     // Check if content is pinned
     async isPinned(ipfsHash) {
         try {
-            const [record] = await db_1.db.select()
-                .from(schema_1.ipfsRecords)
-                .where((0, drizzle_orm_1.eq)(schema_1.ipfsRecords.ipfsHash, ipfsHash))
+            const [record] = await db.select()
+                .from(ipfsRecords)
+                .where(eq(ipfsRecords.ipfsHash, ipfsHash))
                 .limit(1);
-            return (record === null || record === void 0 ? void 0 : record.isPinned) || false;
+            return record?.isPinned || false;
         }
         catch (error) {
             console.error('Error checking pin status:', error);
@@ -434,6 +397,5 @@ class IPFSStorageService {
         return gbSize * dailyCost * durationDays;
     }
 }
-exports.IPFSStorageService = IPFSStorageService;
 // Export singleton instance
-exports.ipfsStorageService = new IPFSStorageService();
+export const ipfsStorageService = new IPFSStorageService();

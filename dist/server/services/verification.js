@@ -1,25 +1,19 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.verificationService = void 0;
-const crypto_1 = __importDefault(require("crypto"));
-const storage_1 = require("../storage");
-const verifymy_1 = require("../compliance/verifymy");
+import crypto from 'crypto';
+import { storage } from '../storage';
+import { VerifymyService } from '../compliance/verifymy';
 class VerificationService {
     constructor() {
         this.sessions = new Map();
         this.SESSION_DURATION = 30 * 60 * 1000; // 30 minutes
         this.VERIFICATION_VALIDITY_DAYS = 365; // 1 year
         this.REVERIFICATION_WARNING_DAYS = 30; // Warn 30 days before expiry
-        this.verifymyService = new verifymy_1.VerifymyService();
+        this.verifymyService = new VerifymyService();
         // Clean up expired sessions periodically
         setInterval(() => this.cleanupExpiredSessions(), 60 * 1000); // Every minute
     }
     // Create a new verification session
     async createSession(userId, userType = 'creator') {
-        const sessionId = crypto_1.default.randomBytes(32).toString('hex');
+        const sessionId = crypto.randomBytes(32).toString('hex');
         const session = {
             id: sessionId,
             userId,
@@ -30,7 +24,7 @@ class VerificationService {
         };
         this.sessions.set(sessionId, session);
         // Log session creation
-        await storage_1.storage.createAuditLog({
+        await storage.createAuditLog({
             actorId: userId,
             action: 'verification_session_created',
             targetType: 'verification_session',
@@ -49,7 +43,6 @@ class VerificationService {
     }
     // Submit verification documents and process
     async submitVerification(sessionId, documentType, frontImageBase64, backImageBase64, selfieImageBase64) {
-        var _a;
         const session = this.getSession(sessionId);
         if (!session) {
             throw new Error('Invalid or expired verification session');
@@ -78,16 +71,23 @@ class VerificationService {
             // Submit to VerifyMy for processing
             const verifyResponse = await this.verifymyService.verifyIdentity(verificationRequest);
             // Store verification result
-            const kycVerification = await storage_1.storage.createKycVerification({
+            const kycVerification = await storage.createKycVerification({
                 userId: session.userId,
                 provider: 'verifymy',
                 status: verifyResponse.status === 'verified' ? 'verified' : verifyResponse.status === 'rejected' ? 'rejected' : 'pending',
                 documentType,
-                dataJson: Object.assign({ transactionId: verifyResponse.transactionId, confidence: verifyResponse.confidence, documentUrls: {
+                dataJson: {
+                    transactionId: verifyResponse.transactionId,
+                    confidence: verifyResponse.confidence,
+                    documentUrls: {
                         front: frontImageUrl,
                         back: backImageUrl,
                         selfie: selfieImageUrl
-                    }, sessionId, userType: session.userType }, verifyResponse.data)
+                    },
+                    sessionId,
+                    userType: session.userType,
+                    ...verifyResponse.data
+                }
             });
             // Update user profile if verified
             if (verifyResponse.status === 'verified') {
@@ -98,7 +98,7 @@ class VerificationService {
                 session.status = 'failed';
             }
             // Create audit log
-            await storage_1.storage.createAuditLog({
+            await storage.createAuditLog({
                 actorId: session.userId,
                 action: 'verification_submitted',
                 targetType: 'kyc_verification',
@@ -120,7 +120,7 @@ class VerificationService {
                     ? new Date(Date.now() + this.VERIFICATION_VALIDITY_DAYS * 24 * 60 * 60 * 1000)
                     : undefined,
                 verifiedAt: verifyResponse.status === 'verified' ? new Date() : undefined,
-                rejectionReason: (_a = verifyResponse.reasons) === null || _a === void 0 ? void 0 : _a.join(', '),
+                rejectionReason: verifyResponse.reasons?.join(', '),
                 provider: 'verifymy',
                 details: verifyResponse.data
             };
@@ -129,7 +129,7 @@ class VerificationService {
             console.error('Verification submission error:', error);
             session.status = 'failed';
             // Log error
-            await storage_1.storage.createAuditLog({
+            await storage.createAuditLog({
                 actorId: session.userId,
                 action: 'verification_error',
                 targetType: 'verification_session',
@@ -141,10 +141,9 @@ class VerificationService {
     }
     // Get user's verification status
     async getUserVerificationStatus(userId) {
-        var _a, _b, _c, _d, _e;
         try {
             // Get latest verification
-            const verifications = await storage_1.storage.getKycVerificationsByUserId(userId);
+            const verifications = await storage.getKycVerificationsByUserId(userId);
             if (!verifications || verifications.length === 0) {
                 return {
                     verified: false,
@@ -167,7 +166,7 @@ class VerificationService {
                 return {
                     verified: false,
                     status: 'rejected',
-                    rejectionReason: (_b = (_a = latestRejected.dataJson) === null || _a === void 0 ? void 0 : _a.reasons) === null || _b === void 0 ? void 0 : _b.join(', ')
+                    rejectionReason: latestRejected.dataJson?.reasons?.join(', ')
                 };
             }
             // Check if verification is still valid
@@ -185,14 +184,14 @@ class VerificationService {
             return {
                 verified: true,
                 status: 'verified',
-                confidence: (_c = latestVerified.dataJson) === null || _c === void 0 ? void 0 : _c.confidence,
+                confidence: latestVerified.dataJson?.confidence,
                 validUntil,
                 verifiedAt,
                 provider: latestVerified.provider,
                 details: {
                     documentType: latestVerified.documentType,
-                    confidence: (_d = latestVerified.dataJson) === null || _d === void 0 ? void 0 : _d.confidence,
-                    transactionId: (_e = latestVerified.dataJson) === null || _e === void 0 ? void 0 : _e.transactionId
+                    confidence: latestVerified.dataJson?.confidence,
+                    transactionId: latestVerified.dataJson?.transactionId
                 }
             };
         }
@@ -223,44 +222,41 @@ class VerificationService {
     }
     // Get verification history for user
     async getVerificationHistory(userId) {
-        const verifications = await storage_1.storage.getKycVerificationsByUserId(userId);
-        return verifications.map(v => {
-            var _a;
-            return ({
-                id: v.id,
-                type: 'identity',
-                status: v.status,
-                provider: v.provider,
-                documentType: v.documentType,
-                confidence: (_a = v.dataJson) === null || _a === void 0 ? void 0 : _a.confidence,
-                createdAt: v.createdAt,
-                verifiedAt: v.verifiedAt
-            });
-        });
+        const verifications = await storage.getKycVerificationsByUserId(userId);
+        return verifications.map(v => ({
+            id: v.id,
+            type: 'identity',
+            status: v.status,
+            provider: v.provider,
+            documentType: v.documentType,
+            confidence: v.dataJson?.confidence,
+            createdAt: v.createdAt,
+            verifiedAt: v.verifiedAt
+        }));
     }
     // Handle successful verification
     async handleVerificationSuccess(userId, verificationId) {
         // Update user profile
-        const profile = await storage_1.storage.getProfile(userId);
+        const profile = await storage.getProfile(userId);
         if (profile) {
-            await storage_1.storage.updateProfile(userId, {
+            await storage.updateProfile(userId, {
                 kycStatus: 'verified',
                 ageVerified: true
             });
         }
         else {
-            await storage_1.storage.createProfile({
+            await storage.createProfile({
                 userId,
                 kycStatus: 'verified',
                 ageVerified: true
             });
         }
         // Update user record
-        await storage_1.storage.updateUser(userId, {
+        await storage.updateUser(userId, {
             ageVerified: true
         });
         // Create 2257 compliance record
-        await storage_1.storage.createRecord2257({
+        await storage.createRecord2257({
             userId,
             docType: 'identity_verification',
             s3Key: `verification/${userId}/${verificationId}`,
@@ -271,7 +267,7 @@ class VerificationService {
             }
         });
         // Log success
-        await storage_1.storage.createAuditLog({
+        await storage.createAuditLog({
             actorId: userId,
             action: 'verification_completed',
             targetType: 'kyc_verification',
@@ -283,10 +279,10 @@ class VerificationService {
     async storeVerificationImage(userId, imageBase64, type) {
         // In production, this would upload to secure object storage
         // For now, return a simulated URL
-        const imageId = crypto_1.default.randomBytes(16).toString('hex');
+        const imageId = crypto.randomBytes(16).toString('hex');
         const url = `https://storage.girlfanz.com/verification/${userId}/${type}_${imageId}.jpg`;
         // Store metadata in database
-        await storage_1.storage.createMediaAsset({
+        await storage.createMediaAsset({
             ownerId: userId,
             title: `Verification ${type}`,
             filename: `${type}_${imageId}.jpg`,
@@ -309,8 +305,8 @@ class VerificationService {
     }
     // Generate compliance report
     async generateComplianceReport(startDate, endDate) {
-        const verifications = await storage_1.storage.getKycVerificationsInDateRange(startDate, endDate);
-        const auditLogs = await storage_1.storage.getAuditLogsInDateRange(startDate, endDate, 'verification%');
+        const verifications = await storage.getKycVerificationsInDateRange(startDate, endDate);
+        const auditLogs = await storage.getAuditLogsInDateRange(startDate, endDate, 'verification%');
         const report = {
             period: {
                 start: startDate,
@@ -358,4 +354,4 @@ class VerificationService {
     }
 }
 // Export singleton instance
-exports.verificationService = new VerificationService();
+export const verificationService = new VerificationService();

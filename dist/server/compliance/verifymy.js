@@ -1,44 +1,5 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.verifymyService = exports.VerifymyService = void 0;
-const crypto_1 = __importDefault(require("crypto"));
-class VerifymyService {
+import crypto from 'crypto';
+export class VerifymyService {
     constructor() {
         this.config = {
             apiKey: process.env.VERIFYMY_API_KEY || 'demo_key',
@@ -76,7 +37,7 @@ class VerifymyService {
                 contentUrl,
                 contentType,
                 metadata,
-                userId: metadata === null || metadata === void 0 ? void 0 : metadata.userId
+                userId: metadata?.userId
             };
             const response = await this.makeApiCall('/content-moderation', request);
             return response;
@@ -88,11 +49,11 @@ class VerifymyService {
     }
     // Verify webhook signature from verifymy
     verifyWebhookSignature(body, signature) {
-        const expectedSignature = crypto_1.default
+        const expectedSignature = crypto
             .createHmac('sha256', this.config.webhookSecret)
             .update(body)
             .digest('hex');
-        return crypto_1.default.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expectedSignature, 'hex'));
+        return crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expectedSignature, 'hex'));
     }
     // Process webhook notifications
     async processWebhookNotification(webhookData) {
@@ -116,7 +77,7 @@ class VerifymyService {
         const url = `${this.config.baseUrl}${endpoint}`;
         const timestamp = Math.floor(Date.now() / 1000).toString();
         // Create signature for API authentication
-        const signature = crypto_1.default
+        const signature = crypto
             .createHmac('sha256', this.config.apiSecret)
             .update(timestamp + JSON.stringify(data))
             .digest('hex');
@@ -143,7 +104,7 @@ class VerifymyService {
     }
     async handleAgeVerificationComplete(transactionId, userId, status, data) {
         // Import storage here to avoid circular dependencies
-        const { storage } = await Promise.resolve().then(() => __importStar(require('../storage')));
+        const { storage } = await import('../storage');
         const isVerified = status === 'verified';
         const confidence = data.confidence || 0;
         // Update KYC verification record
@@ -152,7 +113,7 @@ class VerifymyService {
             provider: 'verifymy',
             status: isVerified ? 'verified' : 'rejected',
             documentType: 'age_verification',
-            dataJson: Object.assign({ transactionId, confidence }, data)
+            dataJson: { transactionId, confidence, ...data }
         });
         // Update or create profile with age verification status
         const user = await storage.getUser(userId);
@@ -183,7 +144,7 @@ class VerifymyService {
         });
     }
     async handleIdentityVerificationComplete(transactionId, userId, status, data) {
-        const { storage } = await Promise.resolve().then(() => __importStar(require('../storage')));
+        const { storage } = await import('../storage');
         const isVerified = status === 'verified';
         const confidence = data.confidence || 0;
         // Update KYC verification record
@@ -192,7 +153,7 @@ class VerifymyService {
             provider: 'verifymy',
             status: isVerified ? 'verified' : 'rejected',
             documentType: 'identity_verification',
-            dataJson: Object.assign({ transactionId, confidence }, data),
+            dataJson: { transactionId, confidence, ...data },
             verifiedAt: isVerified ? new Date() : undefined
         });
         // Update or create profile with KYC status
@@ -224,7 +185,7 @@ class VerifymyService {
         });
     }
     async handleContentModerationComplete(transactionId, data) {
-        const { storage } = await Promise.resolve().then(() => __importStar(require('../storage')));
+        const { storage } = await import('../storage');
         const { mediaId, approved, confidence, flagged } = data;
         if (mediaId) {
             // Update media status based on moderation result
@@ -240,7 +201,7 @@ class VerifymyService {
             if (item) {
                 await storage.updateModerationItem(item.id, {
                     status: approved ? 'approved' : 'rejected',
-                    notes: `AI moderation: ${(flagged === null || flagged === void 0 ? void 0 : flagged.join(', ')) || 'Clean content'}`,
+                    notes: `AI moderation: ${flagged?.join(', ') || 'Clean content'}`,
                     aiConfidence: Math.round(confidence),
                     reviewedAt: new Date()
                 });
@@ -248,5 +209,4 @@ class VerifymyService {
         }
     }
 }
-exports.VerifymyService = VerifymyService;
-exports.verifymyService = new VerifymyService();
+export const verifymyService = new VerifymyService();

@@ -1,42 +1,36 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.registerRoutes = registerRoutes;
-const http_1 = require("http");
-const ws_1 = require("ws");
-const storage_1 = require("./storage");
-const auth_1 = require("./auth");
-const objectStorage_1 = require("./objectStorage");
-const objectAcl_1 = require("./objectAcl");
-const schema_1 = require("../shared/schema");
-const zod_1 = require("zod");
-const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
-const helmet_1 = __importDefault(require("helmet"));
-const ccbill_1 = require("./payments/ccbill");
-const verifymy_1 = require("./compliance/verifymy");
-const fingerprinting_1 = require("./services/fingerprinting");
-const payouts_1 = require("./services/payouts");
-const content_creation_1 = require("./services/content-creation");
-const ai_editor_1 = require("./services/ai-editor");
-const distribution_1 = require("./services/distribution");
-const verification_1 = require("./services/verification");
-const streaming_1 = require("./services/streaming");
-const stream_handler_1 = require("./websocket/stream-handler");
-const ai_processor_1 = require("./services/ai-processor");
-const format_converter_1 = require("./services/format-converter");
-const asset_generator_1 = require("./services/asset-generator");
-const content_analyzer_1 = require("./services/content-analyzer");
+import { createServer } from "http";
+import { WebSocketServer, WebSocket } from "ws";
+import { storage } from "./storage";
+import { setupAuth, isAuthenticated } from "./auth";
+import { ObjectStorageService, ObjectNotFoundError, } from "./objectStorage";
+import { ObjectPermission } from "./objectAcl";
+import { insertMediaAssetSchema, insertMessageSchema, insertProfileSchema, insertSupportTicketSchema, insertSupportMessageSchema, insertKnowledgeArticleSchema, insertTutorialSchema, insertFeedPostSchema, insertPostMediaSchema } from "../shared/schema";
+import { z } from "zod";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
+import { createCCBillService } from "./payments/ccbill";
+import { verifymyService } from "./compliance/verifymy";
+import { contentFingerprintingService } from "./services/fingerprinting";
+import { creatorPayoutService } from "./services/payouts";
+import { contentCreationService } from "./services/content-creation";
+import { aiEditorService } from "./services/ai-editor";
+import { distributionService } from "./services/distribution";
+import { verificationService } from "./services/verification";
+import { streamingService } from "./services/streaming";
+import { initStreamWebSocketHandler } from "./websocket/stream-handler";
+import { aiProcessorService } from "./services/ai-processor";
+import { formatConverterService } from "./services/format-converter";
+import { assetGeneratorService } from "./services/asset-generator";
+import { contentAnalyzerService } from "./services/content-analyzer";
 // Rate limiting
-const limiter = (0, express_rate_limit_1.default)({
+const limiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
     max: process.env.NODE_ENV === "production" ? 1000 : 10000, // requests per minute
     message: "Too many requests from this IP",
 });
-async function registerRoutes(app) {
+export async function registerRoutes(app) {
     // Security middleware
-    app.use((0, helmet_1.default)({
+    app.use(helmet({
         contentSecurityPolicy: {
             directives: {
                 defaultSrc: ["'self'"],
@@ -52,28 +46,36 @@ async function registerRoutes(app) {
     }));
     app.use(limiter);
     // Auth middleware
-    await (0, auth_1.setupAuth)(app);
+    await setupAuth(app);
     // Health check endpoints
     app.get('/api/health', async (req, res) => {
         try {
-            const health = await storage_1.storage.getSystemHealth();
-            res.json(Object.assign({ status: 'healthy', timestamp: new Date().toISOString(), uptime: process.uptime() }, health));
+            const health = await storage.getSystemHealth();
+            res.json({
+                status: 'healthy',
+                timestamp: new Date().toISOString(),
+                uptime: process.uptime(),
+                ...health,
+            });
         }
         catch (error) {
             res.status(500).json({ message: "Health check failed" });
         }
     });
     // User profile route (already have auth routes in auth.ts)
-    app.get('/api/user/profile', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/user/profile', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const user = await storage_1.storage.getUser(userId);
+            const user = await storage.getUser(userId);
             if (!user) {
                 return res.status(404).json({ message: "User not found" });
             }
             // Get profile if exists
-            const profile = await storage_1.storage.getProfile(userId);
-            res.json(Object.assign(Object.assign({}, user), { profile }));
+            const profile = await storage.getProfile(userId);
+            res.json({
+                ...user,
+                profile,
+            });
         }
         catch (error) {
             console.error("Error fetching user:", error);
@@ -81,10 +83,10 @@ async function registerRoutes(app) {
         }
     });
     // User profile routes
-    app.get('/api/profile', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/profile', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const profile = await storage_1.storage.getProfileWithUser(userId);
+            const profile = await storage.getProfileWithUser(userId);
             if (!profile) {
                 return res.status(404).json({ message: "Profile not found" });
             }
@@ -95,17 +97,17 @@ async function registerRoutes(app) {
             res.status(500).json({ message: "Failed to fetch profile" });
         }
     });
-    app.post('/api/profile', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/profile', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const profileData = schema_1.insertProfileSchema.parse(Object.assign(Object.assign({}, req.body), { userId }));
-            const existingProfile = await storage_1.storage.getProfile(userId);
+            const profileData = insertProfileSchema.parse({ ...req.body, userId });
+            const existingProfile = await storage.getProfile(userId);
             let profile;
             if (existingProfile) {
-                profile = await storage_1.storage.updateProfile(userId, profileData);
+                profile = await storage.updateProfile(userId, profileData);
             }
             else {
-                profile = await storage_1.storage.createProfile(profileData);
+                profile = await storage.createProfile(profileData);
             }
             res.json(profile);
         }
@@ -114,10 +116,10 @@ async function registerRoutes(app) {
             res.status(500).json({ message: "Failed to save profile" });
         }
     });
-    app.get('/api/stats', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/stats', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const stats = await storage_1.storage.getUserStats(userId);
+            const stats = await storage.getUserStats(userId);
             res.json(stats);
         }
         catch (error) {
@@ -126,11 +128,11 @@ async function registerRoutes(app) {
         }
     });
     // Verification routes
-    app.post('/api/verification/session', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/verification/session', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const { userType } = req.body;
-            const session = await verification_1.verificationService.createSession(userId, userType);
+            const session = await verificationService.createSession(userId, userType);
             res.json({
                 sessionId: session.id,
                 expiresAt: session.expiresAt
@@ -141,11 +143,11 @@ async function registerRoutes(app) {
             res.status(500).json({ message: "Failed to create verification session" });
         }
     });
-    app.post('/api/verification/submit/:sessionId', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/verification/submit/:sessionId', isAuthenticated, async (req, res) => {
         try {
             const { sessionId } = req.params;
             const { documentType, frontImageBase64, backImageBase64, selfieImageBase64 } = req.body;
-            const result = await verification_1.verificationService.submitVerification(sessionId, documentType, frontImageBase64, backImageBase64, selfieImageBase64);
+            const result = await verificationService.submitVerification(sessionId, documentType, frontImageBase64, backImageBase64, selfieImageBase64);
             res.json(result);
         }
         catch (error) {
@@ -153,10 +155,10 @@ async function registerRoutes(app) {
             res.status(500).json({ message: "Failed to submit verification" });
         }
     });
-    app.get('/api/verification/status', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/verification/status', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const status = await verification_1.verificationService.getUserVerificationStatus(userId);
+            const status = await verificationService.getUserVerificationStatus(userId);
             res.json(status);
         }
         catch (error) {
@@ -164,10 +166,10 @@ async function registerRoutes(app) {
             res.status(500).json({ message: "Failed to fetch verification status" });
         }
     });
-    app.get('/api/verification/status/:userId', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/verification/status/:userId', isAuthenticated, async (req, res) => {
         try {
             const { userId } = req.params;
-            const status = await verification_1.verificationService.getUserVerificationStatus(userId);
+            const status = await verificationService.getUserVerificationStatus(userId);
             res.json(status);
         }
         catch (error) {
@@ -175,10 +177,10 @@ async function registerRoutes(app) {
             res.status(500).json({ message: "Failed to fetch verification status" });
         }
     });
-    app.get('/api/verification/result/:sessionId', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/verification/result/:sessionId', isAuthenticated, async (req, res) => {
         try {
             const { sessionId } = req.params;
-            const result = await verification_1.verificationService.getVerificationResult(sessionId);
+            const result = await verificationService.getVerificationResult(sessionId);
             if (!result) {
                 return res.status(404).json({ message: "Verification session not found" });
             }
@@ -189,10 +191,10 @@ async function registerRoutes(app) {
             res.status(500).json({ message: "Failed to fetch verification result" });
         }
     });
-    app.get('/api/verification/history', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/verification/history', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const history = await verification_1.verificationService.getVerificationHistory(userId);
+            const history = await verificationService.getVerificationHistory(userId);
             res.json(history);
         }
         catch (error) {
@@ -200,12 +202,12 @@ async function registerRoutes(app) {
             res.status(500).json({ message: "Failed to fetch verification history" });
         }
     });
-    app.get('/api/verification/compliance-report', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/verification/compliance-report', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const user = await storage_1.storage.getUser(userId);
+            const user = await storage.getUser(userId);
             // Only admins can generate compliance reports
-            if ((user === null || user === void 0 ? void 0 : user.role) !== 'admin') {
+            if (user?.role !== 'admin') {
                 return res.status(403).json({ message: "Unauthorized" });
             }
             const startDate = req.query.startDate
@@ -214,7 +216,7 @@ async function registerRoutes(app) {
             const endDate = req.query.endDate
                 ? new Date(req.query.endDate)
                 : new Date();
-            const report = await verification_1.verificationService.generateComplianceReport(startDate, endDate);
+            const report = await verificationService.generateComplianceReport(startDate, endDate);
             res.json(report);
         }
         catch (error) {
@@ -224,13 +226,12 @@ async function registerRoutes(app) {
     });
     // Verification middleware for content creation
     const requireVerification = async (req, res, next) => {
-        var _a, _b;
         try {
-            const userId = (_b = (_a = req.user) === null || _a === void 0 ? void 0 : _a.claims) === null || _b === void 0 ? void 0 : _b.sub;
+            const userId = req.user?.claims?.sub;
             if (!userId) {
                 return res.status(401).json({ message: "Unauthorized" });
             }
-            const status = await verification_1.verificationService.getUserVerificationStatus(userId);
+            const status = await verificationService.getUserVerificationStatus(userId);
             if (!status.verified) {
                 return res.status(403).json({
                     message: "Verification required",
@@ -239,7 +240,7 @@ async function registerRoutes(app) {
                 });
             }
             // Check if verification is about to expire
-            if (await verification_1.verificationService.needsReverification(userId)) {
+            if (await verificationService.needsReverification(userId)) {
                 res.setHeader('X-Verification-Warning', 'Verification expiring soon');
             }
             next();
@@ -250,22 +251,22 @@ async function registerRoutes(app) {
         }
     };
     // Onboarding validation schemas
-    const creatorOnboardingSchema = zod_1.z.object({
-        displayName: zod_1.z.string().min(1, "Display name is required"),
-        stageName: zod_1.z.string().optional(),
-        pronouns: zod_1.z.string().optional(),
-        bio: zod_1.z.string().optional(),
-        selectedNiches: zod_1.z.array(zod_1.z.string()).max(3, "Maximum 3 niches allowed"),
-        payoutMethod: zod_1.z.enum(["paypal", "bank", "crypto"]),
-        payoutEmail: zod_1.z.string().email().optional(),
+    const creatorOnboardingSchema = z.object({
+        displayName: z.string().min(1, "Display name is required"),
+        stageName: z.string().optional(),
+        pronouns: z.string().optional(),
+        bio: z.string().optional(),
+        selectedNiches: z.array(z.string()).max(3, "Maximum 3 niches allowed"),
+        payoutMethod: z.enum(["paypal", "bank", "crypto"]),
+        payoutEmail: z.string().email().optional(),
     });
-    const fanOnboardingSchema = zod_1.z.object({
-        birthday: zod_1.z.string(),
-        selectedInterests: zod_1.z.array(zod_1.z.string()),
-        paymentAdded: zod_1.z.boolean().optional(),
+    const fanOnboardingSchema = z.object({
+        birthday: z.string(),
+        selectedInterests: z.array(z.string()),
+        paymentAdded: z.boolean().optional(),
     });
     // Creator content creation routes (require verification)
-    app.get('/api/creator/studio/settings', auth_1.isAuthenticated, requireVerification, async (req, res) => {
+    app.get('/api/creator/studio/settings', isAuthenticated, requireVerification, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             // Get stored settings or return defaults
@@ -283,7 +284,7 @@ async function registerRoutes(app) {
             res.status(500).json({ message: "Failed to fetch settings" });
         }
     });
-    app.post('/api/creator/studio/settings', auth_1.isAuthenticated, requireVerification, async (req, res) => {
+    app.post('/api/creator/studio/settings', isAuthenticated, requireVerification, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const settings = req.body;
@@ -296,11 +297,11 @@ async function registerRoutes(app) {
             res.status(500).json({ message: "Failed to update settings" });
         }
     });
-    app.get('/api/creator/content/sessions', auth_1.isAuthenticated, requireVerification, async (req, res) => {
+    app.get('/api/creator/content/sessions', isAuthenticated, requireVerification, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             // Get user's content sessions
-            const sessions = await storage_1.storage.getContentSessionsByUserId(userId);
+            const sessions = await storage.getContentSessionsByUserId(userId);
             res.json(sessions || []);
         }
         catch (error) {
@@ -308,12 +309,12 @@ async function registerRoutes(app) {
             res.status(500).json({ message: "Failed to fetch content sessions" });
         }
     });
-    app.post('/api/creator/content/sessions', auth_1.isAuthenticated, requireVerification, async (req, res) => {
+    app.post('/api/creator/content/sessions', isAuthenticated, requireVerification, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const { title, description, type, sourceType, originalUrl } = req.body;
             // Create new content session
-            const session = await storage_1.storage.createContentSession({
+            const session = await storage.createContentSession({
                 ownerId: userId,
                 title,
                 description,
@@ -323,7 +324,7 @@ async function registerRoutes(app) {
                 status: 'processing'
             });
             // Log creation
-            await storage_1.storage.createAuditLog({
+            await storage.createAuditLog({
                 actorId: userId,
                 action: 'content_session_created',
                 targetType: 'content_session',
@@ -337,12 +338,12 @@ async function registerRoutes(app) {
             res.status(500).json({ message: "Failed to create content session" });
         }
     });
-    app.delete('/api/creator/content/sessions/:sessionId', auth_1.isAuthenticated, requireVerification, async (req, res) => {
+    app.delete('/api/creator/content/sessions/:sessionId', isAuthenticated, requireVerification, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const { sessionId } = req.params;
             // Verify ownership and delete
-            await storage_1.storage.deleteContentSession(sessionId, userId);
+            await storage.deleteContentSession(sessionId, userId);
             res.json({ success: true });
         }
         catch (error) {
@@ -350,13 +351,13 @@ async function registerRoutes(app) {
             res.status(500).json({ message: "Failed to delete content session" });
         }
     });
-    app.post('/api/creator/content/process/:sessionId', auth_1.isAuthenticated, requireVerification, async (req, res) => {
+    app.post('/api/creator/content/process/:sessionId', isAuthenticated, requireVerification, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const { sessionId } = req.params;
             const { editingOptions } = req.body;
             // Start AI processing
-            const task = await ai_editor_1.aiEditorService.startEditingTask(sessionId, editingOptions);
+            const task = await aiEditorService.startEditingTask(sessionId, editingOptions);
             res.json({
                 taskId: task.id,
                 status: 'processing'
@@ -368,13 +369,13 @@ async function registerRoutes(app) {
         }
     });
     // Onboarding routes
-    app.post('/api/creator/onboarding', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/creator/onboarding', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             // Validate request body
             const onboardingData = creatorOnboardingSchema.parse(req.body);
             // Update user to mark as creator
-            await storage_1.storage.updateUser(userId, { isCreator: true });
+            await storage.updateUser(userId, { isCreator: true });
             // Create/update profile with onboarding data
             const profileData = {
                 userId,
@@ -383,13 +384,13 @@ async function registerRoutes(app) {
                 niches: onboardingData.selectedNiches || [],
                 pronouns: onboardingData.pronouns || '',
             };
-            const existingProfile = await storage_1.storage.getProfile(userId);
+            const existingProfile = await storage.getProfile(userId);
             let profile;
             if (existingProfile) {
-                profile = await storage_1.storage.updateProfile(userId, profileData);
+                profile = await storage.updateProfile(userId, profileData);
             }
             else {
-                profile = await storage_1.storage.createProfile(profileData);
+                profile = await storage.createProfile(profileData);
             }
             // Store payout information (would integrate with payment processor in production)
             // For now, just log it
@@ -399,7 +400,7 @@ async function registerRoutes(app) {
                 email: onboardingData.payoutEmail,
             });
             // Audit log
-            await storage_1.storage.createAuditLog({
+            await storage.createAuditLog({
                 actorId: userId,
                 action: 'creator_onboarding_complete',
                 targetType: 'user',
@@ -417,7 +418,7 @@ async function registerRoutes(app) {
             res.status(500).json({ message: "Failed to complete onboarding" });
         }
     });
-    app.post('/api/fan/onboarding', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/fan/onboarding', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             // Validate request body
@@ -430,11 +431,11 @@ async function registerRoutes(app) {
                     return res.status(400).json({ message: "You must be 18 or older to join GirlFanz" });
                 }
                 // Get user info for VerifyMy
-                const user = await storage_1.storage.getUser(userId);
+                const user = await storage.getUser(userId);
                 if (user) {
                     // Trigger VerifyMy age verification (async)
                     // This will call the VerifyMy API and update the user's verification status via webhook
-                    const verificationResult = await verifymy_1.verifymyService.verifyAge({
+                    const verificationResult = await verifymyService.verifyAge({
                         userId,
                         firstName: user.firstName || 'Unknown',
                         lastName: user.lastName || 'Unknown',
@@ -453,7 +454,7 @@ async function registerRoutes(app) {
                         return { transactionId: 'pending', status: 'pending' };
                     });
                     // Store verification transaction ID for webhook callback
-                    await storage_1.storage.createKycVerification({
+                    await storage.createKycVerification({
                         userId,
                         provider: 'verifymy',
                         status: 'pending',
@@ -468,16 +469,16 @@ async function registerRoutes(app) {
                 userId,
                 interests: onboardingData.selectedInterests || [],
             };
-            const existingProfile = await storage_1.storage.getProfile(userId);
+            const existingProfile = await storage.getProfile(userId);
             let profile;
             if (existingProfile) {
-                profile = await storage_1.storage.updateProfile(userId, profileData);
+                profile = await storage.updateProfile(userId, profileData);
             }
             else {
-                profile = await storage_1.storage.createProfile(profileData);
+                profile = await storage.createProfile(profileData);
             }
             // Audit log
-            await storage_1.storage.createAuditLog({
+            await storage.createAuditLog({
                 actorId: userId,
                 action: 'fan_onboarding_complete',
                 targetType: 'user',
@@ -501,12 +502,12 @@ async function registerRoutes(app) {
             const signature = req.headers['x-signature'];
             const rawBody = JSON.stringify(req.body);
             // Verify webhook signature
-            if (!signature || !verifymy_1.verifymyService.verifyWebhookSignature(rawBody, signature)) {
+            if (!signature || !verifymyService.verifyWebhookSignature(rawBody, signature)) {
                 console.error('Invalid VerifyMy webhook signature');
                 return res.status(401).json({ message: "Invalid signature" });
             }
             // Process the webhook
-            await verifymy_1.verifymyService.processWebhookNotification(req.body);
+            await verifymyService.processWebhookNotification(req.body);
             res.json({ success: true });
         }
         catch (error) {
@@ -515,11 +516,11 @@ async function registerRoutes(app) {
         }
     });
     // Media/Content routes
-    app.get('/api/media', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/media', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const limit = parseInt(req.query.limit) || 20;
-            const media = await storage_1.storage.getMediaAssetsByOwner(userId, limit);
+            const media = await storage.getMediaAssetsByOwner(userId, limit);
             res.json(media);
         }
         catch (error) {
@@ -527,20 +528,20 @@ async function registerRoutes(app) {
             res.status(500).json({ message: "Failed to fetch media" });
         }
     });
-    app.post('/api/media', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/media', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const mediaData = schema_1.insertMediaAssetSchema.parse(Object.assign(Object.assign({}, req.body), { ownerId: userId }));
-            const media = await storage_1.storage.createMediaAsset(mediaData);
+            const mediaData = insertMediaAssetSchema.parse({ ...req.body, ownerId: userId });
+            const media = await storage.createMediaAsset(mediaData);
             // Add to moderation queue if not admin
-            await storage_1.storage.createModerationItem({
+            await storage.createModerationItem({
                 mediaId: media.id,
                 status: 'pending',
                 priority: 1,
                 aiConfidence: Math.floor(Math.random() * 40) + 60, // Simulate AI confidence
             });
             // Audit log
-            await storage_1.storage.createAuditLog({
+            await storage.createAuditLog({
                 actorId: userId,
                 action: 'media_upload',
                 targetType: 'media',
@@ -555,16 +556,15 @@ async function registerRoutes(app) {
         }
     });
     // Object storage routes for file handling
-    app.get(/^\/objects\/(.*)$/, auth_1.isAuthenticated, async (req, res) => {
-        var _a, _b;
-        const userId = (_b = (_a = req.user) === null || _a === void 0 ? void 0 : _a.claims) === null || _b === void 0 ? void 0 : _b.sub;
-        const objectStorageService = new objectStorage_1.ObjectStorageService();
+    app.get(/^\/objects\/(.*)$/, isAuthenticated, async (req, res) => {
+        const userId = req.user?.claims?.sub;
+        const objectStorageService = new ObjectStorageService();
         try {
             const objectFile = await objectStorageService.getObjectEntityFile(req.path);
             const canAccess = await objectStorageService.canAccessObjectEntity({
                 objectFile,
                 userId: userId,
-                requestedPermission: objectAcl_1.ObjectPermission.READ,
+                requestedPermission: ObjectPermission.READ,
             });
             if (!canAccess) {
                 return res.sendStatus(401);
@@ -573,14 +573,14 @@ async function registerRoutes(app) {
         }
         catch (error) {
             console.error("Error checking object access:", error);
-            if (error instanceof objectStorage_1.ObjectNotFoundError) {
+            if (error instanceof ObjectNotFoundError) {
                 return res.sendStatus(404);
             }
             return res.sendStatus(500);
         }
     });
-    app.post("/api/objects/upload", auth_1.isAuthenticated, async (req, res) => {
-        const objectStorageService = new objectStorage_1.ObjectStorageService();
+    app.post("/api/objects/upload", isAuthenticated, async (req, res) => {
+        const objectStorageService = new ObjectStorageService();
         try {
             const uploadURL = await objectStorageService.getObjectEntityUploadURL();
             res.json({ uploadURL });
@@ -590,14 +590,13 @@ async function registerRoutes(app) {
             res.status(500).json({ error: "Failed to get upload URL" });
         }
     });
-    app.put("/api/media/upload", auth_1.isAuthenticated, async (req, res) => {
-        var _a, _b;
+    app.put("/api/media/upload", isAuthenticated, async (req, res) => {
         if (!req.body.mediaUrl) {
             return res.status(400).json({ error: "mediaUrl is required" });
         }
-        const userId = (_b = (_a = req.user) === null || _a === void 0 ? void 0 : _a.claims) === null || _b === void 0 ? void 0 : _b.sub;
+        const userId = req.user?.claims?.sub;
         try {
-            const objectStorageService = new objectStorage_1.ObjectStorageService();
+            const objectStorageService = new ObjectStorageService();
             const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(req.body.mediaUrl, {
                 owner: userId,
                 visibility: req.body.isPublic ? "public" : "private",
@@ -610,10 +609,10 @@ async function registerRoutes(app) {
         }
     });
     // Messaging routes
-    app.get('/api/conversations', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/conversations', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const conversations = await storage_1.storage.getConversations(userId);
+            const conversations = await storage.getConversations(userId);
             res.json(conversations);
         }
         catch (error) {
@@ -621,12 +620,12 @@ async function registerRoutes(app) {
             res.status(500).json({ message: "Failed to fetch conversations" });
         }
     });
-    app.get('/api/messages/:otherUserId', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/messages/:otherUserId', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const { otherUserId } = req.params;
             const limit = parseInt(req.query.limit) || 50;
-            const messages = await storage_1.storage.getMessages(userId, otherUserId, limit);
+            const messages = await storage.getMessages(userId, otherUserId, limit);
             res.json(messages);
         }
         catch (error) {
@@ -634,11 +633,11 @@ async function registerRoutes(app) {
             res.status(500).json({ message: "Failed to fetch messages" });
         }
     });
-    app.post('/api/messages', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/messages', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const messageData = schema_1.insertMessageSchema.parse(Object.assign(Object.assign({}, req.body), { senderId: userId }));
-            const message = await storage_1.storage.createMessage(messageData);
+            const messageData = insertMessageSchema.parse({ ...req.body, senderId: userId });
+            const message = await storage.createMessage(messageData);
             // Broadcast to WebSocket if receiver is online
             broadcastToUser(messageData.receiverId, {
                 type: 'new_message',
@@ -655,11 +654,11 @@ async function registerRoutes(app) {
     // LIVE STREAMING ROUTES
     // ====================================
     // Create a new live stream
-    app.post('/api/streams/create', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/streams/create', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const config = req.body;
-            const session = await streaming_1.streamingService.createStream(userId, config);
+            const session = await streamingService.createStream(userId, config);
             res.json({
                 sessionId: session.id,
                 streamId: session.streamId,
@@ -674,10 +673,10 @@ async function registerRoutes(app) {
         }
     });
     // Get stream details
-    app.get('/api/streams/:streamId', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/streams/:streamId', isAuthenticated, async (req, res) => {
         try {
             const { streamId } = req.params;
-            const stream = await storage_1.storage.getLiveStream(streamId);
+            const stream = await storage.getLiveStream(streamId);
             if (!stream) {
                 return res.status(404).json({ message: "Stream not found" });
             }
@@ -689,9 +688,9 @@ async function registerRoutes(app) {
         }
     });
     // Get active streams
-    app.get('/api/streams/active', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/streams/active', isAuthenticated, async (req, res) => {
         try {
-            const sessions = streaming_1.streamingService.getActiveSessions();
+            const sessions = streamingService.getActiveSessions();
             res.json(sessions.map(s => ({
                 sessionId: s.id,
                 streamId: s.streamId,
@@ -707,10 +706,10 @@ async function registerRoutes(app) {
         }
     });
     // Start stream
-    app.post('/api/streams/:sessionId/start', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/streams/:sessionId/start', isAuthenticated, async (req, res) => {
         try {
             const { sessionId } = req.params;
-            await streaming_1.streamingService.startStream(sessionId);
+            await streamingService.startStream(sessionId);
             res.json({ message: "Stream started successfully" });
         }
         catch (error) {
@@ -719,10 +718,10 @@ async function registerRoutes(app) {
         }
     });
     // End stream
-    app.post('/api/streams/:sessionId/end', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/streams/:sessionId/end', isAuthenticated, async (req, res) => {
         try {
             const { sessionId } = req.params;
-            await streaming_1.streamingService.endStream(sessionId);
+            await streamingService.endStream(sessionId);
             res.json({ message: "Stream ended successfully" });
         }
         catch (error) {
@@ -731,13 +730,13 @@ async function registerRoutes(app) {
         }
     });
     // Get stream analytics
-    app.get('/api/streams/:streamId/analytics', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/streams/:streamId/analytics', isAuthenticated, async (req, res) => {
         try {
             const { streamId } = req.params;
-            const analytics = await storage_1.storage.getStreamAnalytics(streamId);
+            const analytics = await storage.getStreamAnalytics(streamId);
             if (!analytics) {
                 // Return default analytics if not found
-                const session = streaming_1.streamingService.getAllSessions().find(s => s.streamId === streamId);
+                const session = streamingService.getAllSessions().find(s => s.streamId === streamId);
                 if (session) {
                     return res.json(session.analytics);
                 }
@@ -751,10 +750,10 @@ async function registerRoutes(app) {
         }
     });
     // Get stream highlights
-    app.get('/api/streams/:streamId/highlights', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/streams/:streamId/highlights', isAuthenticated, async (req, res) => {
         try {
             const { streamId } = req.params;
-            const highlights = await storage_1.storage.getStreamHighlights(streamId);
+            const highlights = await storage.getStreamHighlights(streamId);
             res.json(highlights);
         }
         catch (error) {
@@ -763,10 +762,10 @@ async function registerRoutes(app) {
         }
     });
     // Get stream recording
-    app.get('/api/streams/:streamId/recording', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/streams/:streamId/recording', isAuthenticated, async (req, res) => {
         try {
             const { streamId } = req.params;
-            const recording = await storage_1.storage.getStreamRecording(streamId);
+            const recording = await storage.getStreamRecording(streamId);
             if (!recording) {
                 return res.status(404).json({ message: "Recording not found" });
             }
@@ -778,11 +777,11 @@ async function registerRoutes(app) {
         }
     });
     // Get stream chat messages
-    app.get('/api/streams/:streamId/chat', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/streams/:streamId/chat', isAuthenticated, async (req, res) => {
         try {
             const { streamId } = req.params;
             const limit = parseInt(req.query.limit) || 100;
-            const messages = await storage_1.storage.getStreamChatMessages(streamId, limit);
+            const messages = await storage.getStreamChatMessages(streamId, limit);
             res.json(messages);
         }
         catch (error) {
@@ -791,10 +790,10 @@ async function registerRoutes(app) {
         }
     });
     // Get stream gifts
-    app.get('/api/streams/:streamId/gifts', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/streams/:streamId/gifts', isAuthenticated, async (req, res) => {
         try {
             const { streamId } = req.params;
-            const gifts = await storage_1.storage.getStreamGifts(streamId);
+            const gifts = await storage.getStreamGifts(streamId);
             res.json(gifts);
         }
         catch (error) {
@@ -803,11 +802,11 @@ async function registerRoutes(app) {
         }
     });
     // Moderation routes
-    app.get('/api/moderation/queue', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/moderation/queue', isAuthenticated, async (req, res) => {
         try {
             const status = req.query.status;
             const limit = parseInt(req.query.limit) || 50;
-            const queue = await storage_1.storage.getModerationQueue(status, limit);
+            const queue = await storage.getModerationQueue(status, limit);
             res.json(queue);
         }
         catch (error) {
@@ -815,24 +814,24 @@ async function registerRoutes(app) {
             res.status(500).json({ message: "Failed to fetch moderation queue" });
         }
     });
-    app.patch('/api/moderation/:itemId', auth_1.isAuthenticated, async (req, res) => {
+    app.patch('/api/moderation/:itemId', isAuthenticated, async (req, res) => {
         try {
             const { itemId } = req.params;
             const userId = req.user.claims.sub;
             const { status, notes } = req.body;
-            const item = await storage_1.storage.updateModerationItem(itemId, {
+            const item = await storage.updateModerationItem(itemId, {
                 status,
                 notes,
                 reviewerId: userId,
             });
             // Update media status based on moderation decision
             if (item && item.mediaId) {
-                await storage_1.storage.updateMediaAsset(item.mediaId, {
+                await storage.updateMediaAsset(item.mediaId, {
                     status: status === 'approved' ? 'approved' : 'rejected',
                 });
             }
             // Audit log
-            await storage_1.storage.createAuditLog({
+            await storage.createAuditLog({
                 actorId: userId,
                 action: 'moderation_review',
                 targetType: 'moderation',
@@ -847,9 +846,9 @@ async function registerRoutes(app) {
         }
     });
     // Create HTTP server
-    const httpServer = (0, http_1.createServer)(app);
+    const httpServer = createServer(app);
     // WebSocket server for real-time features
-    const wss = new ws_1.WebSocketServer({
+    const wss = new WebSocketServer({
         server: httpServer,
         path: '/ws',
         verifyClient: (info) => {
@@ -865,7 +864,7 @@ async function registerRoutes(app) {
     // Store active connections
     const connections = new Map();
     // Initialize stream WebSocket handler
-    const streamHandler = (0, stream_handler_1.initStreamWebSocketHandler)(wss);
+    const streamHandler = initStreamWebSocketHandler(wss);
     wss.on('connection', (ws, req) => {
         let userId = null;
         console.log('WebSocket connection attempt from:', req.socket.remoteAddress);
@@ -922,10 +921,10 @@ async function registerRoutes(app) {
                         receiverId: message.receiverId,
                         content: message.content,
                     };
-                    const newMessage = await storage_1.storage.createMessage(messageData);
+                    const newMessage = await storage.createMessage(messageData);
                     // Send to receiver if online
                     const receiverWs = connections.get(message.receiverId);
-                    if (receiverWs && receiverWs.readyState === ws_1.WebSocket.OPEN) {
+                    if (receiverWs && receiverWs.readyState === WebSocket.OPEN) {
                         receiverWs.send(JSON.stringify({
                             type: 'new_message',
                             data: newMessage,
@@ -947,14 +946,14 @@ async function registerRoutes(app) {
     // Helper function to broadcast to specific user
     function broadcastToUser(userId, message) {
         const ws = connections.get(userId);
-        if (ws && ws.readyState === ws_1.WebSocket.OPEN) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify(message));
         }
     }
     // Payment routes
-    const ccbillService = (0, ccbill_1.createCCBillService)();
+    const ccbillService = createCCBillService();
     // Generic CCBill checkout URL endpoint
-    app.get('/api/ccbill/checkout-url', auth_1.isAuthenticated, (req, res) => {
+    app.get('/api/ccbill/checkout-url', isAuthenticated, (req, res) => {
         try {
             const { amount, type = 'purchase' } = req.query;
             const userId = req.user.claims.sub;
@@ -980,7 +979,7 @@ async function registerRoutes(app) {
         }
     });
     // Create subscription checkout
-    app.post('/api/payments/subscription/checkout', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/payments/subscription/checkout', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const { creatorId, pricePerMonth, planName, description, billingCycle } = req.body;
@@ -997,7 +996,7 @@ async function registerRoutes(app) {
                 billingCycle: billingCycle || 'monthly',
             });
             // Log checkout creation
-            await storage_1.storage.createAuditLog({
+            await storage.createAuditLog({
                 actorId: userId,
                 action: 'checkout_created',
                 targetType: 'subscription',
@@ -1012,7 +1011,7 @@ async function registerRoutes(app) {
         }
     });
     // Create one-time purchase checkout
-    app.post('/api/payments/purchase/checkout', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/payments/purchase/checkout', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const { creatorId, mediaId, amount, description, type } = req.body;
@@ -1029,7 +1028,7 @@ async function registerRoutes(app) {
                 type: type || 'purchase',
             });
             // Log checkout creation
-            await storage_1.storage.createAuditLog({
+            await storage.createAuditLog({
                 actorId: userId,
                 action: 'checkout_created',
                 targetType: 'purchase',
@@ -1063,10 +1062,10 @@ async function registerRoutes(app) {
         }
     });
     // Get user subscriptions
-    app.get('/api/subscriptions', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/subscriptions', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const subscriptions = await storage_1.storage.getSubscriptionsAsFan(userId);
+            const subscriptions = await storage.getSubscriptionsAsFan(userId);
             res.json(subscriptions);
         }
         catch (error) {
@@ -1075,10 +1074,10 @@ async function registerRoutes(app) {
         }
     });
     // Get creator subscriptions 
-    app.get('/api/subscriptions/creator', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/subscriptions/creator', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const subscriptions = await storage_1.storage.getSubscriptionsAsCreator(userId);
+            const subscriptions = await storage.getSubscriptionsAsCreator(userId);
             res.json(subscriptions);
         }
         catch (error) {
@@ -1087,10 +1086,10 @@ async function registerRoutes(app) {
         }
     });
     // Get user transactions
-    app.get('/api/transactions', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/transactions', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const transactions = await storage_1.storage.getTransactionsAsBuyer(userId);
+            const transactions = await storage.getTransactionsAsBuyer(userId);
             res.json(transactions);
         }
         catch (error) {
@@ -1099,10 +1098,10 @@ async function registerRoutes(app) {
         }
     });
     // Get creator transactions
-    app.get('/api/transactions/creator', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/transactions/creator', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const transactions = await storage_1.storage.getTransactionsAsCreator(userId);
+            const transactions = await storage.getTransactionsAsCreator(userId);
             res.json(transactions);
         }
         catch (error) {
@@ -1111,10 +1110,10 @@ async function registerRoutes(app) {
         }
     });
     // Age verification endpoints (verifymy integration)
-    app.post('/api/verification/age', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/verification/age', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const user = await storage_1.storage.getUser(userId);
+            const user = await storage.getUser(userId);
             if (!user) {
                 return res.status(404).json({ error: 'User not found' });
             }
@@ -1128,7 +1127,7 @@ async function registerRoutes(app) {
                 email: user.email,
                 address: req.body.address
             };
-            const result = await verifymy_1.verifymyService.verifyAge(verificationRequest);
+            const result = await verifymyService.verifyAge(verificationRequest);
             res.json({
                 transactionId: result.transactionId,
                 status: result.status,
@@ -1141,7 +1140,7 @@ async function registerRoutes(app) {
         }
     });
     // Identity verification endpoints 
-    app.post('/api/verification/identity', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/verification/identity', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const verificationRequest = {
@@ -1152,7 +1151,7 @@ async function registerRoutes(app) {
                 selfieImageUrl: req.body.selfieImageUrl,
                 documentNumber: req.body.documentNumber
             };
-            const result = await verifymy_1.verifymyService.verifyIdentity(verificationRequest);
+            const result = await verifymyService.verifyIdentity(verificationRequest);
             res.json({
                 transactionId: result.transactionId,
                 status: result.status,
@@ -1165,36 +1164,35 @@ async function registerRoutes(app) {
         }
     });
     // Get KYC status
-    app.get('/api/verification/status', auth_1.isAuthenticated, async (req, res) => {
-        var _a, _b;
+    app.get('/api/verification/status', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const verification = await storage_1.storage.getKycVerification(userId);
-            let profile = await storage_1.storage.getProfile(userId);
+            const verification = await storage.getKycVerification(userId);
+            let profile = await storage.getProfile(userId);
             // Create profile if it doesn't exist
             if (!profile) {
-                profile = await storage_1.storage.createProfile({
+                profile = await storage.createProfile({
                     userId,
                     ageVerified: false,
                     kycStatus: 'pending'
                 });
             }
             // Get the most recent age and identity verifications
-            const ageVerification = await storage_1.storage.getKycVerificationByType(userId, 'age_verification');
-            const identityVerification = await storage_1.storage.getKycVerificationByType(userId, 'identity_verification');
+            const ageVerification = await storage.getKycVerificationByType(userId, 'age_verification');
+            const identityVerification = await storage.getKycVerificationByType(userId, 'identity_verification');
             res.json({
                 ageVerified: profile.ageVerified,
                 kycStatus: profile.kycStatus,
                 lastVerification: verification,
                 ageVerification: ageVerification ? {
                     status: ageVerification.status,
-                    confidence: (_a = ageVerification.dataJson) === null || _a === void 0 ? void 0 : _a.confidence,
+                    confidence: ageVerification.dataJson?.confidence,
                     verifiedAt: ageVerification.verifiedAt,
                     createdAt: ageVerification.createdAt
                 } : null,
                 identityVerification: identityVerification ? {
                     status: identityVerification.status,
-                    confidence: (_b = identityVerification.dataJson) === null || _b === void 0 ? void 0 : _b.confidence,
+                    confidence: identityVerification.dataJson?.confidence,
                     verifiedAt: identityVerification.verifiedAt,
                     createdAt: identityVerification.createdAt
                 } : null
@@ -1206,11 +1204,11 @@ async function registerRoutes(app) {
         }
     });
     // Content moderation endpoint (for verifymy AI moderation)
-    app.post('/api/moderation/ai', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/moderation/ai', isAuthenticated, async (req, res) => {
         try {
             const { mediaId, contentUrl, contentType } = req.body;
             const userId = req.user.claims.sub;
-            const result = await verifymy_1.verifymyService.moderateContent(contentUrl, contentType, { userId, mediaId });
+            const result = await verifymyService.moderateContent(contentUrl, contentType, { userId, mediaId });
             res.json(result);
         }
         catch (error) {
@@ -1224,12 +1222,12 @@ async function registerRoutes(app) {
             const signature = req.headers['x-verifymy-signature'];
             const body = JSON.stringify(req.body);
             // Verify webhook signature
-            if (!verifymy_1.verifymyService.verifyWebhookSignature(body, signature)) {
+            if (!verifymyService.verifyWebhookSignature(body, signature)) {
                 console.error('Invalid verifymy webhook signature');
                 return res.status(401).json({ error: 'Invalid signature' });
             }
             // Process webhook
-            await verifymy_1.verifymyService.processWebhookNotification(req.body);
+            await verifymyService.processWebhookNotification(req.body);
             res.status(200).json({ status: 'success' });
         }
         catch (error) {
@@ -1238,11 +1236,11 @@ async function registerRoutes(app) {
         }
     });
     // Creator Payout Endpoints
-    app.get('/api/payouts/earnings', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/payouts/earnings', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const months = parseInt(req.query.months) || 12;
-            const summary = await payouts_1.creatorPayoutService.getCreatorEarningsSummary(userId, months);
+            const summary = await creatorPayoutService.getCreatorEarningsSummary(userId, months);
             res.json(summary);
         }
         catch (error) {
@@ -1250,14 +1248,14 @@ async function registerRoutes(app) {
             res.status(500).json({ error: 'Failed to fetch earnings' });
         }
     });
-    app.get('/api/payouts/calculate', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/payouts/calculate', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const { startDate, endDate } = req.query;
             if (!startDate || !endDate) {
                 return res.status(400).json({ error: 'Start date and end date are required' });
             }
-            const calculation = await payouts_1.creatorPayoutService.calculateCreatorEarnings(userId, new Date(startDate), new Date(endDate));
+            const calculation = await creatorPayoutService.calculateCreatorEarnings(userId, new Date(startDate), new Date(endDate));
             res.json(calculation);
         }
         catch (error) {
@@ -1265,7 +1263,7 @@ async function registerRoutes(app) {
             res.status(500).json({ error: 'Failed to calculate earnings' });
         }
     });
-    app.post('/api/payouts/request', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/payouts/request', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const { amount, payoutAccountId } = req.body;
@@ -1287,15 +1285,15 @@ async function registerRoutes(app) {
         }
     });
     // Admin endpoint for processing scheduled payouts
-    app.post('/api/admin/payouts/process', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/admin/payouts/process', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const user = await storage_1.storage.getUser(userId);
+            const user = await storage.getUser(userId);
             // Check if user is admin
             if (!user || user.role !== 'admin') {
                 return res.status(403).json({ error: 'Admin access required' });
             }
-            const results = await payouts_1.creatorPayoutService.processScheduledPayouts();
+            const results = await creatorPayoutService.processScheduledPayouts();
             res.json({
                 success: true,
                 results
@@ -1307,17 +1305,17 @@ async function registerRoutes(app) {
         }
     });
     // Content fingerprinting endpoints
-    app.post('/api/media/:id/fingerprint', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/media/:id/fingerprint', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const mediaId = req.params.id;
             // Verify user owns the media or is admin
-            const media = await storage_1.storage.getMediaAsset(mediaId);
+            const media = await storage.getMediaAsset(mediaId);
             if (!media || (media.ownerId !== userId)) {
                 return res.status(403).json({ error: 'Access denied' });
             }
             // Find similar content
-            const matches = await fingerprinting_1.contentFingerprintingService.findSimilarContent(mediaId, 0.8);
+            const matches = await contentFingerprintingService.findSimilarContent(mediaId, 0.8);
             res.json({
                 mediaId,
                 matches,
@@ -1329,10 +1327,10 @@ async function registerRoutes(app) {
             res.status(500).json({ error: 'Failed to check fingerprint' });
         }
     });
-    app.get('/api/admin/audit-logs', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/admin/audit-logs', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const user = await storage_1.storage.getUser(userId);
+            const user = await storage.getUser(userId);
             // Check if user is admin
             if (!user || user.role !== 'admin') {
                 return res.status(403).json({ error: 'Admin access required' });
@@ -1355,19 +1353,19 @@ async function registerRoutes(app) {
         }
     });
     // Support Ticket Routes
-    app.get('/api/support/tickets', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/support/tickets', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const user = await storage_1.storage.getUser(userId);
+            const user = await storage.getUser(userId);
             let tickets;
-            if ((user === null || user === void 0 ? void 0 : user.role) === 'admin' || (user === null || user === void 0 ? void 0 : user.role) === 'support') {
+            if (user?.role === 'admin' || user?.role === 'support') {
                 // Admin/Support can see all tickets
                 const status = req.query.status;
-                tickets = await storage_1.storage.getSupportTickets(undefined, status);
+                tickets = await storage.getSupportTickets(undefined, status);
             }
             else {
                 // Users can only see their own tickets
-                tickets = await storage_1.storage.getSupportTickets(userId);
+                tickets = await storage.getSupportTickets(userId);
             }
             res.json({ tickets });
         }
@@ -1376,20 +1374,20 @@ async function registerRoutes(app) {
             res.status(500).json({ error: 'Failed to fetch tickets' });
         }
     });
-    app.get('/api/support/tickets/:id', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/support/tickets/:id', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const user = await storage_1.storage.getUser(userId);
+            const user = await storage.getUser(userId);
             const ticketId = req.params.id;
-            const ticket = await storage_1.storage.getSupportTicket(ticketId);
+            const ticket = await storage.getSupportTicket(ticketId);
             if (!ticket) {
                 return res.status(404).json({ error: 'Ticket not found' });
             }
             // Check access permissions
-            if (ticket.userId !== userId && (user === null || user === void 0 ? void 0 : user.role) !== 'admin' && (user === null || user === void 0 ? void 0 : user.role) !== 'support') {
+            if (ticket.userId !== userId && user?.role !== 'admin' && user?.role !== 'support') {
                 return res.status(403).json({ error: 'Access denied' });
             }
-            const messages = await storage_1.storage.getSupportMessages(ticketId);
+            const messages = await storage.getSupportMessages(ticketId);
             res.json({ ticket, messages });
         }
         catch (error) {
@@ -1397,14 +1395,18 @@ async function registerRoutes(app) {
             res.status(500).json({ error: 'Failed to fetch ticket' });
         }
     });
-    app.post('/api/support/tickets', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/support/tickets', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const ticketData = schema_1.insertSupportTicketSchema.parse(Object.assign(Object.assign({}, req.body), { userId, status: 'open' }));
-            const ticket = await storage_1.storage.createSupportTicket(ticketData);
+            const ticketData = insertSupportTicketSchema.parse({
+                ...req.body,
+                userId,
+                status: 'open'
+            });
+            const ticket = await storage.createSupportTicket(ticketData);
             // Create initial message
             if (req.body.message) {
-                await storage_1.storage.createSupportMessage({
+                await storage.createSupportMessage({
                     ticketId: ticket.id,
                     senderId: userId,
                     body: req.body.message,
@@ -1418,40 +1420,40 @@ async function registerRoutes(app) {
             res.status(500).json({ error: 'Failed to create ticket' });
         }
     });
-    app.put('/api/support/tickets/:id', auth_1.isAuthenticated, async (req, res) => {
+    app.put('/api/support/tickets/:id', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const user = await storage_1.storage.getUser(userId);
+            const user = await storage.getUser(userId);
             const ticketId = req.params.id;
-            const ticket = await storage_1.storage.getSupportTicket(ticketId);
+            const ticket = await storage.getSupportTicket(ticketId);
             if (!ticket) {
                 return res.status(404).json({ error: 'Ticket not found' });
             }
             // Check permissions
-            if (ticket.userId !== userId && (user === null || user === void 0 ? void 0 : user.role) !== 'admin' && (user === null || user === void 0 ? void 0 : user.role) !== 'support') {
+            if (ticket.userId !== userId && user?.role !== 'admin' && user?.role !== 'support') {
                 return res.status(403).json({ error: 'Access denied' });
             }
             // Define allowed updates based on role
             let allowedUpdates = {};
-            if ((user === null || user === void 0 ? void 0 : user.role) === 'admin' || (user === null || user === void 0 ? void 0 : user.role) === 'support') {
+            if (user?.role === 'admin' || user?.role === 'support') {
                 // Staff can update status, priority, assignment, and category
-                const staffUpdateSchema = zod_1.z.object({
-                    status: zod_1.z.enum(['open', 'in_progress', 'resolved', 'closed']).optional(),
-                    priority: zod_1.z.enum(['low', 'normal', 'high', 'critical']).optional(),
-                    assignedTo: zod_1.z.string().optional(),
-                    category: zod_1.z.string().optional()
+                const staffUpdateSchema = z.object({
+                    status: z.enum(['open', 'in_progress', 'resolved', 'closed']).optional(),
+                    priority: z.enum(['low', 'normal', 'high', 'critical']).optional(),
+                    assignedTo: z.string().optional(),
+                    category: z.string().optional()
                 });
                 allowedUpdates = staffUpdateSchema.parse(req.body);
             }
             else {
                 // Regular users can only update subject and category
-                const userUpdateSchema = zod_1.z.object({
-                    subject: zod_1.z.string().max(255).optional(),
-                    category: zod_1.z.string().optional()
+                const userUpdateSchema = z.object({
+                    subject: z.string().max(255).optional(),
+                    category: z.string().optional()
                 });
                 allowedUpdates = userUpdateSchema.parse(req.body);
             }
-            const updatedTicket = await storage_1.storage.updateSupportTicket(ticketId, allowedUpdates);
+            const updatedTicket = await storage.updateSupportTicket(ticketId, allowedUpdates);
             res.json({ ticket: updatedTicket });
         }
         catch (error) {
@@ -1459,26 +1461,26 @@ async function registerRoutes(app) {
             res.status(500).json({ error: 'Failed to update ticket' });
         }
     });
-    app.post('/api/support/tickets/:id/messages', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/support/tickets/:id/messages', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const user = await storage_1.storage.getUser(userId);
+            const user = await storage.getUser(userId);
             const ticketId = req.params.id;
-            const ticket = await storage_1.storage.getSupportTicket(ticketId);
+            const ticket = await storage.getSupportTicket(ticketId);
             if (!ticket) {
                 return res.status(404).json({ error: 'Ticket not found' });
             }
             // Check access permissions
-            if (ticket.userId !== userId && (user === null || user === void 0 ? void 0 : user.role) !== 'admin' && (user === null || user === void 0 ? void 0 : user.role) !== 'support') {
+            if (ticket.userId !== userId && user?.role !== 'admin' && user?.role !== 'support') {
                 return res.status(403).json({ error: 'Access denied' });
             }
-            const messageData = schema_1.insertSupportMessageSchema.parse({
+            const messageData = insertSupportMessageSchema.parse({
                 ticketId,
                 senderId: userId,
                 body: req.body.message,
-                isInternalNote: (user === null || user === void 0 ? void 0 : user.role) === 'admin' || (user === null || user === void 0 ? void 0 : user.role) === 'support'
+                isInternalNote: user?.role === 'admin' || user?.role === 'support'
             });
-            const message = await storage_1.storage.createSupportMessage(messageData);
+            const message = await storage.createSupportMessage(messageData);
             res.json({ message });
         }
         catch (error) {
@@ -1491,7 +1493,7 @@ async function registerRoutes(app) {
         try {
             const category = req.query.category;
             const searchQuery = req.query.search;
-            const articles = await storage_1.storage.getKnowledgeArticles(category, searchQuery);
+            const articles = await storage.getKnowledgeArticles(category, searchQuery);
             res.json({ articles });
         }
         catch (error) {
@@ -1502,7 +1504,7 @@ async function registerRoutes(app) {
     app.get('/api/wiki/articles/:id', async (req, res) => {
         try {
             const articleId = req.params.id;
-            const article = await storage_1.storage.getKnowledgeArticle(articleId);
+            const article = await storage.getKnowledgeArticle(articleId);
             if (!article) {
                 return res.status(404).json({ error: 'Article not found' });
             }
@@ -1516,7 +1518,7 @@ async function registerRoutes(app) {
     app.get('/api/wiki/articles/by-slug/:slug', async (req, res) => {
         try {
             const slug = req.params.slug;
-            const article = await storage_1.storage.getKnowledgeArticleBySlug(slug);
+            const article = await storage.getKnowledgeArticleBySlug(slug);
             if (!article) {
                 return res.status(404).json({ error: 'Article not found' });
             }
@@ -1527,16 +1529,19 @@ async function registerRoutes(app) {
             res.status(500).json({ error: 'Failed to fetch article' });
         }
     });
-    app.post('/api/wiki/articles', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/wiki/articles', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const user = await storage_1.storage.getUser(userId);
+            const user = await storage.getUser(userId);
             // Check if user has permission to create articles
-            if ((user === null || user === void 0 ? void 0 : user.role) !== 'admin' && (user === null || user === void 0 ? void 0 : user.role) !== 'support') {
+            if (user?.role !== 'admin' && user?.role !== 'support') {
                 return res.status(403).json({ error: 'Admin access required' });
             }
-            const articleData = schema_1.insertKnowledgeArticleSchema.parse(Object.assign(Object.assign({}, req.body), { authorId: userId }));
-            const article = await storage_1.storage.createKnowledgeArticle(articleData);
+            const articleData = insertKnowledgeArticleSchema.parse({
+                ...req.body,
+                authorId: userId
+            });
+            const article = await storage.createKnowledgeArticle(articleData);
             res.json({ article });
         }
         catch (error) {
@@ -1544,16 +1549,16 @@ async function registerRoutes(app) {
             res.status(500).json({ error: 'Failed to create article' });
         }
     });
-    app.put('/api/wiki/articles/:id', auth_1.isAuthenticated, async (req, res) => {
+    app.put('/api/wiki/articles/:id', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const user = await storage_1.storage.getUser(userId);
+            const user = await storage.getUser(userId);
             const articleId = req.params.id;
             // Check if user has permission to edit articles
-            if ((user === null || user === void 0 ? void 0 : user.role) !== 'admin' && (user === null || user === void 0 ? void 0 : user.role) !== 'support') {
+            if (user?.role !== 'admin' && user?.role !== 'support') {
                 return res.status(403).json({ error: 'Admin access required' });
             }
-            const updatedArticle = await storage_1.storage.updateKnowledgeArticle(articleId, req.body);
+            const updatedArticle = await storage.updateKnowledgeArticle(articleId, req.body);
             res.json({ article: updatedArticle });
         }
         catch (error) {
@@ -1569,7 +1574,7 @@ async function registerRoutes(app) {
             if (!query || query.trim().length < 2) {
                 return res.status(400).json({ error: 'Query must be at least 2 characters long' });
             }
-            const articles = await storage_1.storage.searchKnowledgeSemanticSimilarity(query, limit);
+            const articles = await storage.searchKnowledgeSemanticSimilarity(query, limit);
             res.json({ articles, query, searchType: 'semantic' });
         }
         catch (error) {
@@ -1577,11 +1582,11 @@ async function registerRoutes(app) {
             res.status(500).json({ error: 'Failed to perform semantic search' });
         }
     });
-    app.get('/api/wiki/recommendations', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/wiki/recommendations', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const limit = parseInt(req.query.limit) || 5;
-            const recommendations = await storage_1.storage.getRecommendedArticles(userId, limit);
+            const recommendations = await storage.getRecommendedArticles(userId, limit);
             res.json({ articles: recommendations, type: 'personalized' });
         }
         catch (error) {
@@ -1592,7 +1597,7 @@ async function registerRoutes(app) {
     app.get('/api/wiki/popular', async (req, res) => {
         try {
             const limit = parseInt(req.query.limit) || 5;
-            const articles = await storage_1.storage.getPopularArticles(limit);
+            const articles = await storage.getPopularArticles(limit);
             res.json({ articles, type: 'popular' });
         }
         catch (error) {
@@ -1607,7 +1612,7 @@ async function registerRoutes(app) {
             if (!['24h', '7d', '30d'].includes(timeframe)) {
                 return res.status(400).json({ error: 'Invalid timeframe. Use 24h, 7d, or 30d' });
             }
-            const articles = await storage_1.storage.getTrendingArticles(timeframe, limit);
+            const articles = await storage.getTrendingArticles(timeframe, limit);
             res.json({ articles, timeframe, type: 'trending' });
         }
         catch (error) {
@@ -1616,11 +1621,10 @@ async function registerRoutes(app) {
         }
     });
     app.post('/api/wiki/articles/:id/view', async (req, res) => {
-        var _a, _b;
         try {
             const articleId = req.params.id;
-            const userId = (_b = (_a = req.user) === null || _a === void 0 ? void 0 : _a.claims) === null || _b === void 0 ? void 0 : _b.sub; // Optional for unauthenticated users
-            await storage_1.storage.recordKnowledgeView(articleId, userId);
+            const userId = req.user?.claims?.sub; // Optional for unauthenticated users
+            await storage.recordKnowledgeView(articleId, userId);
             res.json({ message: 'View recorded successfully' });
         }
         catch (error) {
@@ -1628,15 +1632,15 @@ async function registerRoutes(app) {
             res.status(500).json({ error: 'Failed to record view' });
         }
     });
-    app.get('/api/wiki/articles/:id/analytics', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/wiki/articles/:id/analytics', isAuthenticated, async (req, res) => {
         try {
             const articleId = req.params.id;
-            const user = await storage_1.storage.getUser(req.user.claims.sub);
+            const user = await storage.getUser(req.user.claims.sub);
             // Only allow admin/support to view analytics
-            if ((user === null || user === void 0 ? void 0 : user.role) !== 'admin' && (user === null || user === void 0 ? void 0 : user.role) !== 'support') {
+            if (user?.role !== 'admin' && user?.role !== 'support') {
                 return res.status(403).json({ error: 'Admin access required' });
             }
-            const analytics = await storage_1.storage.getArticleAnalytics(articleId);
+            const analytics = await storage.getArticleAnalytics(articleId);
             res.json({ analytics });
         }
         catch (error) {
@@ -1650,7 +1654,7 @@ async function registerRoutes(app) {
             if (!query || query.trim().length < 2) {
                 return res.json({ suggestions: [] });
             }
-            const suggestions = await storage_1.storage.getKnowledgeSearchSuggestions(query);
+            const suggestions = await storage.getKnowledgeSearchSuggestions(query);
             res.json({ suggestions });
         }
         catch (error) {
@@ -1663,7 +1667,7 @@ async function registerRoutes(app) {
         try {
             const userRole = req.query.role;
             const category = req.query.category;
-            const tutorials = await storage_1.storage.getTutorials(userRole, category);
+            const tutorials = await storage.getTutorials(userRole, category);
             res.json({ tutorials });
         }
         catch (error) {
@@ -1674,7 +1678,7 @@ async function registerRoutes(app) {
     app.get('/api/tutorials/:id', async (req, res) => {
         try {
             const tutorialId = req.params.id;
-            const tutorial = await storage_1.storage.getTutorial(tutorialId);
+            const tutorial = await storage.getTutorial(tutorialId);
             if (!tutorial) {
                 return res.status(404).json({ error: 'Tutorial not found' });
             }
@@ -1685,11 +1689,11 @@ async function registerRoutes(app) {
             res.status(500).json({ error: 'Failed to fetch tutorial' });
         }
     });
-    app.get('/api/tutorials/:id/progress', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/tutorials/:id/progress', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const tutorialId = req.params.id;
-            const progress = await storage_1.storage.getTutorialProgress(userId, tutorialId);
+            const progress = await storage.getTutorialProgress(userId, tutorialId);
             res.json({ progress });
         }
         catch (error) {
@@ -1697,12 +1701,12 @@ async function registerRoutes(app) {
             res.status(500).json({ error: 'Failed to fetch progress' });
         }
     });
-    app.put('/api/tutorials/:id/progress', auth_1.isAuthenticated, async (req, res) => {
+    app.put('/api/tutorials/:id/progress', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const tutorialId = req.params.id;
             const { stepIndex } = req.body;
-            const progress = await storage_1.storage.updateTutorialProgress(userId, tutorialId, stepIndex);
+            const progress = await storage.updateTutorialProgress(userId, tutorialId, stepIndex);
             res.json({ progress });
         }
         catch (error) {
@@ -1713,7 +1717,7 @@ async function registerRoutes(app) {
     app.get('/api/tutorials/:id/steps', async (req, res) => {
         try {
             const tutorialId = req.params.id;
-            const steps = await storage_1.storage.getTutorialSteps(tutorialId);
+            const steps = await storage.getTutorialSteps(tutorialId);
             res.json({ steps });
         }
         catch (error) {
@@ -1721,16 +1725,19 @@ async function registerRoutes(app) {
             res.status(500).json({ error: 'Failed to fetch tutorial steps' });
         }
     });
-    app.post('/api/tutorials', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/tutorials', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const user = await storage_1.storage.getUser(userId);
+            const user = await storage.getUser(userId);
             // Check if user has permission to create tutorials
-            if ((user === null || user === void 0 ? void 0 : user.role) !== 'admin' && (user === null || user === void 0 ? void 0 : user.role) !== 'support') {
+            if (user?.role !== 'admin' && user?.role !== 'support') {
                 return res.status(403).json({ error: 'Admin access required' });
             }
-            const tutorialData = schema_1.insertTutorialSchema.parse(Object.assign(Object.assign({}, req.body), { createdBy: userId }));
-            const tutorial = await storage_1.storage.createTutorial(tutorialData);
+            const tutorialData = insertTutorialSchema.parse({
+                ...req.body,
+                createdBy: userId
+            });
+            const tutorial = await storage.createTutorial(tutorialData);
             res.json({ tutorial });
         }
         catch (error) {
@@ -1746,7 +1753,7 @@ async function registerRoutes(app) {
         try {
             const { fanId, creatorId, gateway, txid, email, walletAddress, last4 } = req.body;
             // Verify transaction exists in database
-            const transaction = await storage_1.storage.verifyTransaction({
+            const transaction = await storage.verifyTransaction({
                 fanId,
                 creatorId,
                 gateway,
@@ -1781,30 +1788,30 @@ async function registerRoutes(app) {
         }
     });
     // Request Refund
-    app.post('/api/fanztrust/request-refund', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/fanztrust/request-refund', isAuthenticated, async (req, res) => {
         try {
             const fanId = req.user.claims.sub;
             const { transactionId, creatorId, reason } = req.body;
             // Verify transaction belongs to fan
-            const transaction = await storage_1.storage.getTransaction(transactionId);
+            const transaction = await storage.getTransaction(transactionId);
             if (!transaction || transaction.fanId !== fanId) {
                 return res.status(403).json({ error: 'Invalid transaction' });
             }
             // Check if refund already exists
-            const existingRefund = await storage_1.storage.getRefundByTransaction(transactionId);
+            const existingRefund = await storage.getRefundByTransaction(transactionId);
             if (existingRefund) {
                 return res.status(400).json({ error: 'Refund already requested' });
             }
             // Get creator's refund policy
-            const policy = await storage_1.storage.getCreatorRefundPolicy(creatorId);
+            const policy = await storage.getCreatorRefundPolicy(creatorId);
             // Auto-approve logic
             const minutesSincePurchase = (Date.now() - new Date(transaction.createdAt).getTime()) / (1000 * 60);
-            const timeLimit = (policy === null || policy === void 0 ? void 0 : policy.autoApproveTimeLimit) || 60;
-            const shouldAutoApprove = (policy === null || policy === void 0 ? void 0 : policy.autoApproveEnabled) !== false &&
+            const timeLimit = policy?.autoApproveTimeLimit || 60;
+            const shouldAutoApprove = policy?.autoApproveEnabled !== false &&
                 minutesSincePurchase < timeLimit &&
                 !transaction.contentAccessed;
             // Create refund request
-            const refundRequest = await storage_1.storage.createRefundRequest({
+            const refundRequest = await storage.createRefundRequest({
                 transactionId,
                 fanId,
                 creatorId,
@@ -1816,7 +1823,7 @@ async function registerRoutes(app) {
                 deviceFingerprint: req.headers['user-agent']
             });
             // Log audit
-            await storage_1.storage.createTrustAuditLog({
+            await storage.createTrustAuditLog({
                 action: 'request_refund',
                 performedBy: fanId,
                 transactionId,
@@ -1835,10 +1842,10 @@ async function registerRoutes(app) {
         }
     });
     // Get Refund Requests (Creator)
-    app.get('/api/fanztrust/refunds/creator', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/fanztrust/refunds/creator', isAuthenticated, async (req, res) => {
         try {
             const creatorId = req.user.claims.sub;
-            const refunds = await storage_1.storage.getCreatorRefundRequests(creatorId);
+            const refunds = await storage.getCreatorRefundRequests(creatorId);
             res.json({ refunds });
         }
         catch (error) {
@@ -1847,23 +1854,23 @@ async function registerRoutes(app) {
         }
     });
     // Approve/Deny Refund (Creator)
-    app.put('/api/fanztrust/refunds/:id', auth_1.isAuthenticated, async (req, res) => {
+    app.put('/api/fanztrust/refunds/:id', isAuthenticated, async (req, res) => {
         try {
             const creatorId = req.user.claims.sub;
             const refundId = req.params.id;
             const { action, reviewNotes } = req.body; // action: 'approve' | 'deny'
-            const refund = await storage_1.storage.getRefundRequest(refundId);
+            const refund = await storage.getRefundRequest(refundId);
             if (!refund || refund.creatorId !== creatorId) {
                 return res.status(403).json({ error: 'Invalid refund request' });
             }
-            const updatedRefund = await storage_1.storage.updateRefundRequest(refundId, {
+            const updatedRefund = await storage.updateRefundRequest(refundId, {
                 status: action === 'approve' ? 'approved' : 'denied',
                 reviewedBy: creatorId,
                 reviewNotes,
                 reviewedAt: new Date()
             });
             // Log audit
-            await storage_1.storage.createTrustAuditLog({
+            await storage.createTrustAuditLog({
                 action: action === 'approve' ? 'approve_refund' : 'deny_refund',
                 performedBy: creatorId,
                 refundId,
@@ -1878,13 +1885,13 @@ async function registerRoutes(app) {
         }
     });
     // FanzWallet - Get Wallet
-    app.get('/api/fanzwallet', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/fanzwallet', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            let wallet = await storage_1.storage.getFanzWallet(userId);
+            let wallet = await storage.getFanzWallet(userId);
             // Create wallet if doesn't exist
             if (!wallet) {
-                wallet = await storage_1.storage.createFanzWallet({ userId });
+                wallet = await storage.createFanzWallet({ userId });
             }
             res.json({ wallet });
         }
@@ -1894,14 +1901,14 @@ async function registerRoutes(app) {
         }
     });
     // FanzWallet - Get Transactions
-    app.get('/api/fanzwallet/transactions', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/fanzwallet/transactions', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const wallet = await storage_1.storage.getFanzWallet(userId);
+            const wallet = await storage.getFanzWallet(userId);
             if (!wallet) {
                 return res.status(404).json({ error: 'Wallet not found' });
             }
-            const transactions = await storage_1.storage.getWalletTransactions(wallet.id);
+            const transactions = await storage.getWalletTransactions(wallet.id);
             res.json({ transactions });
         }
         catch (error) {
@@ -1910,16 +1917,16 @@ async function registerRoutes(app) {
         }
     });
     // FanzWallet - Deposit/Withdrawal
-    app.post('/api/fanzwallet/transaction', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/fanzwallet/transaction', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const { type, amount, currency, description } = req.body;
-            const wallet = await storage_1.storage.getFanzWallet(userId);
+            const wallet = await storage.getFanzWallet(userId);
             if (!wallet) {
                 return res.status(404).json({ error: 'Wallet not found' });
             }
             // Create wallet transaction
-            const transaction = await storage_1.storage.createWalletTransaction({
+            const transaction = await storage.createWalletTransaction({
                 walletId: wallet.id,
                 type,
                 amount,
@@ -1929,7 +1936,7 @@ async function registerRoutes(app) {
             });
             // Update wallet balances based on type
             if (type === 'deposit' && transaction.status === 'completed') {
-                await storage_1.storage.updateFanzWallet(wallet.id, {
+                await storage.updateFanzWallet(wallet.id, {
                     fanzTokenBalance: wallet.fanzTokenBalance + amount,
                     totalDeposited: wallet.totalDeposited + amount
                 });
@@ -1945,10 +1952,10 @@ async function registerRoutes(app) {
     app.get('/api/fanztrust/score/:fanId', async (req, res) => {
         try {
             const fanId = req.params.fanId;
-            let trustScore = await storage_1.storage.getFanTrustScore(fanId);
+            let trustScore = await storage.getFanTrustScore(fanId);
             // Create trust score if doesn't exist
             if (!trustScore) {
-                trustScore = await storage_1.storage.createFanTrustScore({ fanId });
+                trustScore = await storage.createFanTrustScore({ fanId });
             }
             res.json({ trustScore });
         }
@@ -1958,13 +1965,13 @@ async function registerRoutes(app) {
         }
     });
     // Admin - Get All Refunds
-    app.get('/api/fanztrust/admin/refunds', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/fanztrust/admin/refunds', isAuthenticated, async (req, res) => {
         try {
-            const user = await storage_1.storage.getUser(req.user.claims.sub);
-            if ((user === null || user === void 0 ? void 0 : user.role) !== 'admin') {
+            const user = await storage.getUser(req.user.claims.sub);
+            if (user?.role !== 'admin') {
                 return res.status(403).json({ error: 'Admin access required' });
             }
-            const refunds = await storage_1.storage.getAllRefundRequests();
+            const refunds = await storage.getAllRefundRequests();
             res.json({ refunds });
         }
         catch (error) {
@@ -1973,23 +1980,23 @@ async function registerRoutes(app) {
         }
     });
     // Admin - Override Refund
-    app.post('/api/fanztrust/admin/refunds/:id/override', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/fanztrust/admin/refunds/:id/override', isAuthenticated, async (req, res) => {
         try {
             const adminId = req.user.claims.sub;
-            const user = await storage_1.storage.getUser(adminId);
-            if ((user === null || user === void 0 ? void 0 : user.role) !== 'admin') {
+            const user = await storage.getUser(adminId);
+            if (user?.role !== 'admin') {
                 return res.status(403).json({ error: 'Admin access required' });
             }
             const refundId = req.params.id;
             const { action, notes } = req.body;
-            const updatedRefund = await storage_1.storage.updateRefundRequest(refundId, {
+            const updatedRefund = await storage.updateRefundRequest(refundId, {
                 status: action === 'approve' ? 'approved' : 'denied',
                 reviewedBy: adminId,
                 reviewNotes: `[ADMIN OVERRIDE] ${notes}`,
                 reviewedAt: new Date()
             });
             // Log audit
-            await storage_1.storage.createTrustAuditLog({
+            await storage.createTrustAuditLog({
                 action: 'admin_override_refund',
                 performedBy: adminId,
                 refundId,
@@ -2005,12 +2012,12 @@ async function registerRoutes(app) {
         }
     });
     // Creator Refund Policy
-    app.get('/api/fanztrust/policy', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/fanztrust/policy', isAuthenticated, async (req, res) => {
         try {
             const creatorId = req.user.claims.sub;
-            let policy = await storage_1.storage.getCreatorRefundPolicy(creatorId);
+            let policy = await storage.getCreatorRefundPolicy(creatorId);
             if (!policy) {
-                policy = await storage_1.storage.createCreatorRefundPolicy({ creatorId });
+                policy = await storage.createCreatorRefundPolicy({ creatorId });
             }
             res.json({ policy });
         }
@@ -2019,11 +2026,11 @@ async function registerRoutes(app) {
             res.status(500).json({ error: 'Failed to fetch policy' });
         }
     });
-    app.put('/api/fanztrust/policy', auth_1.isAuthenticated, async (req, res) => {
+    app.put('/api/fanztrust/policy', isAuthenticated, async (req, res) => {
         try {
             const creatorId = req.user.claims.sub;
             const policyData = req.body;
-            const policy = await storage_1.storage.updateCreatorRefundPolicy(creatorId, policyData);
+            const policy = await storage.updateCreatorRefundPolicy(creatorId, policyData);
             res.json({ policy });
         }
         catch (error) {
@@ -2035,31 +2042,34 @@ async function registerRoutes(app) {
     // INFINITY SCROLL FEED API ROUTES
     // ========================================
     // Get Feed with Pagination
-    app.get('/api/feed', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/feed', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const cursor = req.query.cursor;
             const limit = parseInt(req.query.limit) || 20;
             // Get age verification status
-            const ageVerification = await storage_1.storage.getAgeVerification(userId);
-            if (!(ageVerification === null || ageVerification === void 0 ? void 0 : ageVerification.isVerified)) {
+            const ageVerification = await storage.getAgeVerification(userId);
+            if (!ageVerification?.isVerified) {
                 return res.status(403).json({
                     error: 'Age verification required',
                     code: 'AGE_VERIFICATION_REQUIRED'
                 });
             }
-            const result = await storage_1.storage.getFeedPosts({ userId, cursor, limit });
+            const result = await storage.getFeedPosts({ userId, cursor, limit });
             // Get sponsored posts for ad injection
-            const sponsoredPosts = await storage_1.storage.getSponsoredPosts({ isActive: true, limit: 5 });
+            const sponsoredPosts = await storage.getSponsoredPosts({ isActive: true, limit: 5 });
             // Inject sponsored posts every 4th position
             const postsWithAds = [];
             let adIndex = 0;
             for (let i = 0; i < result.posts.length; i++) {
                 postsWithAds.push(result.posts[i]);
                 if ((i + 1) % 4 === 0 && adIndex < sponsoredPosts.length) {
-                    postsWithAds.push(Object.assign(Object.assign({}, sponsoredPosts[adIndex]), { isSponsored: true }));
+                    postsWithAds.push({
+                        ...sponsoredPosts[adIndex],
+                        isSponsored: true
+                    });
                     // Track ad impression
-                    await storage_1.storage.incrementAdImpression(sponsoredPosts[adIndex].id);
+                    await storage.incrementAdImpression(sponsoredPosts[adIndex].id);
                     adIndex++;
                 }
             }
@@ -2075,27 +2085,30 @@ async function registerRoutes(app) {
         }
     });
     // Create Post
-    app.post('/api/posts', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/posts', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const postData = schema_1.insertFeedPostSchema.parse(Object.assign(Object.assign({}, req.body), { creatorId: userId }));
-            const post = await storage_1.storage.createPost(postData);
+            const postData = insertFeedPostSchema.parse({
+                ...req.body,
+                creatorId: userId
+            });
+            const post = await storage.createPost(postData);
             res.json({ post });
         }
         catch (error) {
             console.error('Error creating post:', error);
-            if (error instanceof zod_1.z.ZodError) {
+            if (error instanceof z.ZodError) {
                 return res.status(400).json({ error: 'Invalid post data', details: error.errors });
             }
             res.status(500).json({ error: 'Failed to create post' });
         }
     });
     // Get Single Post
-    app.get('/api/posts/:id', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/posts/:id', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const postId = req.params.id;
-            const post = await storage_1.storage.getPost(postId);
+            const post = await storage.getPost(postId);
             if (!post) {
                 return res.status(404).json({ error: 'Post not found' });
             }
@@ -2109,9 +2122,9 @@ async function registerRoutes(app) {
                 });
             }
             // Get media
-            const media = await storage_1.storage.getPostMedia(postId);
+            const media = await storage.getPostMedia(postId);
             // Get engagement
-            const engagement = await storage_1.storage.getPostEngagement(postId);
+            const engagement = await storage.getPostEngagement(postId);
             res.json({
                 post,
                 media,
@@ -2124,18 +2137,18 @@ async function registerRoutes(app) {
         }
     });
     // Update Post
-    app.put('/api/posts/:id', auth_1.isAuthenticated, async (req, res) => {
+    app.put('/api/posts/:id', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const postId = req.params.id;
-            const post = await storage_1.storage.getPost(postId);
+            const post = await storage.getPost(postId);
             if (!post) {
                 return res.status(404).json({ error: 'Post not found' });
             }
             if (post.creatorId !== userId) {
                 return res.status(403).json({ error: 'Not authorized to edit this post' });
             }
-            const updatedPost = await storage_1.storage.updatePost(postId, req.body);
+            const updatedPost = await storage.updatePost(postId, req.body);
             res.json({ post: updatedPost });
         }
         catch (error) {
@@ -2144,18 +2157,18 @@ async function registerRoutes(app) {
         }
     });
     // Delete Post
-    app.delete('/api/posts/:id', auth_1.isAuthenticated, async (req, res) => {
+    app.delete('/api/posts/:id', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const postId = req.params.id;
-            const post = await storage_1.storage.getPost(postId);
+            const post = await storage.getPost(postId);
             if (!post) {
                 return res.status(404).json({ error: 'Post not found' });
             }
             if (post.creatorId !== userId) {
                 return res.status(403).json({ error: 'Not authorized to delete this post' });
             }
-            await storage_1.storage.deletePost(postId);
+            await storage.deletePost(postId);
             res.json({ success: true });
         }
         catch (error) {
@@ -2164,36 +2177,39 @@ async function registerRoutes(app) {
         }
     });
     // Add Media to Post
-    app.post('/api/posts/:id/media', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/posts/:id/media', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const postId = req.params.id;
-            const post = await storage_1.storage.getPost(postId);
+            const post = await storage.getPost(postId);
             if (!post) {
                 return res.status(404).json({ error: 'Post not found' });
             }
             if (post.creatorId !== userId) {
                 return res.status(403).json({ error: 'Not authorized to add media to this post' });
             }
-            const mediaData = schema_1.insertPostMediaSchema.parse(Object.assign(Object.assign({}, req.body), { postId }));
-            const media = await storage_1.storage.createPostMedia(mediaData);
+            const mediaData = insertPostMediaSchema.parse({
+                ...req.body,
+                postId
+            });
+            const media = await storage.createPostMedia(mediaData);
             res.json({ media });
         }
         catch (error) {
             console.error('Error adding media:', error);
-            if (error instanceof zod_1.z.ZodError) {
+            if (error instanceof z.ZodError) {
                 return res.status(400).json({ error: 'Invalid media data', details: error.errors });
             }
             res.status(500).json({ error: 'Failed to add media' });
         }
     });
     // Like Post
-    app.post('/api/posts/:id/like', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/posts/:id/like', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const postId = req.params.id;
-            await storage_1.storage.likePost(postId, userId);
-            const engagement = await storage_1.storage.getPostEngagement(postId);
+            await storage.likePost(postId, userId);
+            const engagement = await storage.getPostEngagement(postId);
             res.json({ engagement });
         }
         catch (error) {
@@ -2202,12 +2218,12 @@ async function registerRoutes(app) {
         }
     });
     // Unlike Post
-    app.delete('/api/posts/:id/like', auth_1.isAuthenticated, async (req, res) => {
+    app.delete('/api/posts/:id/like', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const postId = req.params.id;
-            await storage_1.storage.unlikePost(postId, userId);
-            const engagement = await storage_1.storage.getPostEngagement(postId);
+            await storage.unlikePost(postId, userId);
+            const engagement = await storage.getPostEngagement(postId);
             res.json({ engagement });
         }
         catch (error) {
@@ -2216,10 +2232,10 @@ async function registerRoutes(app) {
         }
     });
     // Track Post View
-    app.post('/api/posts/:id/view', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/posts/:id/view', isAuthenticated, async (req, res) => {
         try {
             const postId = req.params.id;
-            await storage_1.storage.incrementPostView(postId);
+            await storage.incrementPostView(postId);
             res.json({ success: true });
         }
         catch (error) {
@@ -2228,12 +2244,11 @@ async function registerRoutes(app) {
         }
     });
     // Unlock Paid Post
-    app.post('/api/posts/:id/unlock', auth_1.isAuthenticated, async (req, res) => {
-        var _a;
+    app.post('/api/posts/:id/unlock', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const postId = req.params.id;
-            const post = await storage_1.storage.getPost(postId);
+            const post = await storage.getPost(postId);
             if (!post) {
                 return res.status(404).json({ error: 'Post not found' });
             }
@@ -2241,34 +2256,34 @@ async function registerRoutes(app) {
                 return res.status(400).json({ error: 'Post is not a paid post' });
             }
             // Check if already unlocked
-            const isUnlocked = await storage_1.storage.isPostUnlocked(postId, userId);
+            const isUnlocked = await storage.isPostUnlocked(postId, userId);
             if (isUnlocked) {
                 return res.status(400).json({ error: 'Post already unlocked' });
             }
             // Process payment (integrate with FanzTrust wallet)
-            const wallet = await storage_1.storage.getFanzWallet(userId);
+            const wallet = await storage.getFanzWallet(userId);
             const priceInTokens = (post.priceInCents || 0) * 10; // 1 cent = 10 FanzTokens
             if (!wallet || (wallet.fanzTokenBalance || 0) < priceInTokens) {
                 return res.status(402).json({
                     error: 'Insufficient funds',
                     required: priceInTokens,
-                    available: (wallet === null || wallet === void 0 ? void 0 : wallet.fanzTokenBalance) || 0
+                    available: wallet?.fanzTokenBalance || 0
                 });
             }
             // Deduct from wallet
             const newBalance = (wallet.fanzTokenBalance || 0) - priceInTokens;
-            await storage_1.storage.updateFanzWallet(wallet.id, { fanzTokenBalance: newBalance });
+            await storage.updateFanzWallet(wallet.id, { fanzTokenBalance: newBalance });
             // Create transaction record
-            const transaction = await storage_1.storage.createWalletTransaction({
+            const transaction = await storage.createWalletTransaction({
                 walletId: wallet.id,
                 type: 'debit',
                 amount: priceInTokens,
                 currency: 'FanzToken',
-                description: `Unlocked post: ${((_a = post.content) === null || _a === void 0 ? void 0 : _a.substring(0, 50)) || 'Untitled'}`,
+                description: `Unlocked post: ${post.content?.substring(0, 50) || 'Untitled'}`,
                 status: 'completed'
             });
             // Unlock post
-            const unlock = await storage_1.storage.unlockPost(postId, userId, transaction.id, priceInTokens);
+            const unlock = await storage.unlockPost(postId, userId, transaction.id, priceInTokens);
             res.json({
                 success: true,
                 unlock,
@@ -2281,14 +2296,14 @@ async function registerRoutes(app) {
         }
     });
     // Follow Creator
-    app.post('/api/follow/:creatorId', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/follow/:creatorId', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const creatorId = req.params.creatorId;
             if (userId === creatorId) {
                 return res.status(400).json({ error: 'Cannot follow yourself' });
             }
-            const follow = await storage_1.storage.followCreator(userId, creatorId);
+            const follow = await storage.followCreator(userId, creatorId);
             res.json({ follow });
         }
         catch (error) {
@@ -2297,11 +2312,11 @@ async function registerRoutes(app) {
         }
     });
     // Unfollow Creator
-    app.delete('/api/follow/:creatorId', auth_1.isAuthenticated, async (req, res) => {
+    app.delete('/api/follow/:creatorId', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const creatorId = req.params.creatorId;
-            await storage_1.storage.unfollowCreator(userId, creatorId);
+            await storage.unfollowCreator(userId, creatorId);
             res.json({ success: true });
         }
         catch (error) {
@@ -2310,11 +2325,11 @@ async function registerRoutes(app) {
         }
     });
     // Check Following Status
-    app.get('/api/follow/:creatorId/status', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/follow/:creatorId/status', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const creatorId = req.params.creatorId;
-            const isFollowing = await storage_1.storage.isFollowing(userId, creatorId);
+            const isFollowing = await storage.isFollowing(userId, creatorId);
             res.json({ isFollowing });
         }
         catch (error) {
@@ -2323,10 +2338,10 @@ async function registerRoutes(app) {
         }
     });
     // Get User's Following List
-    app.get('/api/following', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/following', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const following = await storage_1.storage.getFollowing(userId);
+            const following = await storage.getFollowing(userId);
             res.json({ following });
         }
         catch (error) {
@@ -2335,10 +2350,10 @@ async function registerRoutes(app) {
         }
     });
     // Track Ad Click
-    app.post('/api/ads/:id/click', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/ads/:id/click', isAuthenticated, async (req, res) => {
         try {
             const adId = req.params.id;
-            await storage_1.storage.incrementAdClick(adId);
+            await storage.incrementAdClick(adId);
             res.json({ success: true });
         }
         catch (error) {
@@ -2350,7 +2365,7 @@ async function registerRoutes(app) {
     // COMMENTS API
     // ====================================
     // Get Post Comments
-    app.get('/api/posts/:postId/comments', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/posts/:postId/comments', isAuthenticated, async (req, res) => {
         try {
             const postId = req.params.postId;
             const userId = req.user.claims.sub;
@@ -2385,7 +2400,7 @@ async function registerRoutes(app) {
         }
     });
     // Add Comment
-    app.post('/api/posts/:postId/comments', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/posts/:postId/comments', isAuthenticated, async (req, res) => {
         try {
             const postId = req.params.postId;
             const userId = req.user.claims.sub;
@@ -2410,7 +2425,7 @@ async function registerRoutes(app) {
         }
     });
     // Like Comment
-    app.post('/api/comments/:commentId/like', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/comments/:commentId/like', isAuthenticated, async (req, res) => {
         try {
             const commentId = req.params.commentId;
             const userId = req.user.claims.sub;
@@ -2425,7 +2440,7 @@ async function registerRoutes(app) {
     // LIVE STREAMS API
     // ====================================
     // Get All Streams
-    app.get('/api/streams', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/streams', isAuthenticated, async (req, res) => {
         try {
             const filter = req.query.filter || 'all';
             const streams = [
@@ -2463,7 +2478,7 @@ async function registerRoutes(app) {
         }
     });
     // Create Stream
-    app.post('/api/streams', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/streams', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const { title, description, visibility, priceInCents, scheduledAt } = req.body;
@@ -2497,7 +2512,7 @@ async function registerRoutes(app) {
     // AI RECOMMENDATIONS API
     // ====================================
     // Get Personalized Recommendations
-    app.get('/api/discover', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/discover', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const recommendations = {
@@ -2514,7 +2529,7 @@ async function registerRoutes(app) {
         }
     });
     // Track Content Interaction (for AI learning)
-    app.post('/api/interactions', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/interactions', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const { postId, streamId, interactionType, watchTimeSeconds, engagementScore } = req.body;
@@ -2530,10 +2545,10 @@ async function registerRoutes(app) {
     // CONTENT CREATION & STUDIO API
     // ====================================
     // Get creator studio settings
-    app.get('/api/creator/studio/settings', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/creator/studio/settings', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const settings = await storage_1.storage.getCreatorStudioSettings(userId);
+            const settings = await storage.getCreatorStudioSettings(userId);
             if (!settings) {
                 // Return default settings if none exist
                 return res.json({
@@ -2552,16 +2567,16 @@ async function registerRoutes(app) {
         }
     });
     // Update creator studio settings
-    app.post('/api/creator/studio/settings', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/creator/studio/settings', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const existingSettings = await storage_1.storage.getCreatorStudioSettings(userId);
+            const existingSettings = await storage.getCreatorStudioSettings(userId);
             let settings;
             if (existingSettings) {
-                settings = await storage_1.storage.updateCreatorStudioSettings(userId, req.body);
+                settings = await storage.updateCreatorStudioSettings(userId, req.body);
             }
             else {
-                settings = await storage_1.storage.createCreatorStudioSettings(Object.assign(Object.assign({}, req.body), { creatorId: userId }));
+                settings = await storage.createCreatorStudioSettings({ ...req.body, creatorId: userId });
             }
             res.json(settings);
         }
@@ -2571,11 +2586,11 @@ async function registerRoutes(app) {
         }
     });
     // Get content sessions
-    app.get('/api/creator/content/sessions', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/creator/content/sessions', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const limit = parseInt(req.query.limit) || 20;
-            const sessions = await content_creation_1.contentCreationService.getCreatorSessions(userId, limit);
+            const sessions = await contentCreationService.getCreatorSessions(userId, limit);
             res.json(sessions);
         }
         catch (error) {
@@ -2584,10 +2599,10 @@ async function registerRoutes(app) {
         }
     });
     // Get single content session
-    app.get('/api/creator/content/sessions/:id', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/creator/content/sessions/:id', isAuthenticated, async (req, res) => {
         try {
             const sessionId = req.params.id;
-            const session = await content_creation_1.contentCreationService.getSession(sessionId);
+            const session = await contentCreationService.getSession(sessionId);
             if (!session) {
                 return res.status(404).json({ error: 'Session not found' });
             }
@@ -2599,14 +2614,14 @@ async function registerRoutes(app) {
         }
     });
     // Create content upload session
-    app.post('/api/creator/content/upload', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/creator/content/upload', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const { title, description, type, file } = req.body;
             // Verify creator access
-            await content_creation_1.contentCreationService.verifyCreatorAccess(userId);
+            await contentCreationService.verifyCreatorAccess(userId);
             // Process upload
-            const session = await content_creation_1.contentCreationService.uploadContent(userId, {
+            const session = await contentCreationService.uploadContent(userId, {
                 title,
                 description,
                 type,
@@ -2623,14 +2638,14 @@ async function registerRoutes(app) {
         }
     });
     // Create camera capture session
-    app.post('/api/creator/content/capture', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/creator/content/capture', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const { videoData, options } = req.body;
             // Verify creator access
-            await content_creation_1.contentCreationService.verifyCreatorAccess(userId);
+            await contentCreationService.verifyCreatorAccess(userId);
             // Process camera capture
-            const session = await content_creation_1.contentCreationService.captureFromCamera(userId, Buffer.from(videoData, 'base64'), options);
+            const session = await contentCreationService.captureFromCamera(userId, Buffer.from(videoData, 'base64'), options);
             res.json(session);
         }
         catch (error) {
@@ -2639,11 +2654,11 @@ async function registerRoutes(app) {
         }
     });
     // Start live stream
-    app.post('/api/creator/content/live', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/creator/content/live', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const { title, description, coStarIds, visibility, priceInCents } = req.body;
-            const result = await content_creation_1.contentCreationService.startLiveStream(userId, {
+            const result = await contentCreationService.startLiveStream(userId, {
                 title,
                 description,
                 coStarIds,
@@ -2659,17 +2674,17 @@ async function registerRoutes(app) {
         }
     });
     // Process content with AI editor
-    app.post('/api/creator/content/process/:sessionId', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/creator/content/process/:sessionId', isAuthenticated, async (req, res) => {
         try {
             const sessionId = req.params.sessionId;
-            const session = await storage_1.storage.getContentSession(sessionId);
+            const session = await storage.getContentSession(sessionId);
             if (!session) {
                 return res.status(404).json({ error: 'Session not found' });
             }
             // Create or get editing task
-            let editingTask = await storage_1.storage.getEditingTaskBySession(sessionId);
+            let editingTask = await storage.getEditingTaskBySession(sessionId);
             if (!editingTask) {
-                editingTask = await storage_1.storage.createEditingTask({
+                editingTask = await storage.createEditingTask({
                     sessionId,
                     creatorId: session.creatorId,
                     status: 'pending',
@@ -2683,7 +2698,7 @@ async function registerRoutes(app) {
                 });
             }
             // Process in background
-            ai_editor_1.aiEditorService.processContent(editingTask.id).catch(console.error);
+            aiEditorService.processContent(editingTask.id).catch(console.error);
             res.json({ editingTask, message: 'Processing started' });
         }
         catch (error) {
@@ -2692,10 +2707,10 @@ async function registerRoutes(app) {
         }
     });
     // Get AI pricing suggestions
-    app.get('/api/creator/content/pricing/:sessionId', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/creator/content/pricing/:sessionId', isAuthenticated, async (req, res) => {
         try {
             const sessionId = req.params.sessionId;
-            const pricing = await ai_editor_1.aiEditorService.suggestPricing(sessionId);
+            const pricing = await aiEditorService.suggestPricing(sessionId);
             res.json(pricing);
         }
         catch (error) {
@@ -2704,10 +2719,10 @@ async function registerRoutes(app) {
         }
     });
     // Get editing task status
-    app.get('/api/creator/content/editing/:sessionId', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/creator/content/editing/:sessionId', isAuthenticated, async (req, res) => {
         try {
             const sessionId = req.params.sessionId;
-            const task = await ai_processor_1.aiProcessorService.getProcessingStatus(sessionId);
+            const task = await aiProcessorService.getProcessingStatus(sessionId);
             res.json(task);
         }
         catch (error) {
@@ -2716,10 +2731,10 @@ async function registerRoutes(app) {
         }
     });
     // Get content versions
-    app.get('/api/creator/content/versions/:sessionId', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/creator/content/versions/:sessionId', isAuthenticated, async (req, res) => {
         try {
             const sessionId = req.params.sessionId;
-            const versions = await format_converter_1.formatConverterService.getGeneratedFormats(sessionId);
+            const versions = await formatConverterService.getGeneratedFormats(sessionId);
             res.json(versions);
         }
         catch (error) {
@@ -2728,10 +2743,10 @@ async function registerRoutes(app) {
         }
     });
     // Analyze content
-    app.get('/api/creator/content/analyze/:sessionId', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/creator/content/analyze/:sessionId', isAuthenticated, async (req, res) => {
         try {
             const sessionId = req.params.sessionId;
-            const analysis = await content_analyzer_1.contentAnalyzerService.analyzeContent(sessionId);
+            const analysis = await contentAnalyzerService.analyzeContent(sessionId);
             res.json(analysis);
         }
         catch (error) {
@@ -2740,10 +2755,10 @@ async function registerRoutes(app) {
         }
     });
     // Get generated assets
-    app.get('/api/creator/content/assets/:sessionId', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/creator/content/assets/:sessionId', isAuthenticated, async (req, res) => {
         try {
             const sessionId = req.params.sessionId;
-            const assets = await asset_generator_1.assetGeneratorService.getGeneratedAssets(sessionId);
+            const assets = await assetGeneratorService.getGeneratedAssets(sessionId);
             res.json(assets);
         }
         catch (error) {
@@ -2752,10 +2767,10 @@ async function registerRoutes(app) {
         }
     });
     // Start AI processing
-    app.post('/api/creator/content/ai-process', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/creator/content/ai-process', isAuthenticated, async (req, res) => {
         try {
             const { sessionId, options } = req.body;
-            const result = await ai_processor_1.aiProcessorService.processContent(sessionId, options);
+            const result = await aiProcessorService.processContent(sessionId, options);
             res.json(result);
         }
         catch (error) {
@@ -2764,10 +2779,10 @@ async function registerRoutes(app) {
         }
     });
     // Generate formats
-    app.post('/api/creator/content/generate-formats', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/creator/content/generate-formats', isAuthenticated, async (req, res) => {
         try {
             const { sessionId, platforms } = req.body;
-            const formats = await format_converter_1.formatConverterService.generateFormats(sessionId, platforms);
+            const formats = await formatConverterService.generateFormats(sessionId, platforms);
             res.json(formats);
         }
         catch (error) {
@@ -2776,10 +2791,10 @@ async function registerRoutes(app) {
         }
     });
     // Generate assets
-    app.post('/api/creator/content/generate-assets', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/creator/content/generate-assets', isAuthenticated, async (req, res) => {
         try {
             const { sessionId, types } = req.body;
-            const assets = await asset_generator_1.assetGeneratorService.generateAssets(sessionId, types);
+            const assets = await assetGeneratorService.generateAssets(sessionId, types);
             res.json(assets);
         }
         catch (error) {
@@ -2788,10 +2803,10 @@ async function registerRoutes(app) {
         }
     });
     // Get processing queue
-    app.get('/api/creator/processing-queue', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/creator/processing-queue', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
-            const queue = await ai_processor_1.aiProcessorService.getProcessingQueue(userId);
+            const queue = await aiProcessorService.getProcessingQueue(userId);
             res.json(queue);
         }
         catch (error) {
@@ -2800,10 +2815,10 @@ async function registerRoutes(app) {
         }
     });
     // Update queue priority
-    app.post('/api/creator/processing-queue/priority', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/creator/processing-queue/priority', isAuthenticated, async (req, res) => {
         try {
             const { sessionId, priority } = req.body;
-            await ai_processor_1.aiProcessorService.updateQueuePriority(sessionId, priority);
+            await aiProcessorService.updateQueuePriority(sessionId, priority);
             res.json({ success: true });
         }
         catch (error) {
@@ -2812,10 +2827,10 @@ async function registerRoutes(app) {
         }
     });
     // Cancel processing
-    app.post('/api/creator/processing-queue/cancel', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/creator/processing-queue/cancel', isAuthenticated, async (req, res) => {
         try {
             const { sessionId } = req.body;
-            await ai_processor_1.aiProcessorService.cancelProcessing(sessionId);
+            await aiProcessorService.cancelProcessing(sessionId);
             res.json({ success: true });
         }
         catch (error) {
@@ -2824,10 +2839,10 @@ async function registerRoutes(app) {
         }
     });
     // Create distribution campaign
-    app.post('/api/creator/content/distribute', auth_1.isAuthenticated, async (req, res) => {
+    app.post('/api/creator/content/distribute', isAuthenticated, async (req, res) => {
         try {
             const { sessionId, platforms, publishSchedule, settings } = req.body;
-            const campaign = await distribution_1.distributionService.createCampaign(sessionId, {
+            const campaign = await distributionService.createCampaign(sessionId, {
                 platforms,
                 publishSchedule,
                 settings,
@@ -2840,10 +2855,10 @@ async function registerRoutes(app) {
         }
     });
     // Get campaign analytics
-    app.get('/api/creator/campaigns/:campaignId/analytics', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/creator/campaigns/:campaignId/analytics', isAuthenticated, async (req, res) => {
         try {
             const campaignId = req.params.campaignId;
-            const analytics = await distribution_1.distributionService.getCampaignAnalytics(campaignId);
+            const analytics = await distributionService.getCampaignAnalytics(campaignId);
             res.json(analytics);
         }
         catch (error) {
@@ -2852,18 +2867,18 @@ async function registerRoutes(app) {
         }
     });
     // Delete content session
-    app.delete('/api/creator/content/sessions/:id', auth_1.isAuthenticated, async (req, res) => {
+    app.delete('/api/creator/content/sessions/:id', isAuthenticated, async (req, res) => {
         try {
             const sessionId = req.params.id;
             const userId = req.user.claims.sub;
-            const session = await storage_1.storage.getContentSession(sessionId);
+            const session = await storage.getContentSession(sessionId);
             if (!session) {
                 return res.status(404).json({ error: 'Session not found' });
             }
             if (session.creatorId !== userId) {
                 return res.status(403).json({ error: 'Unauthorized' });
             }
-            await content_creation_1.contentCreationService.deleteSession(sessionId);
+            await contentCreationService.deleteSession(sessionId);
             res.json({ success: true });
         }
         catch (error) {
@@ -2875,7 +2890,7 @@ async function registerRoutes(app) {
     // CREATOR ANALYTICS API
     // ====================================
     // Get Creator Analytics
-    app.get('/api/creator/analytics', auth_1.isAuthenticated, async (req, res) => {
+    app.get('/api/creator/analytics', isAuthenticated, async (req, res) => {
         try {
             const userId = req.user.claims.sub;
             const analytics = {
@@ -2906,16 +2921,16 @@ async function registerRoutes(app) {
         }
         // Check subscription status
         if (post.visibility === 'subscriber') {
-            const subscription = await storage_1.storage.getSubscription(userId, post.creatorId);
-            return (subscription === null || subscription === void 0 ? void 0 : subscription.status) === 'active';
+            const subscription = await storage.getSubscription(userId, post.creatorId);
+            return subscription?.status === 'active';
         }
         // Check if paid post is unlocked
         if (post.visibility === 'paid') {
-            return await storage_1.storage.isPostUnlocked(post.id, userId);
+            return await storage.isPostUnlocked(post.id, userId);
         }
         // Followers-only content
         if (post.visibility === 'followers') {
-            return await storage_1.storage.isFollowing(userId, post.creatorId);
+            return await storage.isFollowing(userId, post.creatorId);
         }
         return false;
     }
