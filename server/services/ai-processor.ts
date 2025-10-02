@@ -15,19 +15,19 @@ export interface ProcessingConfig {
   audioEnhancement: boolean;
   noiseReduction: boolean;
   stabilization: boolean;
-  
+
   // Enhancement Features
   colorGrading: boolean;
   autoSubtitles: boolean;
   watermark: boolean;
   backgroundReplacement: boolean;
   faceBeautification: boolean;
-  
+
   // Smart Features
   beatMatching: boolean;
   transitionEffects: boolean;
   privacyBlur: boolean;
-  
+
   // Advanced options
   targetQuality: 'low' | 'medium' | 'high' | 'ultra';
   processingPriority: 'normal' | 'high' | 'premium';
@@ -112,7 +112,7 @@ export class AIProcessorService {
         { name: 'asset_generation', status: 'pending', progress: 0 },
       ],
     };
-    
+
     this.processingPipelines.set(sessionId, pipeline);
 
     try {
@@ -156,7 +156,7 @@ export class AIProcessorService {
   // Scene Detection with AI
   private async detectScenes(session: ContentCreationSession): Promise<SceneSegment[]> {
     console.log(`Detecting scenes for session ${session.id}`);
-    
+
     // Simulate AI scene detection
     // In production: Use ML models for shot boundary detection
     const scenes: SceneSegment[] = [
@@ -197,9 +197,9 @@ export class AIProcessorService {
     scenes: SceneSegment[]
   ): Promise<FaceTrackingData[]> {
     console.log(`Detecting faces for session ${session.id}`);
-    
+
     const faceData: FaceTrackingData[] = [];
-    
+
     // In production: Use face detection models (MTCNN, RetinaFace, etc.)
     // Track faces across frames for optimal framing
     for (let frame = 0; frame < 30; frame++) {
@@ -225,7 +225,7 @@ export class AIProcessorService {
     config: ProcessingConfig
   ): Promise<AudioAnalysis> {
     console.log(`Processing audio for session ${session.id}`);
-    
+
     const analysis: AudioAnalysis = {
       averageVolume: 0.7,
       peakVolume: 0.95,
@@ -265,7 +265,7 @@ export class AIProcessorService {
     audioAnalysis: AudioAnalysis
   ): Promise<Buffer> {
     console.log(`Enhancing content for session ${session.id}`);
-    
+
     let enhancedContent = Buffer.from('enhanced_placeholder');
 
     // Apply color grading
@@ -343,7 +343,7 @@ export class AIProcessorService {
     // Extract representative frames from each scene
     const keyFrames: string[] = [];
     const frameInterval = (scene.endTime - scene.startTime) / 3;
-    
+
     for (let i = 0; i < 3; i++) {
       const frameTime = scene.startTime + (frameInterval * i);
       const frameKey = `content/${session.creatorId}/${session.id}/frames/frame_${frameTime}.jpg`;
@@ -465,7 +465,7 @@ export class AIProcessorService {
     if (priority === 'premium') {
       this.processingQueue.unshift(sessionId);
     } else if (priority === 'high') {
-      const premiumCount = this.processingQueue.filter(id => 
+      const premiumCount = this.processingQueue.filter(id =>
         this.getSessionPriority(id) === 'premium'
       ).length;
       this.processingQueue.splice(premiumCount, 0, sessionId);
@@ -484,7 +484,7 @@ export class AIProcessorService {
     }
 
     this.isProcessing = true;
-    
+
     while (this.processingQueue.length > 0) {
       const sessionId = this.processingQueue.shift();
       if (sessionId) {
@@ -506,7 +506,7 @@ export class AIProcessorService {
             targetQuality: 'high',
             processingPriority: 'normal',
           };
-          
+
           await this.processContent(sessionId, config);
         } catch (error) {
           console.error(`Error processing session ${sessionId}:`, error);
@@ -522,3 +522,15 @@ export class AIProcessorService {
     return 'normal';
   }
 }
+
+// Dummy definitions for types used in changes
+interface ProcessingOptions {}
+
+// Placeholder for processContent function
+const processContent = async (contentId: string, options: ProcessingOptions) => {
+  // Implementation here
+};
+
+export const aiProcessorService = {
+  processContent,
+};

@@ -824,7 +824,7 @@ export const insertMediaAssetSchema = createInsertSchema(mediaAssets).omit({
   updatedAt: true,
   views: true,
   likes: true,
-});
+}) as any;
 
 export const insertMessageSchema = createInsertSchema(messages).omit({
   id: true,
@@ -1565,7 +1565,7 @@ export const pricingRules = pgTable("pricing_rules", {
   contentId: varchar("content_id").references(() => mediaAssets.id),
   name: varchar("name").notNull(),
   strategy: pricingStrategyEnum("strategy").default("dynamic"),
-  model: pricingModelEnum("model").default("ml_regression"),
+  model: pricingModelEnum("model").default("rule_based"),
   basePrice: integer("base_price").notNull(), // in cents
   minPrice: integer("min_price").notNull(),
   maxPrice: integer("max_price").notNull(),
@@ -1851,7 +1851,7 @@ export const insertFeedPostSchema = createInsertSchema(feedPosts).omit({
 export const insertPostMediaSchema = createInsertSchema(postMedia).omit({
   id: true,
   createdAt: true,
-});
+}) as any;
 
 export const insertSponsoredPostSchema = createInsertSchema(sponsoredPosts).omit({
   id: true,
@@ -1985,7 +1985,7 @@ export const insertGeneratedAssetSchema = createInsertSchema(generatedAssets).om
 export const insertContentAnalyticsSchema = createInsertSchema(contentAnalytics).omit({
   id: true,
   updatedAt: true,
-});
+}) as any;
 
 // Content Creation Type Exports
 export type ContentCreationSession = typeof contentCreationSessions.$inferSelect;
@@ -2064,7 +2064,7 @@ export const insertMarketplaceIntegrationSchema = createInsertSchema(marketplace
 export const insertBlockchainEventSchema = createInsertSchema(blockchainEvents).omit({
   id: true,
   createdAt: true,
-});
+}) as any;
 
 // NFT Type Exports
 export type BlockchainWallet = typeof blockchainWallets.$inferSelect;

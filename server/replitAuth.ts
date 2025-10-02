@@ -1,158 +1,151 @@
-import * as client from "openid-client";
-import { Strategy, type VerifyFunction } from "openid-client/passport";
 
+import { Router } from "express";
+import * as oauth from "openid-client";
 import passport from "passport";
+import { Strategy as CustomStrategy } from "passport-custom";
 import session from "express-session";
-import type { Express, RequestHandler } from "express";
-import memoize from "memoizee";
-import connectPg from "connect-pg-simple";
-import { storage } from "./storage";
+import { db } from "./db";
+import memoizee from "memoizee";
+import connectPgSimple from "connect-pg-simple";
+import { Pool } from "pg";
 
-if (!process.env.REPLIT_DOMAINS) {
-  throw new Error("Environment variable REPLIT_DOMAINS not provided");
-}
+const PgSession = connectPgSimple(session);
 
-const getOidcConfig = memoize(
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+const getClient = memoizee(
   async () => {
-    return await client.discovery(
-      new URL(process.env.ISSUER_URL ?? "https://replit.com/oidc"),
-      process.env.REPL_ID!
+    const issuer = new URL(
+      process.env.REPLIT_DEPLOYMENT === "1"
+        ? "https://replit.com"
+        : `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
     );
+
+    const config = await oauth.discovery(
+      issuer,
+      process.env.REPLIT_DEPLOYMENT === "1"
+        ? process.env.REPL_ID!
+        : "local-testing",
+      undefined,
+      undefined,
+      { execute: [oauth.allowInsecureRequests] }
+    );
+
+    return config;
   },
-  { maxAge: 3600 * 1000 }
+  { promise: true, maxAge: 60000 }
 );
 
-export function getSession() {
-  const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-  const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
-    ttl: sessionTtl,
-    tableName: "sessions",
-  });
-  return session({
-    secret: process.env.SESSION_SECRET!,
-    store: sessionStore,
+passport.use(
+  "replit",
+  new CustomStrategy(async (req, done) => {
+    try {
+      const client = await getClient();
+      const currentUrl = new URL(req.url, `https://${req.get("host")}`);
+      const tokens = await oauth.authorizationCodeGrant(client, currentUrl, {
+        expectedState: req.session.state,
+        pkceCodeVerifier: req.session.codeVerifier,
+      });
+
+      const claims = oauth.getValidatedIdTokenClaims(tokens);
+
+      const user = await db.user.upsert({
+        where: { id: claims.sub },
+        update: {},
+        create: {
+          id: claims.sub,
+          email: claims.email as string,
+          firstName: (claims.given_name as string) || null,
+          lastName: (claims.family_name as string) || null,
+          profileImageUrl: (claims.profile_image as string) || null,
+          password: "", // Replit auth doesn't use passwords
+        },
+      });
+
+      done(null, user);
+    } catch (err) {
+      done(err);
+    }
+  })
+);
+
+passport.serializeUser((user: any, done) => {
+  done(null, user.id);
+});
+
+passport.deserializeUser(async (id: string, done) => {
+  try {
+    const user = await db.user.findUnique({ where: { id } });
+    done(null, user);
+  } catch (err) {
+    done(err);
+  }
+});
+
+const router = Router();
+
+router.use(
+  session({
+    store: new PgSession({ pool }),
+    secret: process.env.SESSION_SECRET || "your-secret-key",
     resave: false,
     saveUninitialized: false,
     cookie: {
+      secure: process.env.NODE_ENV === "production",
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: sessionTtl,
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     },
+  })
+);
+
+router.use(passport.initialize());
+router.use(passport.session());
+
+router.get("/login", async (req, res) => {
+  const client = await getClient();
+  const state = oauth.generateRandomState();
+  const codeVerifier = oauth.generateRandomCodeVerifier();
+
+  req.session.state = state;
+  req.session.codeVerifier = codeVerifier;
+
+  const authUrl = oauth.buildAuthorizationUrl(client, {
+    state,
+    code_challenge: await oauth.calculatePKCECodeChallenge(codeVerifier),
+    code_challenge_method: "S256",
   });
-}
 
-function updateUserSession(
-  user: any,
-  tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers
-) {
-  user.claims = tokens.claims();
-  user.access_token = tokens.access_token;
-  user.refresh_token = tokens.refresh_token;
-  user.expires_at = user.claims?.exp;
-}
+  res.redirect(authUrl.href);
+});
 
-async function upsertUser(
-  claims: any,
-) {
-  await storage.upsertUser({
-    id: claims["sub"],
-    email: claims["email"],
-    firstName: claims["first_name"],
-    lastName: claims["last_name"],
-    profileImageUrl: claims["profile_image_url"],
+router.get("/callback", passport.authenticate("replit"), (req, res) => {
+  res.redirect("/");
+});
+
+router.get("/logout", (req, res) => {
+  req.logout((err) => {
+    if (err) {
+      return res.status(500).json({ error: "Logout failed" });
+    }
+    res.redirect("/");
   });
-}
+});
 
-export async function setupAuth(app: Express) {
-  app.set("trust proxy", 1);
-  app.use(getSession());
-  app.use(passport.initialize());
-  app.use(passport.session());
-
-  const config = await getOidcConfig();
-
-  const verify: VerifyFunction = async (
-    tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
-    verified: passport.AuthenticateCallback
-  ) => {
-    const user = {};
-    updateUserSession(user, tokens);
-    await upsertUser(tokens.claims());
-    verified(null, user);
-  };
-
-  for (const domain of process.env
-    .REPLIT_DOMAINS!.split(",")) {
-    const strategy = new Strategy(
-      {
-        name: `replitauth:${domain}`,
-        config,
-        scope: "openid email profile offline_access",
-        callbackURL: `https://${domain}/api/callback`,
-      },
-      verify,
-    );
-    passport.use(strategy);
+router.get("/user", (req, res) => {
+  if (req.isAuthenticated()) {
+    res.json(req.user);
+  } else {
+    res.status(401).json({ error: "Not authenticated" });
   }
+});
 
-  passport.serializeUser((user: Express.User, cb) => cb(null, user));
-  passport.deserializeUser((user: Express.User, cb) => cb(null, user));
-
-  app.get("/api/login", (req, res, next) => {
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      prompt: "login consent",
-      scope: ["openid", "email", "profile", "offline_access"],
-    })(req, res, next);
-  });
-
-  app.get("/api/callback", (req, res, next) => {
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      successReturnToOrRedirect: "/",
-      failureRedirect: "/api/login",
-    })(req, res, next);
-  });
-
-  app.get("/api/logout", (req, res) => {
-    req.logout(() => {
-      res.redirect(
-        client.buildEndSessionUrl(config, {
-          client_id: process.env.REPL_ID!,
-          post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
-        }).href
-      );
-    });
-  });
-}
-
-export const isAuthenticated: RequestHandler = async (req, res, next) => {
-  const user = req.user as any;
-
-  if (!req.isAuthenticated() || !user.expires_at) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-  if (now <= user.expires_at) {
+export const authMiddleware = (req: any, res: any, next: any) => {
+  if (req.isAuthenticated()) {
     return next();
   }
-
-  const refreshToken = user.refresh_token;
-  if (!refreshToken) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
-  }
-
-  try {
-    const config = await getOidcConfig();
-    const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
-    updateUserSession(user, tokenResponse);
-    return next();
-  } catch (error) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
-  }
+  res.status(401).json({ error: "Authentication required" });
 };
+
+export default router;
