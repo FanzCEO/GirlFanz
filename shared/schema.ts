@@ -59,6 +59,33 @@ export const voiceMessageStatusEnum = pgEnum("voice_message_status", ["queued", 
 export const voiceCampaignStatusEnum = pgEnum("voice_campaign_status", ["draft", "scheduled", "running", "paused", "completed", "cancelled"]);
 export const voiceEmotionEnum = pgEnum("voice_emotion", ["neutral", "happy", "sad", "excited", "calm", "serious", "playful"]);
 
+// AR/VR enums
+export const vrSessionStatusEnum = pgEnum("vr_session_status", ["initializing", "active", "paused", "ended", "failed"]);
+export const vrDeviceTypeEnum = pgEnum("vr_device_type", ["quest3", "visionpro", "pico4", "index", "psvr2", "browser"]);
+export const streamQualityEnum = pgEnum("stream_quality", ["4k", "2k", "1080p", "720p", "adaptive"]);
+export const vrRenderingModeEnum = pgEnum("vr_rendering_mode", ["volumetric", "pixel_streaming", "webxr", "cloud"]);
+
+// Dynamic pricing enums
+export const pricingStrategyEnum = pgEnum("pricing_strategy", ["dynamic", "fixed", "tiered", "subscription", "promotional"]);
+export const priceAdjustmentTypeEnum = pgEnum("price_adjustment_type", ["demand", "competitor", "time", "segment", "inventory"]);
+export const pricingModelEnum = pgEnum("pricing_model", ["ml_regression", "reinforcement_learning", "rule_based", "hybrid"]);
+
+// Microlending enums
+export const loanStatusEnum = pgEnum("loan_status", ["pending", "approved", "active", "repaid", "defaulted", "cancelled"]);
+export const repaymentFrequencyEnum = pgEnum("repayment_frequency", ["daily", "weekly", "biweekly", "monthly"]);
+export const creditRatingEnum = pgEnum("credit_rating", ["excellent", "good", "fair", "poor", "unrated"]);
+export const loanPurposeEnum = pgEnum("loan_purpose", ["equipment", "production", "marketing", "training", "other"]);
+
+// Deepfake detection enums
+export const detectionProviderEnum = pgEnum("detection_provider", ["reality_defender", "sensity", "deepware", "internal"]);
+export const authenticityStatusEnum = pgEnum("authenticity_status", ["genuine", "manipulated", "deepfake", "uncertain", "pending"]);
+export const contentRiskLevelEnum = pgEnum("content_risk_level", ["safe", "low", "medium", "high", "critical"]);
+
+// Emotional AI enums
+export const emotionTypeEnum = pgEnum("emotion_type", ["happy", "sad", "angry", "surprised", "neutral", "excited", "romantic", "playful"]);
+export const engagementLevelEnum = pgEnum("engagement_level", ["very_low", "low", "medium", "high", "very_high"]);
+export const sentimentScoreEnum = pgEnum("sentiment_score", ["very_negative", "negative", "neutral", "positive", "very_positive"]);
+
 // User storage table
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1461,6 +1488,315 @@ export const blockchainEvents = pgTable("blockchain_events", {
   eventData: jsonb("event_data"), // Raw event data
   processed: boolean("processed").default(false),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ====================================
+// AR/VR STREAMING SYSTEM
+// ====================================
+
+// VR Sessions
+export const vrSessions = pgTable("vr_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  title: varchar("title"),
+  description: text("description"),
+  status: vrSessionStatusEnum("status").default("initializing"),
+  deviceType: vrDeviceTypeEnum("device_type").default("browser"),
+  renderingMode: vrRenderingModeEnum("rendering_mode").default("webxr"),
+  quality: streamQualityEnum("quality").default("adaptive"),
+  roomCode: varchar("room_code").unique(),
+  maxParticipants: integer("max_participants").default(10),
+  currentParticipants: integer("current_participants").default(0),
+  isPublic: boolean("is_public").default(false),
+  price: integer("price"), // in cents
+  webrtcSignalingUrl: varchar("webrtc_signaling_url"),
+  pixelStreamingUrl: varchar("pixel_streaming_url"),
+  volumetricDataUrl: varchar("volumetric_data_url"),
+  metadata: jsonb("metadata"), // device capabilities, network stats, etc
+  startedAt: timestamp("started_at"),
+  endedAt: timestamp("ended_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// AR Overlays
+export const arOverlays = pgTable("ar_overlays", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").references(() => vrSessions.id, { onDelete: "cascade" }),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  name: varchar("name").notNull(),
+  type: varchar("type").notNull(), // filter, mask, object, environment
+  overlayUrl: varchar("overlay_url").notNull(),
+  thumbnailUrl: varchar("thumbnail_url"),
+  position: jsonb("position"), // 3D position {x, y, z}
+  rotation: jsonb("rotation"), // 3D rotation {x, y, z}
+  scale: jsonb("scale"), // 3D scale {x, y, z}
+  anchoring: varchar("anchoring"), // face, plane, object
+  trackingData: jsonb("tracking_data"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Volumetric Streams
+export const volumetricStreams = pgTable("volumetric_streams", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").references(() => vrSessions.id, { onDelete: "cascade" }).notNull(),
+  streamUrl: varchar("stream_url").notNull(),
+  format: varchar("format").notNull(), // ply, obj, gltf, draco
+  frameRate: integer("frame_rate").default(30),
+  bitrate: integer("bitrate"),
+  resolution: varchar("resolution"),
+  compression: varchar("compression"), // draco, gzip, none
+  pointCloudDensity: integer("point_cloud_density"),
+  colorDepth: integer("color_depth").default(8),
+  isRecording: boolean("is_recording").default(false),
+  recordingUrl: varchar("recording_url"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ====================================
+// DYNAMIC PRICING SYSTEM
+// ====================================
+
+// Pricing Rules
+export const pricingRules = pgTable("pricing_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  contentId: varchar("content_id").references(() => mediaAssets.id),
+  name: varchar("name").notNull(),
+  strategy: pricingStrategyEnum("strategy").default("dynamic"),
+  model: pricingModelEnum("model").default("ml_regression"),
+  basePrice: integer("base_price").notNull(), // in cents
+  minPrice: integer("min_price").notNull(),
+  maxPrice: integer("max_price").notNull(),
+  adjustmentFactors: jsonb("adjustment_factors"), // {demand: 1.5, time: 0.8, etc}
+  segmentRules: jsonb("segment_rules"), // pricing per user segment
+  competitorTracking: boolean("competitor_tracking").default(false),
+  abTestEnabled: boolean("ab_test_enabled").default(false),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Price History
+export const priceHistory = pgTable("price_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ruleId: varchar("rule_id").references(() => pricingRules.id, { onDelete: "cascade" }).notNull(),
+  contentId: varchar("content_id").references(() => mediaAssets.id),
+  previousPrice: integer("previous_price").notNull(),
+  newPrice: integer("new_price").notNull(),
+  adjustmentType: priceAdjustmentTypeEnum("adjustment_type").notNull(),
+  adjustmentReason: text("adjustment_reason"),
+  demandScore: integer("demand_score"), // 0-100
+  competitorAvgPrice: integer("competitor_avg_price"),
+  conversions: integer("conversions").default(0),
+  revenue: integer("revenue").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Competitor Prices
+export const competitorPrices = pgTable("competitor_prices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  platform: varchar("platform").notNull(),
+  competitorId: varchar("competitor_id"),
+  competitorName: varchar("competitor_name"),
+  contentType: varchar("content_type"),
+  price: integer("price").notNull(),
+  currency: varchar("currency").default("USD"),
+  subscribers: integer("subscribers"),
+  engagement: integer("engagement"), // 0-100 score
+  scrapedUrl: varchar("scraped_url"),
+  metadata: jsonb("metadata"),
+  scrapedAt: timestamp("scraped_at").defaultNow(),
+});
+
+// ====================================
+// MICROLENDING SYSTEM
+// ====================================
+
+// Microloans
+export const microloans = pgTable("microloans", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  lenderId: varchar("lender_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  borrowerId: varchar("borrower_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  amount: integer("amount").notNull(), // in cents
+  interestRate: integer("interest_rate").notNull(), // basis points (100 = 1%)
+  termDays: integer("term_days").notNull(),
+  purpose: loanPurposeEnum("purpose").notNull(),
+  status: loanStatusEnum("status").default("pending"),
+  repaymentFrequency: repaymentFrequencyEnum("repayment_frequency").default("monthly"),
+  totalRepaid: integer("total_repaid").default(0),
+  nextPaymentDue: timestamp("next_payment_due"),
+  smartContractAddress: varchar("smart_contract_address"),
+  collateralType: varchar("collateral_type"), // future_earnings, nft, none
+  collateralValue: integer("collateral_value"),
+  defaultRisk: integer("default_risk"), // 0-100 score
+  createdAt: timestamp("created_at").defaultNow(),
+  approvedAt: timestamp("approved_at"),
+  repaidAt: timestamp("repaid_at"),
+  defaultedAt: timestamp("defaulted_at"),
+});
+
+// Loan Applications
+export const loanApplications = pgTable("loan_applications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  applicantId: varchar("applicant_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  requestedAmount: integer("requested_amount").notNull(),
+  purpose: loanPurposeEnum("purpose").notNull(),
+  purposeDescription: text("purpose_description"),
+  requestedTermDays: integer("requested_term_days").notNull(),
+  monthlyIncome: integer("monthly_income"),
+  existingLoans: integer("existing_loans").default(0),
+  businessPlan: text("business_plan"),
+  status: varchar("status").default("pending"), // pending, approved, rejected
+  rejectionReason: text("rejection_reason"),
+  creditCheckResult: jsonb("credit_check_result"),
+  createdAt: timestamp("created_at").defaultNow(),
+  reviewedAt: timestamp("reviewed_at"),
+});
+
+// Loan Repayments
+export const loanRepayments = pgTable("loan_repayments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  loanId: varchar("loan_id").references(() => microloans.id, { onDelete: "cascade" }).notNull(),
+  amount: integer("amount").notNull(),
+  principal: integer("principal").notNull(),
+  interest: integer("interest").notNull(),
+  lateFee: integer("late_fee").default(0),
+  paymentMethod: varchar("payment_method"), // auto_deduct, manual, crypto
+  transactionId: varchar("transaction_id").references(() => transactions.id),
+  status: varchar("status").default("pending"), // pending, completed, failed
+  dueDate: timestamp("due_date").notNull(),
+  paidAt: timestamp("paid_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Credit Scores
+export const creditScores = pgTable("credit_scores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  score: integer("score").notNull(), // 300-850
+  rating: creditRatingEnum("rating").notNull(),
+  factorsJson: jsonb("factors_json"), // {payment_history: 0.35, credit_utilization: 0.3, etc}
+  totalLoans: integer("total_loans").default(0),
+  totalRepaid: integer("total_repaid").default(0),
+  totalDefaulted: integer("total_defaulted").default(0),
+  onTimePayments: integer("on_time_payments").default(0),
+  latePayments: integer("late_payments").default(0),
+  avgLoanAmount: integer("avg_loan_amount"),
+  platformActivity: integer("platform_activity"), // 0-100 score
+  lastCalculatedAt: timestamp("last_calculated_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ====================================
+// DEEPFAKE DETECTION SYSTEM
+// ====================================
+
+// Detection Results
+export const detectionResults = pgTable("detection_results", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contentId: varchar("content_id").references(() => mediaAssets.id, { onDelete: "cascade" }).notNull(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  provider: detectionProviderEnum("provider").notNull(),
+  authenticityStatus: authenticityStatusEnum("authenticity_status").notNull(),
+  confidence: integer("confidence").notNull(), // 0-100
+  riskLevel: contentRiskLevelEnum("risk_level").notNull(),
+  detectionDetails: jsonb("detection_details"), // provider-specific details
+  manipulationRegions: jsonb("manipulation_regions"), // detected altered regions
+  faceSwapDetected: boolean("face_swap_detected").default(false),
+  audioManipulated: boolean("audio_manipulated").default(false),
+  metadataAltered: boolean("metadata_altered").default(false),
+  processingTimeMs: integer("processing_time_ms"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Content Authenticity
+export const contentAuthenticity = pgTable("content_authenticity", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contentId: varchar("content_id").references(() => mediaAssets.id, { onDelete: "cascade" }).notNull().unique(),
+  isVerified: boolean("is_verified").default(false),
+  verificationMethod: varchar("verification_method"), // blockchain, watermark, cryptographic
+  watermarkId: varchar("watermark_id").unique(),
+  blockchainHash: varchar("blockchain_hash"),
+  cryptographicSignature: varchar("cryptographic_signature"),
+  certificateUrl: varchar("certificate_url"),
+  issuerName: varchar("issuer_name").default("GirlFanz"),
+  verifiedAt: timestamp("verified_at"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Deepfake Verification Logs
+export const deepfakeVerificationLogs = pgTable("deepfake_verification_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contentId: varchar("content_id").references(() => mediaAssets.id, { onDelete: "cascade" }).notNull(),
+  action: varchar("action").notNull(), // scan_initiated, scan_completed, alert_sent, content_blocked
+  userId: varchar("user_id").references(() => users.id),
+  details: jsonb("details"),
+  ipAddress: varchar("ip_address"),
+  userAgent: varchar("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ====================================
+// EMOTIONAL AI SYSTEM
+// ====================================
+
+// Sentiment Analysis
+export const sentimentAnalysis = pgTable("sentiment_analysis", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contentId: varchar("content_id").references(() => mediaAssets.id),
+  postId: varchar("post_id").references(() => feedPosts.id),
+  commentId: varchar("comment_id").references(() => postComments.id),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  sentiment: sentimentScoreEnum("sentiment").notNull(),
+  confidence: integer("confidence").notNull(), // 0-100
+  emotions: jsonb("emotions"), // {happy: 0.8, sad: 0.1, angry: 0.1}
+  dominantEmotion: emotionTypeEnum("dominant_emotion"),
+  keywords: text("keywords").array(),
+  topics: text("topics").array(),
+  language: varchar("language").default("en"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Mood Tags
+export const moodTags = pgTable("mood_tags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contentId: varchar("content_id").references(() => mediaAssets.id, { onDelete: "cascade" }),
+  postId: varchar("post_id").references(() => feedPosts.id, { onDelete: "cascade" }),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  mood: emotionTypeEnum("mood").notNull(),
+  intensity: integer("intensity").notNull(), // 1-10
+  autoDetected: boolean("auto_detected").default(false),
+  userOverride: boolean("user_override").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Engagement Predictions
+export const engagementPredictions = pgTable("engagement_predictions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contentId: varchar("content_id").references(() => mediaAssets.id),
+  postId: varchar("post_id").references(() => feedPosts.id),
+  creatorId: varchar("creator_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  predictedEngagement: engagementLevelEnum("predicted_engagement").notNull(),
+  predictedViews: integer("predicted_views"),
+  predictedLikes: integer("predicted_likes"),
+  predictedComments: integer("predicted_comments"),
+  predictedRevenue: integer("predicted_revenue"), // in cents
+  optimalPostTime: timestamp("optimal_post_time"),
+  targetAudience: jsonb("target_audience"), // demographic recommendations
+  contentRecommendations: jsonb("content_recommendations"),
+  confidenceScore: integer("confidence_score"), // 0-100
+  modelVersion: varchar("model_version"),
+  actualEngagement: engagementLevelEnum("actual_engagement"), // for model training
+  actualViews: integer("actual_views"),
+  actualLikes: integer("actual_likes"),
+  actualComments: integer("actual_comments"),
+  actualRevenue: integer("actual_revenue"),
+  createdAt: timestamp("created_at").defaultNow(),
+  measuredAt: timestamp("measured_at"), // when actuals were recorded
 });
 
 // Zod Schemas
