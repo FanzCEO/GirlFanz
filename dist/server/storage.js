@@ -1563,6 +1563,266 @@ class DatabaseStorage {
             .where((0, drizzle_orm_1.eq)(schema_1.streamAnalytics.streamId, streamId));
         return analytics;
     }
+    // NFT Collection operations
+    async getNftCollection(id) {
+        const [collection] = await db_1.db
+            .select()
+            .from(schema_1.nftCollections)
+            .where((0, drizzle_orm_1.eq)(schema_1.nftCollections.id, id));
+        return collection;
+    }
+    async getNftCollectionsByCreator(creatorId) {
+        return await db_1.db
+            .select()
+            .from(schema_1.nftCollections)
+            .where((0, drizzle_orm_1.eq)(schema_1.nftCollections.creatorId, creatorId))
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.nftCollections.createdAt));
+    }
+    async createNftCollection(collectionData) {
+        const [collection] = await db_1.db
+            .insert(schema_1.nftCollections)
+            .values(collectionData)
+            .returning();
+        return collection;
+    }
+    async updateNftCollection(id, updates) {
+        const [collection] = await db_1.db
+            .update(schema_1.nftCollections)
+            .set(Object.assign(Object.assign({}, updates), { updatedAt: new Date() }))
+            .where((0, drizzle_orm_1.eq)(schema_1.nftCollections.id, id))
+            .returning();
+        return collection;
+    }
+    // NFT Token operations
+    async getNftToken(id) {
+        const [token] = await db_1.db
+            .select()
+            .from(schema_1.nftTokens)
+            .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.id, id));
+        return token;
+    }
+    async getNftTokensByOwner(ownerId) {
+        return await db_1.db
+            .select()
+            .from(schema_1.nftTokens)
+            .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.ownerId, ownerId))
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.nftTokens.createdAt));
+    }
+    async getNftTokensByCollection(collectionId) {
+        return await db_1.db
+            .select()
+            .from(schema_1.nftTokens)
+            .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.collectionId, collectionId))
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.nftTokens.createdAt));
+    }
+    async createNftToken(tokenData) {
+        const [token] = await db_1.db
+            .insert(schema_1.nftTokens)
+            .values(tokenData)
+            .returning();
+        return token;
+    }
+    async updateNftToken(id, updates) {
+        const [token] = await db_1.db
+            .update(schema_1.nftTokens)
+            .set(Object.assign(Object.assign({}, updates), { updatedAt: new Date() }))
+            .where((0, drizzle_orm_1.eq)(schema_1.nftTokens.id, id))
+            .returning();
+        return token;
+    }
+    // NFT Transaction operations
+    async getNftTransactionsByToken(tokenId) {
+        return await db_1.db
+            .select()
+            .from(schema_1.nftTransactions)
+            .where((0, drizzle_orm_1.eq)(schema_1.nftTransactions.tokenId, tokenId))
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.nftTransactions.createdAt));
+    }
+    async getNftTransactionsByUser(userId) {
+        return await db_1.db
+            .select()
+            .from(schema_1.nftTransactions)
+            .where((0, drizzle_orm_1.or)((0, drizzle_orm_1.eq)(schema_1.nftTransactions.fromUserId, userId), (0, drizzle_orm_1.eq)(schema_1.nftTransactions.toUserId, userId)))
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.nftTransactions.createdAt));
+    }
+    async createNftTransaction(transactionData) {
+        const [transaction] = await db_1.db
+            .insert(schema_1.nftTransactions)
+            .values(transactionData)
+            .returning();
+        return transaction;
+    }
+    async updateNftTransaction(id, updates) {
+        const [transaction] = await db_1.db
+            .update(schema_1.nftTransactions)
+            .set(updates)
+            .where((0, drizzle_orm_1.eq)(schema_1.nftTransactions.id, id))
+            .returning();
+        return transaction;
+    }
+    // Blockchain Wallet operations
+    async getBlockchainWallet(userId, blockchain) {
+        let query = db_1.db
+            .select()
+            .from(schema_1.blockchainWallets)
+            .where((0, drizzle_orm_1.eq)(schema_1.blockchainWallets.userId, userId));
+        if (blockchain) {
+            query = query.where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.blockchainWallets.userId, userId), (0, drizzle_orm_1.eq)(schema_1.blockchainWallets.blockchain, blockchain)));
+        }
+        const [wallet] = await query;
+        return wallet;
+    }
+    async getBlockchainWalletsByUser(userId) {
+        return await db_1.db
+            .select()
+            .from(schema_1.blockchainWallets)
+            .where((0, drizzle_orm_1.eq)(schema_1.blockchainWallets.userId, userId));
+    }
+    async createBlockchainWallet(walletData) {
+        const [wallet] = await db_1.db
+            .insert(schema_1.blockchainWallets)
+            .values(walletData)
+            .returning();
+        return wallet;
+    }
+    async updateBlockchainWallet(id, updates) {
+        const [wallet] = await db_1.db
+            .update(schema_1.blockchainWallets)
+            .set(Object.assign(Object.assign({}, updates), { updatedAt: new Date() }))
+            .where((0, drizzle_orm_1.eq)(schema_1.blockchainWallets.id, id))
+            .returning();
+        return wallet;
+    }
+    // Royalty Distribution operations
+    async getRoyaltyDistributionsByToken(tokenId) {
+        return await db_1.db
+            .select()
+            .from(schema_1.royaltyDistributions)
+            .where((0, drizzle_orm_1.eq)(schema_1.royaltyDistributions.tokenId, tokenId))
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.royaltyDistributions.createdAt));
+    }
+    async getRoyaltyDistributionsByRecipient(recipientId) {
+        return await db_1.db
+            .select()
+            .from(schema_1.royaltyDistributions)
+            .where((0, drizzle_orm_1.eq)(schema_1.royaltyDistributions.recipientId, recipientId))
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.royaltyDistributions.createdAt));
+    }
+    async createRoyaltyDistribution(distributionData) {
+        const [distribution] = await db_1.db
+            .insert(schema_1.royaltyDistributions)
+            .values(distributionData)
+            .returning();
+        return distribution;
+    }
+    async updateRoyaltyDistribution(id, updates) {
+        const [distribution] = await db_1.db
+            .update(schema_1.royaltyDistributions)
+            .set(updates)
+            .where((0, drizzle_orm_1.eq)(schema_1.royaltyDistributions.id, id))
+            .returning();
+        return distribution;
+    }
+    // IPFS Record operations
+    async getIpfsRecordsByUser(userId) {
+        return await db_1.db
+            .select()
+            .from(schema_1.ipfsRecords)
+            .where((0, drizzle_orm_1.eq)(schema_1.ipfsRecords.userId, userId))
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.ipfsRecords.createdAt));
+    }
+    async getIpfsRecordByHash(ipfsHash) {
+        const [record] = await db_1.db
+            .select()
+            .from(schema_1.ipfsRecords)
+            .where((0, drizzle_orm_1.eq)(schema_1.ipfsRecords.ipfsHash, ipfsHash));
+        return record;
+    }
+    async createIpfsRecord(recordData) {
+        const [record] = await db_1.db
+            .insert(schema_1.ipfsRecords)
+            .values(recordData)
+            .returning();
+        return record;
+    }
+    async updateIpfsRecord(id, updates) {
+        const [record] = await db_1.db
+            .update(schema_1.ipfsRecords)
+            .set(updates)
+            .where((0, drizzle_orm_1.eq)(schema_1.ipfsRecords.id, id))
+            .returning();
+        return record;
+    }
+    // Marketplace Integration operations
+    async getMarketplaceIntegration(userId, marketplace) {
+        const [integration] = await db_1.db
+            .select()
+            .from(schema_1.marketplaceIntegrations)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.marketplaceIntegrations.userId, userId), (0, drizzle_orm_1.eq)(schema_1.marketplaceIntegrations.marketplace, marketplace)));
+        return integration;
+    }
+    async getMarketplaceIntegrationsByUser(userId) {
+        return await db_1.db
+            .select()
+            .from(schema_1.marketplaceIntegrations)
+            .where((0, drizzle_orm_1.eq)(schema_1.marketplaceIntegrations.userId, userId));
+    }
+    async createMarketplaceIntegration(integrationData) {
+        const [integration] = await db_1.db
+            .insert(schema_1.marketplaceIntegrations)
+            .values(integrationData)
+            .returning();
+        return integration;
+    }
+    async updateMarketplaceIntegration(id, updates) {
+        const [integration] = await db_1.db
+            .update(schema_1.marketplaceIntegrations)
+            .set(Object.assign(Object.assign({}, updates), { updatedAt: new Date() }))
+            .where((0, drizzle_orm_1.eq)(schema_1.marketplaceIntegrations.id, id))
+            .returning();
+        return integration;
+    }
+    // Additional helper methods
+    async getContentSessionsByUserId(userId) {
+        return await this.getContentSessionsByCreator(userId);
+    }
+    async deleteContentSession(id, ownerId) {
+        await db_1.db
+            .delete(schema_1.contentCreationSessions)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.contentCreationSessions.id, id), (0, drizzle_orm_1.eq)(schema_1.contentCreationSessions.creatorId, ownerId)));
+    }
+    async getKycVerificationsByUserId(userId) {
+        return await db_1.db
+            .select()
+            .from(schema_1.kycVerifications)
+            .where((0, drizzle_orm_1.eq)(schema_1.kycVerifications.userId, userId))
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.kycVerifications.createdAt));
+    }
+    async getKycVerificationsInDateRange(startDate, endDate) {
+        return await db_1.db
+            .select()
+            .from(schema_1.kycVerifications)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.sql) `${schema_1.kycVerifications.createdAt} >= ${startDate}`, (0, drizzle_orm_1.sql) `${schema_1.kycVerifications.createdAt} <= ${endDate}`))
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.kycVerifications.createdAt));
+    }
+    async createRecord2257(recordData) {
+        const { records2257 } = await Promise.resolve().then(() => __importStar(require('../shared/schema')));
+        const [record] = await db_1.db
+            .insert(records2257)
+            .values(recordData)
+            .returning();
+        return record;
+    }
+    async getAuditLogsInDateRange(startDate, endDate, actionPattern) {
+        let query = db_1.db
+            .select()
+            .from(schema_1.auditLogs)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.sql) `${schema_1.auditLogs.createdAt} >= ${startDate}`, (0, drizzle_orm_1.sql) `${schema_1.auditLogs.createdAt} <= ${endDate}`));
+        if (actionPattern) {
+            query = query.where((0, drizzle_orm_1.sql) `${schema_1.auditLogs.action} LIKE ${`%${actionPattern}%`}`);
+        }
+        return await query.orderBy((0, drizzle_orm_1.desc)(schema_1.auditLogs.createdAt));
+    }
 }
 exports.DatabaseStorage = DatabaseStorage;
 exports.storage = new DatabaseStorage();

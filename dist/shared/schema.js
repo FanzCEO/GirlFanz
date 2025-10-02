@@ -1,8 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.postUnlocks = exports.postLikes = exports.sponsoredPosts = exports.ageVerifications = exports.userFollows = exports.postEngagement = exports.postMedia = exports.feedPosts = exports.contentRatingEnum = exports.postVisibilityEnum = exports.postTypeEnum = exports.tutorialProgress = exports.tutorialSteps = exports.tutorials = exports.knowledgeEmbeddings = exports.knowledgeArticles = exports.supportMessages = exports.supportTickets = exports.auditLogs = exports.messages = exports.transactions = exports.subscriptions = exports.webhooks = exports.payoutRequests = exports.payoutAccounts = exports.moderationQueue = exports.records2257 = exports.kycVerifications = exports.mediaAssets = exports.profiles = exports.emailVerificationTokens = exports.passwordResetTokens = exports.users = exports.aspectRatioEnum = exports.socialPlatformEnum = exports.distributionStatusEnum = exports.editingStatusEnum = exports.contentTypeEnum = exports.contentStatusEnum = exports.paymentProviderEnum = exports.transactionStatusEnum = exports.subscriptionStatusEnum = exports.moderationStatusEnum = exports.payoutStatusEnum = exports.mediaStatusEnum = exports.kycStatusEnum = exports.authProviderEnum = exports.userStatusEnum = exports.userRoleEnum = exports.sessions = void 0;
-exports.generatedAssets = exports.contentAnalytics = exports.platformDistributions = exports.distributionCampaigns = exports.contentVersions = exports.editingTasks = exports.contentCreationSessions = exports.creatorRefundPolicies = exports.trustAuditLogs = exports.fanTrustScores = exports.walletTransactions = exports.fanzCards = exports.fanzWallets = exports.refundRequests = exports.fanzTransactions = exports.trustScoreEnum = exports.refundStatusEnum = exports.paymentGatewayEnum = exports.insertTutorialSchema = exports.insertKnowledgeArticleSchema = exports.insertSupportMessageSchema = exports.insertSupportTicketSchema = exports.insertTransactionSchema = exports.insertSubscriptionSchema = exports.insertMessageSchema = exports.insertMediaAssetSchema = exports.insertProfileSchema = exports.insertUserSchema = exports.messagesRelations = exports.transactionsRelations = exports.subscriptionsRelations = exports.moderationQueueRelations = exports.mediaAssetsRelations = exports.profilesRelations = exports.usersRelations = exports.streamAnalytics = exports.streamViewers = exports.streamRecordings = exports.streamHighlights = exports.streamReactions = exports.streamGifts = exports.streamChatMessages = exports.streamParticipants = exports.vrContent = exports.contentInteractions = exports.userPreferences = exports.streamViews = exports.liveStreams = exports.commentLikes = exports.postComments = void 0;
-exports.transactionResponseSchema = exports.trustScoreResponseSchema = exports.walletResponseSchema = exports.insertContentAnalyticsSchema = exports.insertGeneratedAssetSchema = exports.insertCreatorStudioSettingsSchema = exports.insertPlatformDistributionSchema = exports.insertDistributionCampaignSchema = exports.insertContentVersionSchema = exports.insertEditingTaskSchema = exports.insertContentCreationSessionSchema = exports.insertVrContentSchema = exports.insertContentInteractionSchema = exports.insertUserPreferencesSchema = exports.insertLiveStreamSchema = exports.insertPostCommentSchema = exports.insertAgeVerificationSchema = exports.insertUserFollowSchema = exports.insertSponsoredPostSchema = exports.insertPostMediaSchema = exports.insertFeedPostSchema = exports.insertWalletTransactionSchema = exports.insertFanzWalletSchema = exports.insertRefundRequestSchema = exports.insertFanzTransactionSchema = exports.liveStreamCoStars = exports.creatorStudioSettings = void 0;
+exports.profiles = exports.emailVerificationTokens = exports.passwordResetTokens = exports.users = exports.sentimentScoreEnum = exports.engagementLevelEnum = exports.emotionTypeEnum = exports.contentRiskLevelEnum = exports.authenticityStatusEnum = exports.detectionProviderEnum = exports.loanPurposeEnum = exports.creditRatingEnum = exports.repaymentFrequencyEnum = exports.loanStatusEnum = exports.pricingModelEnum = exports.priceAdjustmentTypeEnum = exports.pricingStrategyEnum = exports.vrRenderingModeEnum = exports.streamQualityEnum = exports.vrDeviceTypeEnum = exports.vrSessionStatusEnum = exports.voiceEmotionEnum = exports.voiceCampaignStatusEnum = exports.voiceMessageStatusEnum = exports.voiceCloningTypeEnum = exports.voiceProfileStatusEnum = exports.voiceProviderEnum = exports.marketplaceEnum = exports.nftTransactionTypeEnum = exports.royaltyTypeEnum = exports.blockchainEnum = exports.nftStatusEnum = exports.nftStandardEnum = exports.aspectRatioEnum = exports.socialPlatformEnum = exports.distributionStatusEnum = exports.editingStatusEnum = exports.contentTypeEnum = exports.contentStatusEnum = exports.paymentProviderEnum = exports.transactionStatusEnum = exports.subscriptionStatusEnum = exports.moderationStatusEnum = exports.payoutStatusEnum = exports.mediaStatusEnum = exports.kycStatusEnum = exports.authProviderEnum = exports.userStatusEnum = exports.userRoleEnum = exports.sessions = void 0;
+exports.transactionsRelations = exports.subscriptionsRelations = exports.moderationQueueRelations = exports.mediaAssetsRelations = exports.profilesRelations = exports.usersRelations = exports.streamAnalytics = exports.streamViewers = exports.streamRecordings = exports.streamHighlights = exports.streamReactions = exports.streamGifts = exports.streamChatMessages = exports.streamParticipants = exports.vrContent = exports.contentInteractions = exports.userPreferences = exports.streamViews = exports.liveStreams = exports.commentLikes = exports.postComments = exports.postUnlocks = exports.postLikes = exports.sponsoredPosts = exports.ageVerifications = exports.userFollows = exports.postEngagement = exports.postMedia = exports.feedPosts = exports.contentRatingEnum = exports.postVisibilityEnum = exports.postTypeEnum = exports.tutorialProgress = exports.tutorialSteps = exports.tutorials = exports.knowledgeEmbeddings = exports.knowledgeArticles = exports.supportMessages = exports.supportTickets = exports.auditLogs = exports.messages = exports.transactions = exports.subscriptions = exports.webhooks = exports.payoutRequests = exports.payoutAccounts = exports.moderationQueue = exports.records2257 = exports.kycVerifications = exports.mediaAssets = void 0;
+exports.volumetricStreams = exports.arOverlays = exports.vrSessions = exports.blockchainEvents = exports.marketplaceIntegrations = exports.ipfsRecords = exports.nftRoyaltyRules = exports.royaltyDistributions = exports.nftTransactions = exports.nftTokens = exports.nftCollections = exports.blockchainWallets = exports.voiceTransactions = exports.voiceCredits = exports.voiceAnalytics = exports.voiceCampaigns = exports.voiceMessages = exports.voiceSamples = exports.voiceProfiles = exports.liveStreamCoStars = exports.creatorStudioSettings = exports.generatedAssets = exports.contentAnalytics = exports.platformDistributions = exports.distributionCampaigns = exports.contentVersions = exports.editingTasks = exports.contentCreationSessions = exports.creatorRefundPolicies = exports.trustAuditLogs = exports.fanTrustScores = exports.walletTransactions = exports.fanzCards = exports.fanzWallets = exports.refundRequests = exports.fanzTransactions = exports.trustScoreEnum = exports.refundStatusEnum = exports.paymentGatewayEnum = exports.insertTutorialSchema = exports.insertKnowledgeArticleSchema = exports.insertSupportMessageSchema = exports.insertSupportTicketSchema = exports.insertTransactionSchema = exports.insertSubscriptionSchema = exports.insertMessageSchema = exports.insertMediaAssetSchema = exports.insertProfileSchema = exports.insertUserSchema = exports.messagesRelations = void 0;
+exports.insertVoiceCreditsSchema = exports.insertVoiceAnalyticsSchema = exports.insertVoiceCampaignSchema = exports.insertVoiceMessageSchema = exports.insertVoiceSampleSchema = exports.insertVoiceProfileSchema = exports.insertBlockchainEventSchema = exports.insertMarketplaceIntegrationSchema = exports.insertIpfsRecordSchema = exports.insertNftRoyaltyRuleSchema = exports.insertRoyaltyDistributionSchema = exports.insertNftTransactionSchema = exports.insertNftTokenSchema = exports.insertNftCollectionSchema = exports.insertBlockchainWalletSchema = exports.insertContentAnalyticsSchema = exports.insertGeneratedAssetSchema = exports.insertCreatorStudioSettingsSchema = exports.insertPlatformDistributionSchema = exports.insertDistributionCampaignSchema = exports.insertContentVersionSchema = exports.insertEditingTaskSchema = exports.insertContentCreationSessionSchema = exports.insertVrContentSchema = exports.insertContentInteractionSchema = exports.insertUserPreferencesSchema = exports.insertLiveStreamSchema = exports.insertPostCommentSchema = exports.insertAgeVerificationSchema = exports.insertUserFollowSchema = exports.insertSponsoredPostSchema = exports.insertPostMediaSchema = exports.insertFeedPostSchema = exports.insertWalletTransactionSchema = exports.insertFanzWalletSchema = exports.insertRefundRequestSchema = exports.insertFanzTransactionSchema = exports.engagementPredictions = exports.moodTags = exports.sentimentAnalysis = exports.deepfakeVerificationLogs = exports.contentAuthenticity = exports.detectionResults = exports.creditScores = exports.loanRepayments = exports.loanApplications = exports.microloans = exports.competitorPrices = exports.priceHistory = exports.pricingRules = void 0;
+exports.transactionResponseSchema = exports.trustScoreResponseSchema = exports.walletResponseSchema = exports.insertVoiceTransactionSchema = void 0;
 const drizzle_orm_1 = require("drizzle-orm");
 const drizzle_orm_2 = require("drizzle-orm");
 const pg_core_1 = require("drizzle-orm/pg-core");
@@ -31,6 +33,42 @@ exports.editingStatusEnum = (0, pg_core_1.pgEnum)("editing_status", ["pending", 
 exports.distributionStatusEnum = (0, pg_core_1.pgEnum)("distribution_status", ["scheduled", "publishing", "published", "failed", "cancelled"]);
 exports.socialPlatformEnum = (0, pg_core_1.pgEnum)("social_platform", ["instagram", "tiktok", "twitter", "snapchat", "youtube"]);
 exports.aspectRatioEnum = (0, pg_core_1.pgEnum)("aspect_ratio", ["9:16", "16:9", "1:1", "4:5"]);
+// NFT-related enums
+exports.nftStandardEnum = (0, pg_core_1.pgEnum)("nft_standard", ["ERC721", "ERC1155"]);
+exports.nftStatusEnum = (0, pg_core_1.pgEnum)("nft_status", ["draft", "minting", "minted", "listed", "sold", "transferred", "burned"]);
+exports.blockchainEnum = (0, pg_core_1.pgEnum)("blockchain", ["ethereum", "polygon", "solana", "binance"]);
+exports.royaltyTypeEnum = (0, pg_core_1.pgEnum)("royalty_type", ["fixed", "decaying", "tiered"]);
+exports.nftTransactionTypeEnum = (0, pg_core_1.pgEnum)("nft_transaction_type", ["mint", "sale", "transfer", "royalty", "burn"]);
+exports.marketplaceEnum = (0, pg_core_1.pgEnum)("marketplace", ["internal", "opensea", "rarible", "looksrare", "x2y2"]);
+// Voice cloning enums
+exports.voiceProviderEnum = (0, pg_core_1.pgEnum)("voice_provider", ["elevenlabs", "resemble", "speechify"]);
+exports.voiceProfileStatusEnum = (0, pg_core_1.pgEnum)("voice_profile_status", ["pending", "training", "ready", "failed", "disabled"]);
+exports.voiceCloningTypeEnum = (0, pg_core_1.pgEnum)("voice_cloning_type", ["instant", "professional", "custom"]);
+exports.voiceMessageStatusEnum = (0, pg_core_1.pgEnum)("voice_message_status", ["queued", "generating", "generated", "delivered", "failed"]);
+exports.voiceCampaignStatusEnum = (0, pg_core_1.pgEnum)("voice_campaign_status", ["draft", "scheduled", "running", "paused", "completed", "cancelled"]);
+exports.voiceEmotionEnum = (0, pg_core_1.pgEnum)("voice_emotion", ["neutral", "happy", "sad", "excited", "calm", "serious", "playful"]);
+// AR/VR enums
+exports.vrSessionStatusEnum = (0, pg_core_1.pgEnum)("vr_session_status", ["initializing", "active", "paused", "ended", "failed"]);
+exports.vrDeviceTypeEnum = (0, pg_core_1.pgEnum)("vr_device_type", ["quest3", "visionpro", "pico4", "index", "psvr2", "browser"]);
+exports.streamQualityEnum = (0, pg_core_1.pgEnum)("stream_quality", ["4k", "2k", "1080p", "720p", "adaptive"]);
+exports.vrRenderingModeEnum = (0, pg_core_1.pgEnum)("vr_rendering_mode", ["volumetric", "pixel_streaming", "webxr", "cloud"]);
+// Dynamic pricing enums
+exports.pricingStrategyEnum = (0, pg_core_1.pgEnum)("pricing_strategy", ["dynamic", "fixed", "tiered", "subscription", "promotional"]);
+exports.priceAdjustmentTypeEnum = (0, pg_core_1.pgEnum)("price_adjustment_type", ["demand", "competitor", "time", "segment", "inventory"]);
+exports.pricingModelEnum = (0, pg_core_1.pgEnum)("pricing_model", ["ml_regression", "reinforcement_learning", "rule_based", "hybrid"]);
+// Microlending enums
+exports.loanStatusEnum = (0, pg_core_1.pgEnum)("loan_status", ["pending", "approved", "active", "repaid", "defaulted", "cancelled"]);
+exports.repaymentFrequencyEnum = (0, pg_core_1.pgEnum)("repayment_frequency", ["daily", "weekly", "biweekly", "monthly"]);
+exports.creditRatingEnum = (0, pg_core_1.pgEnum)("credit_rating", ["excellent", "good", "fair", "poor", "unrated"]);
+exports.loanPurposeEnum = (0, pg_core_1.pgEnum)("loan_purpose", ["equipment", "production", "marketing", "training", "other"]);
+// Deepfake detection enums
+exports.detectionProviderEnum = (0, pg_core_1.pgEnum)("detection_provider", ["reality_defender", "sensity", "deepware", "internal"]);
+exports.authenticityStatusEnum = (0, pg_core_1.pgEnum)("authenticity_status", ["genuine", "manipulated", "deepfake", "uncertain", "pending"]);
+exports.contentRiskLevelEnum = (0, pg_core_1.pgEnum)("content_risk_level", ["safe", "low", "medium", "high", "critical"]);
+// Emotional AI enums
+exports.emotionTypeEnum = (0, pg_core_1.pgEnum)("emotion_type", ["happy", "sad", "angry", "surprised", "neutral", "excited", "romantic", "playful"]);
+exports.engagementLevelEnum = (0, pg_core_1.pgEnum)("engagement_level", ["very_low", "low", "medium", "high", "very_high"]);
+exports.sentimentScoreEnum = (0, pg_core_1.pgEnum)("sentiment_score", ["very_negative", "negative", "neutral", "positive", "very_positive"]);
 // User storage table
 exports.users = (0, pg_core_1.pgTable)("users", {
     id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
@@ -996,6 +1034,597 @@ exports.liveStreamCoStars = (0, pg_core_1.pgTable)("live_stream_co_stars", {
     leftAt: (0, pg_core_1.timestamp)("left_at"),
     createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
 });
+// ====================================
+// VOICE CLONING SYSTEM
+// ====================================
+// Voice Profiles - Creator voice profiles
+exports.voiceProfiles = (0, pg_core_1.pgTable)("voice_profiles", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    creatorId: (0, pg_core_1.varchar)("creator_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    name: (0, pg_core_1.varchar)("name").notNull(),
+    description: (0, pg_core_1.text)("description"),
+    provider: (0, exports.voiceProviderEnum)("provider").notNull(),
+    providerVoiceId: (0, pg_core_1.varchar)("provider_voice_id"), // Voice ID from provider (ElevenLabs, Resemble, etc)
+    status: (0, exports.voiceProfileStatusEnum)("status").default("pending"),
+    cloningType: (0, exports.voiceCloningTypeEnum)("cloning_type").default("instant"),
+    language: (0, pg_core_1.varchar)("language").default("en"),
+    supportedLanguages: (0, pg_core_1.text)("supported_languages").array(),
+    voiceSettings: (0, pg_core_1.jsonb)("voice_settings"), // {stability, similarity_boost, style, etc}
+    isDefault: (0, pg_core_1.boolean)("is_default").default(false),
+    isPublic: (0, pg_core_1.boolean)("is_public").default(false),
+    consentVerified: (0, pg_core_1.boolean)("consent_verified").default(false),
+    consentDocumentUrl: (0, pg_core_1.varchar)("consent_document_url"),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+    updatedAt: (0, pg_core_1.timestamp)("updated_at").defaultNow(),
+});
+// Voice Samples - Training audio samples for cloning
+exports.voiceSamples = (0, pg_core_1.pgTable)("voice_samples", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    profileId: (0, pg_core_1.varchar)("profile_id").references(() => exports.voiceProfiles.id, { onDelete: "cascade" }).notNull(),
+    creatorId: (0, pg_core_1.varchar)("creator_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    sampleType: (0, pg_core_1.varchar)("sample_type").notNull(), // training, reference, validation
+    fileUrl: (0, pg_core_1.varchar)("file_url").notNull(),
+    s3Key: (0, pg_core_1.varchar)("s3_key").notNull(),
+    duration: (0, pg_core_1.integer)("duration"), // in seconds
+    fileSize: (0, pg_core_1.integer)("file_size"),
+    mimeType: (0, pg_core_1.varchar)("mime_type"),
+    transcription: (0, pg_core_1.text)("transcription"),
+    quality: (0, pg_core_1.integer)("quality"), // 0-100 quality score
+    isProcessed: (0, pg_core_1.boolean)("is_processed").default(false),
+    metadata: (0, pg_core_1.jsonb)("metadata"), // {sample_rate, bit_rate, channels, etc}
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+});
+// Voice Messages - Generated voice messages
+exports.voiceMessages = (0, pg_core_1.pgTable)("voice_messages", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    profileId: (0, pg_core_1.varchar)("profile_id").references(() => exports.voiceProfiles.id, { onDelete: "cascade" }).notNull(),
+    creatorId: (0, pg_core_1.varchar)("creator_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    recipientId: (0, pg_core_1.varchar)("recipient_id").references(() => exports.users.id),
+    recipientName: (0, pg_core_1.varchar)("recipient_name"),
+    messageType: (0, pg_core_1.varchar)("message_type"), // voicemail, dm, birthday, thank_you, wake_up, custom
+    text: (0, pg_core_1.text)("text").notNull(),
+    personalizedText: (0, pg_core_1.text)("personalized_text"), // Text with personalization variables replaced
+    language: (0, pg_core_1.varchar)("language").default("en"),
+    emotion: (0, exports.voiceEmotionEnum)("emotion").default("neutral"),
+    audioUrl: (0, pg_core_1.varchar)("audio_url"),
+    s3Key: (0, pg_core_1.varchar)("s3_key"),
+    duration: (0, pg_core_1.integer)("duration"), // in seconds
+    fileSize: (0, pg_core_1.integer)("file_size"),
+    status: (0, exports.voiceMessageStatusEnum)("status").default("queued"),
+    provider: (0, exports.voiceProviderEnum)("provider"),
+    providerRequestId: (0, pg_core_1.varchar)("provider_request_id"),
+    generationTimeMs: (0, pg_core_1.integer)("generation_time_ms"),
+    creditsCost: (0, pg_core_1.integer)("credits_cost"),
+    errorMessage: (0, pg_core_1.text)("error_message"),
+    watermarkApplied: (0, pg_core_1.boolean)("watermark_applied").default(true),
+    deliveredAt: (0, pg_core_1.timestamp)("delivered_at"),
+    viewedAt: (0, pg_core_1.timestamp)("viewed_at"),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+});
+// Voice Campaigns - Bulk message generation campaigns
+exports.voiceCampaigns = (0, pg_core_1.pgTable)("voice_campaigns", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    creatorId: (0, pg_core_1.varchar)("creator_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    profileId: (0, pg_core_1.varchar)("profile_id").references(() => exports.voiceProfiles.id).notNull(),
+    name: (0, pg_core_1.varchar)("name").notNull(),
+    description: (0, pg_core_1.text)("description"),
+    status: (0, exports.voiceCampaignStatusEnum)("status").default("draft"),
+    campaignType: (0, pg_core_1.varchar)("campaign_type"), // birthday, thank_you, holiday, custom
+    targetAudience: (0, pg_core_1.jsonb)("target_audience"), // {tier: "premium", min_spend: 100, tags: ["vip"]}
+    messageTemplate: (0, pg_core_1.text)("message_template").notNull(), // Template with {{variables}}
+    personalizations: (0, pg_core_1.jsonb)("personalizations"), // {variables: ["name", "amount"], defaults: {}}
+    scheduledAt: (0, pg_core_1.timestamp)("scheduled_at"),
+    startedAt: (0, pg_core_1.timestamp)("started_at"),
+    completedAt: (0, pg_core_1.timestamp)("completed_at"),
+    totalRecipients: (0, pg_core_1.integer)("total_recipients").default(0),
+    messagesGenerated: (0, pg_core_1.integer)("messages_generated").default(0),
+    messagesDelivered: (0, pg_core_1.integer)("messages_delivered").default(0),
+    messagesFailed: (0, pg_core_1.integer)("messages_failed").default(0),
+    totalCreditsCost: (0, pg_core_1.integer)("total_credits_cost").default(0),
+    estimatedCost: (0, pg_core_1.integer)("estimated_cost"), // in cents
+    batchSize: (0, pg_core_1.integer)("batch_size").default(100), // Messages per batch
+    retryFailures: (0, pg_core_1.boolean)("retry_failures").default(true),
+    metadata: (0, pg_core_1.jsonb)("metadata"), // Additional campaign settings
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+    updatedAt: (0, pg_core_1.timestamp)("updated_at").defaultNow(),
+});
+// Voice Analytics - Track message engagement
+exports.voiceAnalytics = (0, pg_core_1.pgTable)("voice_analytics", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    messageId: (0, pg_core_1.varchar)("message_id").references(() => exports.voiceMessages.id, { onDelete: "cascade" }).notNull(),
+    campaignId: (0, pg_core_1.varchar)("campaign_id").references(() => exports.voiceCampaigns.id),
+    creatorId: (0, pg_core_1.varchar)("creator_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    recipientId: (0, pg_core_1.varchar)("recipient_id").references(() => exports.users.id),
+    plays: (0, pg_core_1.integer)("plays").default(0),
+    completions: (0, pg_core_1.integer)("completions").default(0), // Full listens
+    avgListenDuration: (0, pg_core_1.integer)("avg_listen_duration"), // in seconds
+    shares: (0, pg_core_1.integer)("shares").default(0),
+    tips: (0, pg_core_1.integer)("tips").default(0), // Tips received after listening
+    tipAmount: (0, pg_core_1.integer)("tip_amount").default(0), // Total tip amount in cents
+    sentiment: (0, pg_core_1.varchar)("sentiment"), // positive, neutral, negative (from reactions)
+    deviceType: (0, pg_core_1.varchar)("device_type"), // mobile, desktop
+    location: (0, pg_core_1.varchar)("location"), // Country/region
+    lastPlayedAt: (0, pg_core_1.timestamp)("last_played_at"),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+    updatedAt: (0, pg_core_1.timestamp)("updated_at").defaultNow(),
+});
+// Voice Credits - Track API usage and costs
+exports.voiceCredits = (0, pg_core_1.pgTable)("voice_credits", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    userId: (0, pg_core_1.varchar)("user_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    creditBalance: (0, pg_core_1.integer)("credit_balance").default(0),
+    monthlyAllocation: (0, pg_core_1.integer)("monthly_allocation").default(1000),
+    bonusCredits: (0, pg_core_1.integer)("bonus_credits").default(0),
+    totalUsed: (0, pg_core_1.integer)("total_used").default(0),
+    totalPurchased: (0, pg_core_1.integer)("total_purchased").default(0),
+    lastResetAt: (0, pg_core_1.timestamp)("last_reset_at"),
+    expiresAt: (0, pg_core_1.timestamp)("expires_at"),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+    updatedAt: (0, pg_core_1.timestamp)("updated_at").defaultNow(),
+});
+// Voice Transaction Log
+exports.voiceTransactions = (0, pg_core_1.pgTable)("voice_transactions", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    userId: (0, pg_core_1.varchar)("user_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    transactionType: (0, pg_core_1.varchar)("transaction_type").notNull(), // credit_purchase, credit_usage, credit_refund
+    amount: (0, pg_core_1.integer)("amount").notNull(), // Credits or cents
+    balance: (0, pg_core_1.integer)("balance"), // Balance after transaction
+    description: (0, pg_core_1.text)("description"),
+    metadata: (0, pg_core_1.jsonb)("metadata"), // {message_id, campaign_id, provider, etc}
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+});
+// ====================================
+// NFT & BLOCKCHAIN SYSTEM
+// ====================================
+// Blockchain Wallets
+exports.blockchainWallets = (0, pg_core_1.pgTable)("blockchain_wallets", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    userId: (0, pg_core_1.varchar)("user_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    address: (0, pg_core_1.varchar)("address").notNull().unique(),
+    blockchain: (0, exports.blockchainEnum)("blockchain").default("ethereum"),
+    isDefault: (0, pg_core_1.boolean)("is_default").default(false),
+    nonce: (0, pg_core_1.varchar)("nonce"), // For signature verification
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+    updatedAt: (0, pg_core_1.timestamp)("updated_at").defaultNow(),
+});
+// NFT Collections
+exports.nftCollections = (0, pg_core_1.pgTable)("nft_collections", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    creatorId: (0, pg_core_1.varchar)("creator_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    name: (0, pg_core_1.varchar)("name").notNull(),
+    symbol: (0, pg_core_1.varchar)("symbol"),
+    description: (0, pg_core_1.text)("description"),
+    contractAddress: (0, pg_core_1.varchar)("contract_address").unique(),
+    blockchain: (0, exports.blockchainEnum)("blockchain").default("ethereum"),
+    standard: (0, exports.nftStandardEnum)("standard").default("ERC721"),
+    maxSupply: (0, pg_core_1.integer)("max_supply"),
+    mintedSupply: (0, pg_core_1.integer)("minted_supply").default(0),
+    baseUri: (0, pg_core_1.varchar)("base_uri"), // IPFS base URI for metadata
+    coverImageUrl: (0, pg_core_1.varchar)("cover_image_url"),
+    bannerImageUrl: (0, pg_core_1.varchar)("banner_image_url"),
+    royaltyBasisPoints: (0, pg_core_1.integer)("royalty_basis_points").default(750), // 7.5% default
+    royaltyReceiver: (0, pg_core_1.varchar)("royalty_receiver"), // Wallet address for royalties
+    isDeployed: (0, pg_core_1.boolean)("is_deployed").default(false),
+    deployedAt: (0, pg_core_1.timestamp)("deployed_at"),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+    updatedAt: (0, pg_core_1.timestamp)("updated_at").defaultNow(),
+});
+// NFT Tokens
+exports.nftTokens = (0, pg_core_1.pgTable)("nft_tokens", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    collectionId: (0, pg_core_1.varchar)("collection_id").references(() => exports.nftCollections.id, { onDelete: "cascade" }).notNull(),
+    ownerId: (0, pg_core_1.varchar)("owner_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    creatorId: (0, pg_core_1.varchar)("creator_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    contentId: (0, pg_core_1.varchar)("content_id").references(() => exports.mediaAssets.id), // Link to existing content
+    tokenId: (0, pg_core_1.integer)("token_id"), // On-chain token ID
+    name: (0, pg_core_1.varchar)("name").notNull(),
+    description: (0, pg_core_1.text)("description"),
+    status: (0, exports.nftStatusEnum)("status").default("draft"),
+    metadataUri: (0, pg_core_1.varchar)("metadata_uri"), // IPFS URI for metadata
+    imageUri: (0, pg_core_1.varchar)("image_uri"), // IPFS URI for image/video
+    attributes: (0, pg_core_1.jsonb)("attributes"), // NFT attributes/traits
+    priceInWei: (0, pg_core_1.varchar)("price_in_wei"), // BigInt as string
+    priceInUsd: (0, pg_core_1.integer)("price_in_usd"), // USD cents for display
+    isListedForSale: (0, pg_core_1.boolean)("is_listed_for_sale").default(false),
+    listingPrice: (0, pg_core_1.varchar)("listing_price"), // Wei as string
+    marketplaces: (0, pg_core_1.text)("marketplaces").array(), // ["opensea", "rarible", etc]
+    txHash: (0, pg_core_1.varchar)("tx_hash"), // Minting transaction hash
+    views: (0, pg_core_1.integer)("views").default(0),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+    mintedAt: (0, pg_core_1.timestamp)("minted_at"),
+    updatedAt: (0, pg_core_1.timestamp)("updated_at").defaultNow(),
+});
+// NFT Transactions
+exports.nftTransactions = (0, pg_core_1.pgTable)("nft_transactions", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    tokenId: (0, pg_core_1.varchar)("token_id").references(() => exports.nftTokens.id, { onDelete: "cascade" }).notNull(),
+    fromUserId: (0, pg_core_1.varchar)("from_user_id").references(() => exports.users.id),
+    toUserId: (0, pg_core_1.varchar)("to_user_id").references(() => exports.users.id),
+    fromAddress: (0, pg_core_1.varchar)("from_address").notNull(),
+    toAddress: (0, pg_core_1.varchar)("to_address").notNull(),
+    type: (0, exports.nftTransactionTypeEnum)("type").notNull(),
+    priceInWei: (0, pg_core_1.varchar)("price_in_wei"), // Transaction amount in wei
+    priceInUsd: (0, pg_core_1.integer)("price_in_usd"), // USD cents at time of transaction
+    gasUsed: (0, pg_core_1.varchar)("gas_used"),
+    gasPrice: (0, pg_core_1.varchar)("gas_price"),
+    txHash: (0, pg_core_1.varchar)("tx_hash").notNull().unique(),
+    blockNumber: (0, pg_core_1.integer)("block_number"),
+    blockchain: (0, exports.blockchainEnum)("blockchain").default("ethereum"),
+    marketplace: (0, exports.marketplaceEnum)("marketplace"),
+    metadata: (0, pg_core_1.jsonb)("metadata"), // Additional transaction data
+    status: (0, pg_core_1.varchar)("status").default("pending"), // pending, confirmed, failed
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+    confirmedAt: (0, pg_core_1.timestamp)("confirmed_at"),
+});
+// Royalty Distributions
+exports.royaltyDistributions = (0, pg_core_1.pgTable)("royalty_distributions", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    transactionId: (0, pg_core_1.varchar)("transaction_id").references(() => exports.nftTransactions.id, { onDelete: "cascade" }).notNull(),
+    tokenId: (0, pg_core_1.varchar)("token_id").references(() => exports.nftTokens.id, { onDelete: "cascade" }).notNull(),
+    recipientId: (0, pg_core_1.varchar)("recipient_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    recipientAddress: (0, pg_core_1.varchar)("recipient_address").notNull(),
+    recipientType: (0, pg_core_1.varchar)("recipient_type").notNull(), // creator, co-star, platform
+    amountInWei: (0, pg_core_1.varchar)("amount_in_wei").notNull(),
+    amountInUsd: (0, pg_core_1.integer)("amount_in_usd"), // USD cents
+    percentage: (0, pg_core_1.integer)("percentage"), // Basis points (e.g., 250 = 2.5%)
+    royaltyType: (0, exports.royaltyTypeEnum)("royalty_type").default("fixed"),
+    distributedAt: (0, pg_core_1.timestamp)("distributed_at"),
+    txHash: (0, pg_core_1.varchar)("tx_hash"),
+    status: (0, pg_core_1.varchar)("status").default("pending"), // pending, distributed, failed
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+});
+// NFT Royalty Rules (for complex royalty structures)
+exports.nftRoyaltyRules = (0, pg_core_1.pgTable)("nft_royalty_rules", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    collectionId: (0, pg_core_1.varchar)("collection_id").references(() => exports.nftCollections.id, { onDelete: "cascade" }),
+    tokenId: (0, pg_core_1.varchar)("token_id").references(() => exports.nftTokens.id, { onDelete: "cascade" }),
+    recipientId: (0, pg_core_1.varchar)("recipient_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    recipientAddress: (0, pg_core_1.varchar)("recipient_address").notNull(),
+    recipientType: (0, pg_core_1.varchar)("recipient_type").notNull(), // creator, co-star, platform
+    percentage: (0, pg_core_1.integer)("percentage").notNull(), // Basis points
+    royaltyType: (0, exports.royaltyTypeEnum)("royalty_type").default("fixed"),
+    decayRate: (0, pg_core_1.integer)("decay_rate"), // For decaying royalties (basis points per transfer)
+    minPercentage: (0, pg_core_1.integer)("min_percentage"), // Minimum percentage after decay
+    maxTransfers: (0, pg_core_1.integer)("max_transfers"), // Max transfers before royalty expires
+    tierThreshold: (0, pg_core_1.integer)("tier_threshold"), // For tiered royalties (e.g., after X sales)
+    isActive: (0, pg_core_1.boolean)("is_active").default(true),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+    updatedAt: (0, pg_core_1.timestamp)("updated_at").defaultNow(),
+});
+// IPFS Storage Records
+exports.ipfsRecords = (0, pg_core_1.pgTable)("ipfs_records", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    userId: (0, pg_core_1.varchar)("user_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    tokenId: (0, pg_core_1.varchar)("token_id").references(() => exports.nftTokens.id),
+    ipfsHash: (0, pg_core_1.varchar)("ipfs_hash").notNull().unique(),
+    fileName: (0, pg_core_1.varchar)("file_name"),
+    fileType: (0, pg_core_1.varchar)("file_type"),
+    fileSize: (0, pg_core_1.integer)("file_size"),
+    contentType: (0, pg_core_1.varchar)("content_type"), // metadata, image, video, etc.
+    gateway: (0, pg_core_1.varchar)("gateway").default("ipfs.io"), // Gateway used
+    isEncrypted: (0, pg_core_1.boolean)("is_encrypted").default(false),
+    isPinned: (0, pg_core_1.boolean)("is_pinned").default(true),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+});
+// Marketplace Integration Settings
+exports.marketplaceIntegrations = (0, pg_core_1.pgTable)("marketplace_integrations", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    userId: (0, pg_core_1.varchar)("user_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    marketplace: (0, exports.marketplaceEnum)("marketplace").notNull(),
+    apiKey: (0, pg_core_1.varchar)("api_key"), // Encrypted
+    apiSecret: (0, pg_core_1.varchar)("api_secret"), // Encrypted
+    walletAddress: (0, pg_core_1.varchar)("wallet_address"),
+    isActive: (0, pg_core_1.boolean)("is_active").default(true),
+    autoList: (0, pg_core_1.boolean)("auto_list").default(false),
+    defaultRoyaltyPercentage: (0, pg_core_1.integer)("default_royalty_percentage").default(750), // Basis points
+    metadata: (0, pg_core_1.jsonb)("metadata"), // Marketplace-specific settings
+    lastSyncedAt: (0, pg_core_1.timestamp)("last_synced_at"),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+    updatedAt: (0, pg_core_1.timestamp)("updated_at").defaultNow(),
+});
+// Blockchain Event Logs (for tracking blockchain events)
+exports.blockchainEvents = (0, pg_core_1.pgTable)("blockchain_events", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    eventName: (0, pg_core_1.varchar)("event_name").notNull(), // Transfer, Sale, Mint, etc.
+    contractAddress: (0, pg_core_1.varchar)("contract_address").notNull(),
+    tokenId: (0, pg_core_1.varchar)("token_id"),
+    fromAddress: (0, pg_core_1.varchar)("from_address"),
+    toAddress: (0, pg_core_1.varchar)("to_address"),
+    txHash: (0, pg_core_1.varchar)("tx_hash").notNull(),
+    blockNumber: (0, pg_core_1.integer)("block_number").notNull(),
+    blockchain: (0, exports.blockchainEnum)("blockchain").default("ethereum"),
+    eventData: (0, pg_core_1.jsonb)("event_data"), // Raw event data
+    processed: (0, pg_core_1.boolean)("processed").default(false),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+});
+// ====================================
+// AR/VR STREAMING SYSTEM
+// ====================================
+// VR Sessions
+exports.vrSessions = (0, pg_core_1.pgTable)("vr_sessions", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    creatorId: (0, pg_core_1.varchar)("creator_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    title: (0, pg_core_1.varchar)("title"),
+    description: (0, pg_core_1.text)("description"),
+    status: (0, exports.vrSessionStatusEnum)("status").default("initializing"),
+    deviceType: (0, exports.vrDeviceTypeEnum)("device_type").default("browser"),
+    renderingMode: (0, exports.vrRenderingModeEnum)("rendering_mode").default("webxr"),
+    quality: (0, exports.streamQualityEnum)("quality").default("adaptive"),
+    roomCode: (0, pg_core_1.varchar)("room_code").unique(),
+    maxParticipants: (0, pg_core_1.integer)("max_participants").default(10),
+    currentParticipants: (0, pg_core_1.integer)("current_participants").default(0),
+    isPublic: (0, pg_core_1.boolean)("is_public").default(false),
+    price: (0, pg_core_1.integer)("price"), // in cents
+    webrtcSignalingUrl: (0, pg_core_1.varchar)("webrtc_signaling_url"),
+    pixelStreamingUrl: (0, pg_core_1.varchar)("pixel_streaming_url"),
+    volumetricDataUrl: (0, pg_core_1.varchar)("volumetric_data_url"),
+    metadata: (0, pg_core_1.jsonb)("metadata"), // device capabilities, network stats, etc
+    startedAt: (0, pg_core_1.timestamp)("started_at"),
+    endedAt: (0, pg_core_1.timestamp)("ended_at"),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+});
+// AR Overlays
+exports.arOverlays = (0, pg_core_1.pgTable)("ar_overlays", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    sessionId: (0, pg_core_1.varchar)("session_id").references(() => exports.vrSessions.id, { onDelete: "cascade" }),
+    creatorId: (0, pg_core_1.varchar)("creator_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    name: (0, pg_core_1.varchar)("name").notNull(),
+    type: (0, pg_core_1.varchar)("type").notNull(), // filter, mask, object, environment
+    overlayUrl: (0, pg_core_1.varchar)("overlay_url").notNull(),
+    thumbnailUrl: (0, pg_core_1.varchar)("thumbnail_url"),
+    position: (0, pg_core_1.jsonb)("position"), // 3D position {x, y, z}
+    rotation: (0, pg_core_1.jsonb)("rotation"), // 3D rotation {x, y, z}
+    scale: (0, pg_core_1.jsonb)("scale"), // 3D scale {x, y, z}
+    anchoring: (0, pg_core_1.varchar)("anchoring"), // face, plane, object
+    trackingData: (0, pg_core_1.jsonb)("tracking_data"),
+    isActive: (0, pg_core_1.boolean)("is_active").default(true),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+});
+// Volumetric Streams
+exports.volumetricStreams = (0, pg_core_1.pgTable)("volumetric_streams", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    sessionId: (0, pg_core_1.varchar)("session_id").references(() => exports.vrSessions.id, { onDelete: "cascade" }).notNull(),
+    streamUrl: (0, pg_core_1.varchar)("stream_url").notNull(),
+    format: (0, pg_core_1.varchar)("format").notNull(), // ply, obj, gltf, draco
+    frameRate: (0, pg_core_1.integer)("frame_rate").default(30),
+    bitrate: (0, pg_core_1.integer)("bitrate"),
+    resolution: (0, pg_core_1.varchar)("resolution"),
+    compression: (0, pg_core_1.varchar)("compression"), // draco, gzip, none
+    pointCloudDensity: (0, pg_core_1.integer)("point_cloud_density"),
+    colorDepth: (0, pg_core_1.integer)("color_depth").default(8),
+    isRecording: (0, pg_core_1.boolean)("is_recording").default(false),
+    recordingUrl: (0, pg_core_1.varchar)("recording_url"),
+    metadata: (0, pg_core_1.jsonb)("metadata"),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+});
+// ====================================
+// DYNAMIC PRICING SYSTEM
+// ====================================
+// Pricing Rules
+exports.pricingRules = (0, pg_core_1.pgTable)("pricing_rules", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    creatorId: (0, pg_core_1.varchar)("creator_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    contentId: (0, pg_core_1.varchar)("content_id").references(() => exports.mediaAssets.id),
+    name: (0, pg_core_1.varchar)("name").notNull(),
+    strategy: (0, exports.pricingStrategyEnum)("strategy").default("dynamic"),
+    model: (0, exports.pricingModelEnum)("model").default("rule_based"),
+    basePrice: (0, pg_core_1.integer)("base_price").notNull(), // in cents
+    minPrice: (0, pg_core_1.integer)("min_price").notNull(),
+    maxPrice: (0, pg_core_1.integer)("max_price").notNull(),
+    adjustmentFactors: (0, pg_core_1.jsonb)("adjustment_factors"), // {demand: 1.5, time: 0.8, etc}
+    segmentRules: (0, pg_core_1.jsonb)("segment_rules"), // pricing per user segment
+    competitorTracking: (0, pg_core_1.boolean)("competitor_tracking").default(false),
+    abTestEnabled: (0, pg_core_1.boolean)("ab_test_enabled").default(false),
+    isActive: (0, pg_core_1.boolean)("is_active").default(true),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+    updatedAt: (0, pg_core_1.timestamp)("updated_at").defaultNow(),
+});
+// Price History
+exports.priceHistory = (0, pg_core_1.pgTable)("price_history", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    ruleId: (0, pg_core_1.varchar)("rule_id").references(() => exports.pricingRules.id, { onDelete: "cascade" }).notNull(),
+    contentId: (0, pg_core_1.varchar)("content_id").references(() => exports.mediaAssets.id),
+    previousPrice: (0, pg_core_1.integer)("previous_price").notNull(),
+    newPrice: (0, pg_core_1.integer)("new_price").notNull(),
+    adjustmentType: (0, exports.priceAdjustmentTypeEnum)("adjustment_type").notNull(),
+    adjustmentReason: (0, pg_core_1.text)("adjustment_reason"),
+    demandScore: (0, pg_core_1.integer)("demand_score"), // 0-100
+    competitorAvgPrice: (0, pg_core_1.integer)("competitor_avg_price"),
+    conversions: (0, pg_core_1.integer)("conversions").default(0),
+    revenue: (0, pg_core_1.integer)("revenue").default(0),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+});
+// Competitor Prices
+exports.competitorPrices = (0, pg_core_1.pgTable)("competitor_prices", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    platform: (0, pg_core_1.varchar)("platform").notNull(),
+    competitorId: (0, pg_core_1.varchar)("competitor_id"),
+    competitorName: (0, pg_core_1.varchar)("competitor_name"),
+    contentType: (0, pg_core_1.varchar)("content_type"),
+    price: (0, pg_core_1.integer)("price").notNull(),
+    currency: (0, pg_core_1.varchar)("currency").default("USD"),
+    subscribers: (0, pg_core_1.integer)("subscribers"),
+    engagement: (0, pg_core_1.integer)("engagement"), // 0-100 score
+    scrapedUrl: (0, pg_core_1.varchar)("scraped_url"),
+    metadata: (0, pg_core_1.jsonb)("metadata"),
+    scrapedAt: (0, pg_core_1.timestamp)("scraped_at").defaultNow(),
+});
+// ====================================
+// MICROLENDING SYSTEM
+// ====================================
+// Microloans
+exports.microloans = (0, pg_core_1.pgTable)("microloans", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    lenderId: (0, pg_core_1.varchar)("lender_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    borrowerId: (0, pg_core_1.varchar)("borrower_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    amount: (0, pg_core_1.integer)("amount").notNull(), // in cents
+    interestRate: (0, pg_core_1.integer)("interest_rate").notNull(), // basis points (100 = 1%)
+    termDays: (0, pg_core_1.integer)("term_days").notNull(),
+    purpose: (0, exports.loanPurposeEnum)("purpose").notNull(),
+    status: (0, exports.loanStatusEnum)("status").default("pending"),
+    repaymentFrequency: (0, exports.repaymentFrequencyEnum)("repayment_frequency").default("monthly"),
+    totalRepaid: (0, pg_core_1.integer)("total_repaid").default(0),
+    nextPaymentDue: (0, pg_core_1.timestamp)("next_payment_due"),
+    smartContractAddress: (0, pg_core_1.varchar)("smart_contract_address"),
+    collateralType: (0, pg_core_1.varchar)("collateral_type"), // future_earnings, nft, none
+    collateralValue: (0, pg_core_1.integer)("collateral_value"),
+    defaultRisk: (0, pg_core_1.integer)("default_risk"), // 0-100 score
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+    approvedAt: (0, pg_core_1.timestamp)("approved_at"),
+    repaidAt: (0, pg_core_1.timestamp)("repaid_at"),
+    defaultedAt: (0, pg_core_1.timestamp)("defaulted_at"),
+});
+// Loan Applications
+exports.loanApplications = (0, pg_core_1.pgTable)("loan_applications", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    applicantId: (0, pg_core_1.varchar)("applicant_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    requestedAmount: (0, pg_core_1.integer)("requested_amount").notNull(),
+    purpose: (0, exports.loanPurposeEnum)("purpose").notNull(),
+    purposeDescription: (0, pg_core_1.text)("purpose_description"),
+    requestedTermDays: (0, pg_core_1.integer)("requested_term_days").notNull(),
+    monthlyIncome: (0, pg_core_1.integer)("monthly_income"),
+    existingLoans: (0, pg_core_1.integer)("existing_loans").default(0),
+    businessPlan: (0, pg_core_1.text)("business_plan"),
+    status: (0, pg_core_1.varchar)("status").default("pending"), // pending, approved, rejected
+    rejectionReason: (0, pg_core_1.text)("rejection_reason"),
+    creditCheckResult: (0, pg_core_1.jsonb)("credit_check_result"),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+    reviewedAt: (0, pg_core_1.timestamp)("reviewed_at"),
+});
+// Loan Repayments
+exports.loanRepayments = (0, pg_core_1.pgTable)("loan_repayments", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    loanId: (0, pg_core_1.varchar)("loan_id").references(() => exports.microloans.id, { onDelete: "cascade" }).notNull(),
+    amount: (0, pg_core_1.integer)("amount").notNull(),
+    principal: (0, pg_core_1.integer)("principal").notNull(),
+    interest: (0, pg_core_1.integer)("interest").notNull(),
+    lateFee: (0, pg_core_1.integer)("late_fee").default(0),
+    paymentMethod: (0, pg_core_1.varchar)("payment_method"), // auto_deduct, manual, crypto
+    transactionId: (0, pg_core_1.varchar)("transaction_id").references(() => exports.transactions.id),
+    status: (0, pg_core_1.varchar)("status").default("pending"), // pending, completed, failed
+    dueDate: (0, pg_core_1.timestamp)("due_date").notNull(),
+    paidAt: (0, pg_core_1.timestamp)("paid_at"),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+});
+// Credit Scores
+exports.creditScores = (0, pg_core_1.pgTable)("credit_scores", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    userId: (0, pg_core_1.varchar)("user_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    score: (0, pg_core_1.integer)("score").notNull(), // 300-850
+    rating: (0, exports.creditRatingEnum)("rating").notNull(),
+    factorsJson: (0, pg_core_1.jsonb)("factors_json"), // {payment_history: 0.35, credit_utilization: 0.3, etc}
+    totalLoans: (0, pg_core_1.integer)("total_loans").default(0),
+    totalRepaid: (0, pg_core_1.integer)("total_repaid").default(0),
+    totalDefaulted: (0, pg_core_1.integer)("total_defaulted").default(0),
+    onTimePayments: (0, pg_core_1.integer)("on_time_payments").default(0),
+    latePayments: (0, pg_core_1.integer)("late_payments").default(0),
+    avgLoanAmount: (0, pg_core_1.integer)("avg_loan_amount"),
+    platformActivity: (0, pg_core_1.integer)("platform_activity"), // 0-100 score
+    lastCalculatedAt: (0, pg_core_1.timestamp)("last_calculated_at").defaultNow(),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+    updatedAt: (0, pg_core_1.timestamp)("updated_at").defaultNow(),
+});
+// ====================================
+// DEEPFAKE DETECTION SYSTEM
+// ====================================
+// Detection Results
+exports.detectionResults = (0, pg_core_1.pgTable)("detection_results", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    contentId: (0, pg_core_1.varchar)("content_id").references(() => exports.mediaAssets.id, { onDelete: "cascade" }).notNull(),
+    userId: (0, pg_core_1.varchar)("user_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    provider: (0, exports.detectionProviderEnum)("provider").notNull(),
+    authenticityStatus: (0, exports.authenticityStatusEnum)("authenticity_status").notNull(),
+    confidence: (0, pg_core_1.integer)("confidence").notNull(), // 0-100
+    riskLevel: (0, exports.contentRiskLevelEnum)("risk_level").notNull(),
+    detectionDetails: (0, pg_core_1.jsonb)("detection_details"), // provider-specific details
+    manipulationRegions: (0, pg_core_1.jsonb)("manipulation_regions"), // detected altered regions
+    faceSwapDetected: (0, pg_core_1.boolean)("face_swap_detected").default(false),
+    audioManipulated: (0, pg_core_1.boolean)("audio_manipulated").default(false),
+    metadataAltered: (0, pg_core_1.boolean)("metadata_altered").default(false),
+    processingTimeMs: (0, pg_core_1.integer)("processing_time_ms"),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+});
+// Content Authenticity
+exports.contentAuthenticity = (0, pg_core_1.pgTable)("content_authenticity", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    contentId: (0, pg_core_1.varchar)("content_id").references(() => exports.mediaAssets.id, { onDelete: "cascade" }).notNull().unique(),
+    isVerified: (0, pg_core_1.boolean)("is_verified").default(false),
+    verificationMethod: (0, pg_core_1.varchar)("verification_method"), // blockchain, watermark, cryptographic
+    watermarkId: (0, pg_core_1.varchar)("watermark_id").unique(),
+    blockchainHash: (0, pg_core_1.varchar)("blockchain_hash"),
+    cryptographicSignature: (0, pg_core_1.varchar)("cryptographic_signature"),
+    certificateUrl: (0, pg_core_1.varchar)("certificate_url"),
+    issuerName: (0, pg_core_1.varchar)("issuer_name").default("GirlFanz"),
+    verifiedAt: (0, pg_core_1.timestamp)("verified_at"),
+    expiresAt: (0, pg_core_1.timestamp)("expires_at"),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+});
+// Deepfake Verification Logs
+exports.deepfakeVerificationLogs = (0, pg_core_1.pgTable)("deepfake_verification_logs", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    contentId: (0, pg_core_1.varchar)("content_id").references(() => exports.mediaAssets.id, { onDelete: "cascade" }).notNull(),
+    action: (0, pg_core_1.varchar)("action").notNull(), // scan_initiated, scan_completed, alert_sent, content_blocked
+    userId: (0, pg_core_1.varchar)("user_id").references(() => exports.users.id),
+    details: (0, pg_core_1.jsonb)("details"),
+    ipAddress: (0, pg_core_1.varchar)("ip_address"),
+    userAgent: (0, pg_core_1.varchar)("user_agent"),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+});
+// ====================================
+// EMOTIONAL AI SYSTEM
+// ====================================
+// Sentiment Analysis
+exports.sentimentAnalysis = (0, pg_core_1.pgTable)("sentiment_analysis", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    contentId: (0, pg_core_1.varchar)("content_id").references(() => exports.mediaAssets.id),
+    postId: (0, pg_core_1.varchar)("post_id").references(() => exports.feedPosts.id),
+    commentId: (0, pg_core_1.varchar)("comment_id").references(() => exports.postComments.id),
+    userId: (0, pg_core_1.varchar)("user_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    sentiment: (0, exports.sentimentScoreEnum)("sentiment").notNull(),
+    confidence: (0, pg_core_1.integer)("confidence").notNull(), // 0-100
+    emotions: (0, pg_core_1.jsonb)("emotions"), // {happy: 0.8, sad: 0.1, angry: 0.1}
+    dominantEmotion: (0, exports.emotionTypeEnum)("dominant_emotion"),
+    keywords: (0, pg_core_1.text)("keywords").array(),
+    topics: (0, pg_core_1.text)("topics").array(),
+    language: (0, pg_core_1.varchar)("language").default("en"),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+});
+// Mood Tags
+exports.moodTags = (0, pg_core_1.pgTable)("mood_tags", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    contentId: (0, pg_core_1.varchar)("content_id").references(() => exports.mediaAssets.id, { onDelete: "cascade" }),
+    postId: (0, pg_core_1.varchar)("post_id").references(() => exports.feedPosts.id, { onDelete: "cascade" }),
+    creatorId: (0, pg_core_1.varchar)("creator_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    mood: (0, exports.emotionTypeEnum)("mood").notNull(),
+    intensity: (0, pg_core_1.integer)("intensity").notNull(), // 1-10
+    autoDetected: (0, pg_core_1.boolean)("auto_detected").default(false),
+    userOverride: (0, pg_core_1.boolean)("user_override").default(false),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+});
+// Engagement Predictions
+exports.engagementPredictions = (0, pg_core_1.pgTable)("engagement_predictions", {
+    id: (0, pg_core_1.varchar)("id").primaryKey().default((0, drizzle_orm_1.sql) `gen_random_uuid()`),
+    contentId: (0, pg_core_1.varchar)("content_id").references(() => exports.mediaAssets.id),
+    postId: (0, pg_core_1.varchar)("post_id").references(() => exports.feedPosts.id),
+    creatorId: (0, pg_core_1.varchar)("creator_id").references(() => exports.users.id, { onDelete: "cascade" }).notNull(),
+    predictedEngagement: (0, exports.engagementLevelEnum)("predicted_engagement").notNull(),
+    predictedViews: (0, pg_core_1.integer)("predicted_views"),
+    predictedLikes: (0, pg_core_1.integer)("predicted_likes"),
+    predictedComments: (0, pg_core_1.integer)("predicted_comments"),
+    predictedRevenue: (0, pg_core_1.integer)("predicted_revenue"), // in cents
+    optimalPostTime: (0, pg_core_1.timestamp)("optimal_post_time"),
+    targetAudience: (0, pg_core_1.jsonb)("target_audience"), // demographic recommendations
+    contentRecommendations: (0, pg_core_1.jsonb)("content_recommendations"),
+    confidenceScore: (0, pg_core_1.integer)("confidence_score"), // 0-100
+    modelVersion: (0, pg_core_1.varchar)("model_version"),
+    actualEngagement: (0, exports.engagementLevelEnum)("actual_engagement"), // for model training
+    actualViews: (0, pg_core_1.integer)("actual_views"),
+    actualLikes: (0, pg_core_1.integer)("actual_likes"),
+    actualComments: (0, pg_core_1.integer)("actual_comments"),
+    actualRevenue: (0, pg_core_1.integer)("actual_revenue"),
+    createdAt: (0, pg_core_1.timestamp)("created_at").defaultNow(),
+    measuredAt: (0, pg_core_1.timestamp)("measured_at"), // when actuals were recorded
+});
 // Zod Schemas
 exports.insertFanzTransactionSchema = (0, drizzle_zod_1.createInsertSchema)(exports.fanzTransactions).omit({
     id: true,
@@ -1117,6 +1746,98 @@ exports.insertGeneratedAssetSchema = (0, drizzle_zod_1.createInsertSchema)(expor
 exports.insertContentAnalyticsSchema = (0, drizzle_zod_1.createInsertSchema)(exports.contentAnalytics).omit({
     id: true,
     updatedAt: true,
+});
+// ====================================
+// NFT & BLOCKCHAIN - Zod Schemas & Types
+// ====================================
+exports.insertBlockchainWalletSchema = (0, drizzle_zod_1.createInsertSchema)(exports.blockchainWallets).omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+});
+exports.insertNftCollectionSchema = (0, drizzle_zod_1.createInsertSchema)(exports.nftCollections).omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+    deployedAt: true,
+    mintedSupply: true,
+});
+exports.insertNftTokenSchema = (0, drizzle_zod_1.createInsertSchema)(exports.nftTokens).omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+    mintedAt: true,
+    views: true,
+});
+exports.insertNftTransactionSchema = (0, drizzle_zod_1.createInsertSchema)(exports.nftTransactions).omit({
+    id: true,
+    createdAt: true,
+    confirmedAt: true,
+});
+exports.insertRoyaltyDistributionSchema = (0, drizzle_zod_1.createInsertSchema)(exports.royaltyDistributions).omit({
+    id: true,
+    createdAt: true,
+    distributedAt: true,
+});
+exports.insertNftRoyaltyRuleSchema = (0, drizzle_zod_1.createInsertSchema)(exports.nftRoyaltyRules).omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+});
+exports.insertIpfsRecordSchema = (0, drizzle_zod_1.createInsertSchema)(exports.ipfsRecords).omit({
+    id: true,
+    createdAt: true,
+});
+exports.insertMarketplaceIntegrationSchema = (0, drizzle_zod_1.createInsertSchema)(exports.marketplaceIntegrations).omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+    lastSyncedAt: true,
+});
+exports.insertBlockchainEventSchema = (0, drizzle_zod_1.createInsertSchema)(exports.blockchainEvents).omit({
+    id: true,
+    createdAt: true,
+});
+// ====================================
+// VOICE CLONING - Zod Schemas & Types
+// ====================================
+exports.insertVoiceProfileSchema = (0, drizzle_zod_1.createInsertSchema)(exports.voiceProfiles).omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+});
+exports.insertVoiceSampleSchema = (0, drizzle_zod_1.createInsertSchema)(exports.voiceSamples).omit({
+    id: true,
+    createdAt: true,
+});
+exports.insertVoiceMessageSchema = (0, drizzle_zod_1.createInsertSchema)(exports.voiceMessages).omit({
+    id: true,
+    deliveredAt: true,
+    viewedAt: true,
+    createdAt: true,
+});
+exports.insertVoiceCampaignSchema = (0, drizzle_zod_1.createInsertSchema)(exports.voiceCampaigns).omit({
+    id: true,
+    startedAt: true,
+    completedAt: true,
+    createdAt: true,
+    updatedAt: true,
+});
+exports.insertVoiceAnalyticsSchema = (0, drizzle_zod_1.createInsertSchema)(exports.voiceAnalytics).omit({
+    id: true,
+    lastPlayedAt: true,
+    createdAt: true,
+    updatedAt: true,
+});
+exports.insertVoiceCreditsSchema = (0, drizzle_zod_1.createInsertSchema)(exports.voiceCredits).omit({
+    id: true,
+    lastResetAt: true,
+    createdAt: true,
+    updatedAt: true,
+});
+exports.insertVoiceTransactionSchema = (0, drizzle_zod_1.createInsertSchema)(exports.voiceTransactions).omit({
+    id: true,
+    createdAt: true,
 });
 // ====================================
 // FanzTrust™ API Response Types

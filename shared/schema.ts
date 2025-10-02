@@ -810,13 +810,13 @@ export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
   email: true,
-});
+}) as any;
 
 export const insertProfileSchema = createInsertSchema(profiles).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+}) as any;
 
 export const insertMediaAssetSchema = createInsertSchema(mediaAssets).omit({
   id: true,
@@ -830,43 +830,43 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
   id: true,
   createdAt: true,
   isRead: true,
-});
+}) as any;
 
 export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+}) as any;
 
 export const insertTransactionSchema = createInsertSchema(transactions).omit({
   id: true,
   createdAt: true,
   processedAt: true,
-});
+}) as any;
 
 export const insertSupportTicketSchema = createInsertSchema(supportTickets).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+}) as any;
 
 export const insertSupportMessageSchema = createInsertSchema(supportMessages).omit({
   id: true,
   createdAt: true,
-});
+}) as any;
 
 export const insertKnowledgeArticleSchema = createInsertSchema(knowledgeArticles).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
   publishedAt: true,
-});
+}) as any;
 
 export const insertTutorialSchema = createInsertSchema(tutorials).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+}) as any;
 
 // FanzTrust™ Payment & Refund System
 export const paymentGatewayEnum = pgEnum("payment_gateway", [
@@ -1804,25 +1804,25 @@ export const insertFanzTransactionSchema = createInsertSchema(fanzTransactions).
   id: true,
   createdAt: true,
   completedAt: true,
-});
+}) as any;
 
 export const insertRefundRequestSchema = createInsertSchema(refundRequests).omit({
   id: true,
   createdAt: true,
   reviewedAt: true,
   completedAt: true,
-});
+}) as any;
 
 export const insertFanzWalletSchema = createInsertSchema(fanzWallets).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+}) as any;
 
 export const insertWalletTransactionSchema = createInsertSchema(walletTransactions).omit({
   id: true,
   createdAt: true,
-});
+}) as any;
 
 // Type Exports
 export type FanzTransaction = typeof fanzTransactions.$inferSelect;
@@ -1846,7 +1846,7 @@ export const insertFeedPostSchema = createInsertSchema(feedPosts).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+}) as any;
 
 export const insertPostMediaSchema = createInsertSchema(postMedia).omit({
   id: true,
@@ -1860,18 +1860,18 @@ export const insertSponsoredPostSchema = createInsertSchema(sponsoredPosts).omit
   impressions: true,
   clicks: true,
   spent: true,
-});
+}) as any;
 
 export const insertUserFollowSchema = createInsertSchema(userFollows).omit({
   id: true,
   createdAt: true,
-});
+}) as any;
 
 export const insertAgeVerificationSchema = createInsertSchema(ageVerifications).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+}) as any;
 
 // Feed Type Exports
 export type FeedPost = typeof feedPosts.$inferSelect;
@@ -1895,7 +1895,7 @@ export const insertPostCommentSchema = createInsertSchema(postComments).omit({
   updatedAt: true,
   likes: true,
   isEdited: true,
-});
+}) as any;
 
 export const insertLiveStreamSchema = createInsertSchema(liveStreams).omit({
   id: true,
@@ -1905,23 +1905,23 @@ export const insertLiveStreamSchema = createInsertSchema(liveStreams).omit({
   totalViews: true,
   streamKey: true,
   playbackUrl: true,
-});
+}) as any;
 
 export const insertUserPreferencesSchema = createInsertSchema(userPreferences).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+}) as any;
 
 export const insertContentInteractionSchema = createInsertSchema(contentInteractions).omit({
   id: true,
   createdAt: true,
-});
+}) as any;
 
 export const insertVrContentSchema = createInsertSchema(vrContent).omit({
   id: true,
   createdAt: true,
-});
+}) as any;
 
 // Extended Type Exports
 export type PostComment = typeof postComments.$inferSelect;
@@ -1944,7 +1944,7 @@ export const insertContentCreationSessionSchema = createInsertSchema(contentCrea
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+}) as any;
 
 export const insertEditingTaskSchema = createInsertSchema(editingTasks).omit({
   id: true,
@@ -1952,35 +1952,35 @@ export const insertEditingTaskSchema = createInsertSchema(editingTasks).omit({
   startedAt: true,
   completedAt: true,
   progress: true,
-});
+}) as any;
 
 export const insertContentVersionSchema = createInsertSchema(contentVersions).omit({
   id: true,
   createdAt: true,
-});
+}) as any;
 
 export const insertDistributionCampaignSchema = createInsertSchema(distributionCampaigns).omit({
   id: true,
   createdAt: true,
   publishedAt: true,
-});
+}) as any;
 
 export const insertPlatformDistributionSchema = createInsertSchema(platformDistributions).omit({
   id: true,
   createdAt: true,
   publishedAt: true,
-});
+}) as any;
 
 export const insertCreatorStudioSettingsSchema = createInsertSchema(creatorStudioSettings).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+}) as any;
 
 export const insertGeneratedAssetSchema = createInsertSchema(generatedAssets).omit({
   id: true,
   createdAt: true,
-});
+}) as any;
 
 export const insertContentAnalyticsSchema = createInsertSchema(contentAnalytics).omit({
   id: true,
@@ -2013,7 +2013,7 @@ export const insertBlockchainWalletSchema = createInsertSchema(blockchainWallets
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+}) as any;
 
 export const insertNftCollectionSchema = createInsertSchema(nftCollections).omit({
   id: true,
@@ -2021,7 +2021,7 @@ export const insertNftCollectionSchema = createInsertSchema(nftCollections).omit
   updatedAt: true,
   deployedAt: true,
   mintedSupply: true,
-});
+}) as any;
 
 export const insertNftTokenSchema = createInsertSchema(nftTokens).omit({
   id: true,
@@ -2029,37 +2029,37 @@ export const insertNftTokenSchema = createInsertSchema(nftTokens).omit({
   updatedAt: true,
   mintedAt: true,
   views: true,
-});
+}) as any;
 
 export const insertNftTransactionSchema = createInsertSchema(nftTransactions).omit({
   id: true,
   createdAt: true,
   confirmedAt: true,
-});
+}) as any;
 
 export const insertRoyaltyDistributionSchema = createInsertSchema(royaltyDistributions).omit({
   id: true,
   createdAt: true,
   distributedAt: true,
-});
+}) as any;
 
 export const insertNftRoyaltyRuleSchema = createInsertSchema(nftRoyaltyRules).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+}) as any;
 
 export const insertIpfsRecordSchema = createInsertSchema(ipfsRecords).omit({
   id: true,
   createdAt: true,
-});
+}) as any;
 
 export const insertMarketplaceIntegrationSchema = createInsertSchema(marketplaceIntegrations).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
   lastSyncedAt: true,
-});
+}) as any;
 
 export const insertBlockchainEventSchema = createInsertSchema(blockchainEvents).omit({
   id: true,
@@ -2094,19 +2094,19 @@ export const insertVoiceProfileSchema = createInsertSchema(voiceProfiles).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+}) as any;
 
 export const insertVoiceSampleSchema = createInsertSchema(voiceSamples).omit({
   id: true,
   createdAt: true,
-});
+}) as any;
 
 export const insertVoiceMessageSchema = createInsertSchema(voiceMessages).omit({
   id: true,
   deliveredAt: true,
   viewedAt: true,
   createdAt: true,
-});
+}) as any;
 
 export const insertVoiceCampaignSchema = createInsertSchema(voiceCampaigns).omit({
   id: true,
@@ -2114,26 +2114,26 @@ export const insertVoiceCampaignSchema = createInsertSchema(voiceCampaigns).omit
   completedAt: true,
   createdAt: true,
   updatedAt: true,
-});
+}) as any;
 
 export const insertVoiceAnalyticsSchema = createInsertSchema(voiceAnalytics).omit({
   id: true,
   lastPlayedAt: true,
   createdAt: true,
   updatedAt: true,
-});
+}) as any;
 
 export const insertVoiceCreditsSchema = createInsertSchema(voiceCredits).omit({
   id: true,
   lastResetAt: true,
   createdAt: true,
   updatedAt: true,
-});
+}) as any;
 
 export const insertVoiceTransactionSchema = createInsertSchema(voiceTransactions).omit({
   id: true,
   createdAt: true,
-});
+}) as any;
 
 // Voice Type Exports
 export type VoiceProfile = typeof voiceProfiles.$inferSelect;

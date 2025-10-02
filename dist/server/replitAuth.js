@@ -36,129 +36,119 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.isAuthenticated = void 0;
-exports.getSession = getSession;
-exports.setupAuth = setupAuth;
-const client = __importStar(require("openid-client"));
-const passport_1 = require("openid-client/passport");
-const passport_2 = __importDefault(require("passport"));
+exports.authMiddleware = void 0;
+const express_1 = require("express");
+const oauth = __importStar(require("openid-client"));
+const passport_1 = __importDefault(require("passport"));
+const passport_custom_1 = require("passport-custom");
 const express_session_1 = __importDefault(require("express-session"));
+const db_1 = require("./db");
 const memoizee_1 = __importDefault(require("memoizee"));
 const connect_pg_simple_1 = __importDefault(require("connect-pg-simple"));
-const storage_1 = require("./storage");
-if (!process.env.REPLIT_DOMAINS) {
-    throw new Error("Environment variable REPLIT_DOMAINS not provided");
-}
-const getOidcConfig = (0, memoizee_1.default)(async () => {
-    var _a;
-    return await client.discovery(new URL((_a = process.env.ISSUER_URL) !== null && _a !== void 0 ? _a : "https://replit.com/oidc"), process.env.REPL_ID);
-}, { maxAge: 3600 * 1000 });
-function getSession() {
-    const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-    const pgStore = (0, connect_pg_simple_1.default)(express_session_1.default);
-    const sessionStore = new pgStore({
-        conString: process.env.DATABASE_URL,
-        createTableIfMissing: false,
-        ttl: sessionTtl,
-        tableName: "sessions",
-    });
-    return (0, express_session_1.default)({
-        secret: process.env.SESSION_SECRET,
-        store: sessionStore,
-        resave: false,
-        saveUninitialized: false,
-        cookie: {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-            maxAge: sessionTtl,
-        },
-    });
-}
-function updateUserSession(user, tokens) {
-    var _a;
-    user.claims = tokens.claims();
-    user.access_token = tokens.access_token;
-    user.refresh_token = tokens.refresh_token;
-    user.expires_at = (_a = user.claims) === null || _a === void 0 ? void 0 : _a.exp;
-}
-async function upsertUser(claims) {
-    await storage_1.storage.upsertUser({
-        id: claims["sub"],
-        email: claims["email"],
-        firstName: claims["first_name"],
-        lastName: claims["last_name"],
-        profileImageUrl: claims["profile_image_url"],
-    });
-}
-async function setupAuth(app) {
-    app.set("trust proxy", 1);
-    app.use(getSession());
-    app.use(passport_2.default.initialize());
-    app.use(passport_2.default.session());
-    const config = await getOidcConfig();
-    const verify = async (tokens, verified) => {
-        const user = {};
-        updateUserSession(user, tokens);
-        await upsertUser(tokens.claims());
-        verified(null, user);
-    };
-    for (const domain of process.env
-        .REPLIT_DOMAINS.split(",")) {
-        const strategy = new passport_1.Strategy({
-            name: `replitauth:${domain}`,
-            config,
-            scope: "openid email profile offline_access",
-            callbackURL: `https://${domain}/api/callback`,
-        }, verify);
-        passport_2.default.use(strategy);
-    }
-    passport_2.default.serializeUser((user, cb) => cb(null, user));
-    passport_2.default.deserializeUser((user, cb) => cb(null, user));
-    app.get("/api/login", (req, res, next) => {
-        passport_2.default.authenticate(`replitauth:${req.hostname}`, {
-            prompt: "login consent",
-            scope: ["openid", "email", "profile", "offline_access"],
-        })(req, res, next);
-    });
-    app.get("/api/callback", (req, res, next) => {
-        passport_2.default.authenticate(`replitauth:${req.hostname}`, {
-            successReturnToOrRedirect: "/",
-            failureRedirect: "/api/login",
-        })(req, res, next);
-    });
-    app.get("/api/logout", (req, res) => {
-        req.logout(() => {
-            res.redirect(client.buildEndSessionUrl(config, {
-                client_id: process.env.REPL_ID,
-                post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
-            }).href);
-        });
-    });
-}
-const isAuthenticated = async (req, res, next) => {
-    const user = req.user;
-    if (!req.isAuthenticated() || !user.expires_at) {
-        return res.status(401).json({ message: "Unauthorized" });
-    }
-    const now = Math.floor(Date.now() / 1000);
-    if (now <= user.expires_at) {
-        return next();
-    }
-    const refreshToken = user.refresh_token;
-    if (!refreshToken) {
-        res.status(401).json({ message: "Unauthorized" });
-        return;
-    }
+const pg_1 = require("pg");
+const PgSession = (0, connect_pg_simple_1.default)(express_session_1.default);
+const pool = new pg_1.Pool({
+    connectionString: process.env.DATABASE_URL,
+});
+const getClient = (0, memoizee_1.default)(async () => {
+    const issuer = new URL(process.env.REPLIT_DEPLOYMENT === "1"
+        ? "https://replit.com"
+        : `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
+    const config = await oauth.discovery(issuer, process.env.REPLIT_DEPLOYMENT === "1"
+        ? process.env.REPL_ID
+        : "local-testing", undefined, undefined, { execute: [oauth.allowInsecureRequests] });
+    return config;
+}, { promise: true, maxAge: 60000 });
+passport_1.default.use("replit", new passport_custom_1.Strategy(async (req, done) => {
     try {
-        const config = await getOidcConfig();
-        const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
-        updateUserSession(user, tokenResponse);
+        const client = await getClient();
+        const currentUrl = new URL(req.url, `https://${req.get("host")}`);
+        const tokens = await oauth.authorizationCodeGrant(client, currentUrl, {
+            expectedState: req.session.state,
+            pkceCodeVerifier: req.session.codeVerifier,
+        });
+        const claims = oauth.getValidatedIdTokenClaims(tokens);
+        const user = await db_1.db.user.upsert({
+            where: { id: claims.sub },
+            update: {},
+            create: {
+                id: claims.sub,
+                email: claims.email,
+                firstName: claims.given_name || null,
+                lastName: claims.family_name || null,
+                profileImageUrl: claims.profile_image || null,
+                password: "", // Replit auth doesn't use passwords
+            },
+        });
+        done(null, user);
+    }
+    catch (err) {
+        done(err);
+    }
+}));
+passport_1.default.serializeUser((user, done) => {
+    done(null, user.id);
+});
+passport_1.default.deserializeUser(async (id, done) => {
+    try {
+        const user = await db_1.db.user.findUnique({ where: { id } });
+        done(null, user);
+    }
+    catch (err) {
+        done(err);
+    }
+});
+const router = (0, express_1.Router)();
+router.use((0, express_session_1.default)({
+    store: new PgSession({ pool }),
+    secret: process.env.SESSION_SECRET || "your-secret-key",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === "production",
+        httpOnly: true,
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    },
+}));
+router.use(passport_1.default.initialize());
+router.use(passport_1.default.session());
+router.get("/login", async (req, res) => {
+    const client = await getClient();
+    const state = oauth.generateRandomState();
+    const codeVerifier = oauth.generateRandomCodeVerifier();
+    req.session.state = state;
+    req.session.codeVerifier = codeVerifier;
+    const authUrl = oauth.buildAuthorizationUrl(client, {
+        state,
+        code_challenge: await oauth.calculatePKCECodeChallenge(codeVerifier),
+        code_challenge_method: "S256",
+    });
+    res.redirect(authUrl.href);
+});
+router.get("/callback", passport_1.default.authenticate("replit"), (req, res) => {
+    res.redirect("/");
+});
+router.get("/logout", (req, res) => {
+    req.logout((err) => {
+        if (err) {
+            return res.status(500).json({ error: "Logout failed" });
+        }
+        res.redirect("/");
+    });
+});
+router.get("/user", (req, res) => {
+    if (req.isAuthenticated()) {
+        res.json(req.user);
+    }
+    else {
+        res.status(401).json({ error: "Not authenticated" });
+    }
+});
+const authMiddleware = (req, res, next) => {
+    if (req.isAuthenticated()) {
         return next();
     }
-    catch (error) {
-        res.status(401).json({ message: "Unauthorized" });
-        return;
-    }
+    res.status(401).json({ error: "Authentication required" });
 };
-exports.isAuthenticated = isAuthenticated;
+exports.authMiddleware = authMiddleware;
+exports.default = router;
