@@ -799,15 +799,6 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  // Audit operations
-  async createAuditLog(logData: Partial<AuditLog>): Promise<AuditLog> {
-    const [log] = await db
-      .insert(auditLogs)
-      .values(logData as any)
-      .returning();
-    return log;
-  }
-
   // Subscription operations
   async getSubscription(userId: string, creatorId: string): Promise<Subscription | undefined> {
     const [subscription] = await db
@@ -1830,10 +1821,6 @@ export class DatabaseStorage implements IStorage {
       .where(eq(contentCreationSessions.id, id))
       .returning();
     return session;
-  }
-
-  async deleteContentSession(id: string): Promise<void> {
-    await db.delete(contentCreationSessions).where(eq(contentCreationSessions.id, id));
   }
 
   // Editing Task operations
