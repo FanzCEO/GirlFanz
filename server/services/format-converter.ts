@@ -356,7 +356,7 @@ export class FormatConverterService {
     // 4. Duration trimming if needed
     // 5. Codec conversion
 
-    let convertedContent = Buffer.from(`converted_${config.id}_content`);
+    let convertedContent: Buffer = Buffer.from(`converted_${config.id}_content`);
 
     // Apply aspect ratio conversion
     convertedContent = await this.convertAspectRatio(

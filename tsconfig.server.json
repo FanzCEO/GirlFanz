@@ -17,8 +17,7 @@
     "strict": true,
     "resolveJsonModule": true,
     "allowJs": true,
-    "isolatedModules": true,
-    "allowImportingTsExtensions": true
+    "isolatedModules": true
   },
   "include": ["server/**/*", "shared/**/*"],
   "exclude": ["node_modules", "dist", ".next", "src", "client"]

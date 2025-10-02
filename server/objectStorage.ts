@@ -237,6 +237,51 @@ export class ObjectStorageService {
       requestedPermission: requestedPermission ?? ObjectPermission.READ,
     });
   }
+
+  // Upload an object to storage
+  async uploadObject(params: {
+    key: string;
+    body: Buffer;
+    contentType?: string;
+    metadata?: Record<string, string>;
+    aclPolicy?: ObjectAclPolicy;
+  }): Promise<{ url: string; key: string }> {
+    const { key, body, contentType, metadata, aclPolicy } = params;
+    const privateObjectDir = this.getPrivateObjectDir();
+    const fullPath = `${privateObjectDir}/${key}`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+    
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+    
+    // Upload the content with options
+    await file.save(body, {
+      contentType,
+      metadata,
+    });
+    
+    // Set ACL policy if provided
+    if (aclPolicy) {
+      await setObjectAclPolicy(file, aclPolicy);
+    }
+    
+    // Return normalized path
+    const url = `/objects/${key}`;
+    return { url, key };
+  }
+
+  // Delete an object from storage
+  async deleteObject(key: string): Promise<void> {
+    const privateObjectDir = this.getPrivateObjectDir();
+    const fullPath = `${privateObjectDir}/${key}`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+    
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+    
+    // Delete the file
+    await file.delete();
+  }
 }
 
 function parseObjectPath(path: string): {

@@ -820,13 +820,13 @@ export class StreamWebSocketHandler {
         ws.isAlive = false;
         ws.ping();
       });
-    }, 30000); // Ping every 30 seconds
+    }, 30000) as NodeJS.Timeout; // Ping every 30 seconds
   }
 
   // Cleanup
   cleanup(): void {
     if (this.pingInterval) {
-      clearInterval(this.pingInterval);
+      clearInterval(this.pingInterval as NodeJS.Timeout);
     }
     
     this.connections.clear();

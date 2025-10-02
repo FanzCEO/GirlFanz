@@ -266,7 +266,7 @@ export class AIProcessorService {
   ): Promise<Buffer> {
     console.log(`Enhancing content for session ${session.id}`);
 
-    let enhancedContent = Buffer.from('enhanced_placeholder');
+    let enhancedContent: Buffer = Buffer.from('enhanced_placeholder');
 
     // Apply color grading
     if (config.colorGrading) {

@@ -9,6 +9,14 @@ import memoizee from "memoizee";
 import connectPgSimple from "connect-pg-simple";
 import { Pool } from "pg";
 
+// Extend express-session types
+declare module "express-session" {
+  interface SessionData {
+    state: string;
+    codeVerifier: string;
+  }
+}
+
 const PgSession = connectPgSimple(session);
 
 const pool = new Pool({
