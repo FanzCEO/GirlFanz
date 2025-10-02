@@ -521,6 +521,29 @@ export class AIProcessorService {
     // In production: Check user subscription level
     return 'normal';
   }
+
+  // Cancel processing for a session
+  async cancelProcessing(sessionId: string): Promise<void> {
+    // Remove from queue if present
+    const queueIndex = this.processingQueue.indexOf(sessionId);
+    if (queueIndex > -1) {
+      this.processingQueue.splice(queueIndex, 1);
+    }
+
+    // Remove pipeline data
+    const pipeline = this.processingPipelines.get(sessionId);
+    if (pipeline) {
+      // Mark all stages as failed
+      pipeline.stages.forEach(stage => {
+        if (stage.status === 'pending' || stage.status === 'processing') {
+          stage.status = 'failed';
+          stage.error = 'Processing cancelled by user';
+        }
+      });
+    }
+
+    this.processingPipelines.delete(sessionId);
+  }
 }
 
 // Dummy definitions for types used in changes
