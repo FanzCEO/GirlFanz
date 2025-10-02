@@ -38,9 +38,11 @@ Preferred communication style: Simple, everyday language.
 
 ## Development Environment
 - **Package Manager**: npm with workspace support for monorepo structure
-- **Development Server**: Vite dev server with hot module replacement and Express API proxy
+- **Development Server**: Custom server configuration using server/start.ts as entry point (bypasses vite.config.ts to avoid top-level await issues with tsx/esbuild)
+- **Server Entry**: server/index.ts redirects to server/start.ts which contains a simplified Vite dev server setup with inline configuration
 - **Code Quality**: TypeScript for type safety, ESLint for code standards
 - **Build Process**: Separate builds for client (Vite) and server (esbuild) with production optimizations
+- **Note**: vite.config.ts is not used due to compatibility issues with tsx; configuration is inline in server/start.ts
 
 # External Dependencies
 
@@ -64,9 +66,10 @@ Preferred communication style: Simple, everyday language.
 - **Tailwind CSS**: Utility-first CSS framework with custom GirlFanz brand configuration
 
 ## Development Tools
-- **Vite Plugins**: Runtime error overlay, dev banner, and cartographer for enhanced development experience
+- **Vite Plugins**: Basic React plugin (Replit-specific plugins removed due to missing dependencies)
 - **TypeScript**: Full stack type safety with shared types between client and server
 - **Drizzle Kit**: Database schema management and migration tools
+- **Workflow**: "Start application" workflow runs via npm which has been configured to load server/start.ts
 
 ## Real-time Features
 - **WebSocket (ws)**: Native WebSocket implementation for real-time messaging and live features
