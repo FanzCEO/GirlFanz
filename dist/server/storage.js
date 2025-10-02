@@ -211,16 +211,15 @@ export class DatabaseStorage {
     }
     // Moderation operations
     async getModerationQueue(status, limit = 50) {
-        let query = db
+        const baseQuery = db
             .select()
             .from(moderationQueue)
             .innerJoin(mediaAssets, eq(moderationQueue.mediaId, mediaAssets.id))
             .orderBy(desc(moderationQueue.createdAt))
             .limit(limit);
-        if (status) {
-            query = query.where(eq(moderationQueue.status, status));
-        }
-        const results = await query;
+        const results = status
+            ? await baseQuery.where(eq(moderationQueue.status, status))
+            : await baseQuery;
         return results.map(r => ({
             ...r.moderation_queue,
             media: r.media_assets,
@@ -314,14 +313,6 @@ export class DatabaseStorage {
                 status: 'operational',
             },
         };
-    }
-    // Audit operations
-    async createAuditLog(logData) {
-        const [log] = await db
-            .insert(auditLogs)
-            .values(logData)
-            .returning();
-        return log;
     }
     // Subscription operations
     async getSubscription(userId, creatorId) {
@@ -426,12 +417,12 @@ export class DatabaseStorage {
     }
     // Support Ticket operations
     async getSupportTickets(userId, status) {
-        let query = db.select().from(supportTickets);
         const conditions = [];
         if (userId)
             conditions.push(eq(supportTickets.userId, userId));
         if (status)
             conditions.push(eq(supportTickets.status, status));
+        let query = db.select().from(supportTickets);
         if (conditions.length > 0) {
             query = query.where(conditions.length === 1 ? conditions[0] : and(...conditions));
         }
@@ -640,12 +631,16 @@ export class DatabaseStorage {
     }
     // Tutorial operations
     async getTutorials(userRole, category) {
-        let query = db.select().from(tutorials);
-        let conditions = [eq(tutorials.status, 'published')];
+        const conditions = [eq(tutorials.status, 'published')];
         if (userRole && userRole !== 'all') {
-            conditions.push(or(eq(tutorials.roleTarget, userRole), eq(tutorials.roleTarget, 'all')));
+            const roleCondition = or(eq(tutorials.roleTarget, userRole), eq(tutorials.roleTarget, 'all'));
+            if (roleCondition) {
+                conditions.push(roleCondition);
+            }
         }
-        return await query.where(and(...conditions)).orderBy(tutorials.createdAt, tutorials.title);
+        return await db.select().from(tutorials)
+            .where(and(...conditions))
+            .orderBy(tutorials.createdAt, tutorials.title);
     }
     async getTutorial(id) {
         const [tutorial] = await db
@@ -1166,9 +1161,6 @@ export class DatabaseStorage {
             .returning();
         return session;
     }
-    async deleteContentSession(id) {
-        await db.delete(contentCreationSessions).where(eq(contentCreationSessions.id, id));
-    }
     // Editing Task operations
     async getEditingTask(id) {
         const [task] = await db
@@ -1632,14 +1624,14 @@ export class DatabaseStorage {
     }
     // Blockchain Wallet operations
     async getBlockchainWallet(userId, blockchain) {
-        let query = db
+        const conditions = [eq(blockchainWallets.userId, userId)];
+        if (blockchain) {
+            conditions.push(eq(blockchainWallets.blockchain, blockchain));
+        }
+        const [wallet] = await db
             .select()
             .from(blockchainWallets)
-            .where(eq(blockchainWallets.userId, userId));
-        if (blockchain) {
-            query = query.where(and(eq(blockchainWallets.userId, userId), eq(blockchainWallets.blockchain, blockchain)));
-        }
-        const [wallet] = await query;
+            .where(and(...conditions));
         return wallet;
     }
     async getBlockchainWalletsByUser(userId) {
@@ -1784,14 +1776,18 @@ export class DatabaseStorage {
         return record;
     }
     async getAuditLogsInDateRange(startDate, endDate, actionPattern) {
-        let query = db
+        const conditions = [
+            sql `${auditLogs.createdAt} >= ${startDate}`,
+            sql `${auditLogs.createdAt} <= ${endDate}`
+        ];
+        if (actionPattern) {
+            conditions.push(sql `${auditLogs.action} LIKE ${`%${actionPattern}%`}`);
+        }
+        return await db
             .select()
             .from(auditLogs)
-            .where(and(sql `${auditLogs.createdAt} >= ${startDate}`, sql `${auditLogs.createdAt} <= ${endDate}`));
-        if (actionPattern) {
-            query = query.where(sql `${auditLogs.action} LIKE ${`%${actionPattern}%`}`);
-        }
-        return await query.orderBy(desc(auditLogs.createdAt));
+            .where(and(...conditions))
+            .orderBy(desc(auditLogs.createdAt));
     }
 }
 export const storage = new DatabaseStorage();

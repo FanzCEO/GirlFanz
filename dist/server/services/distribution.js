@@ -91,7 +91,8 @@ export class DistributionService {
         // Get content versions
         const versions = await storage.getContentVersionsBySession(campaign.sessionId);
         // Distribute to each platform
-        const distributionTasks = campaign.platforms.map(platform => this.distributeToSinglePlatform(campaign, platform, versions));
+        const platforms = campaign.platforms || [];
+        const distributionTasks = platforms.map(platform => this.distributeToSinglePlatform(campaign, platform, versions));
         const results = await Promise.allSettled(distributionTasks);
         // Check if all succeeded
         const allSucceeded = results.every(r => r.status === 'fulfilled');
@@ -300,8 +301,8 @@ export class DistributionService {
             campaign,
             distributions,
             metrics,
-            smartLinkClicks: await storage.getSmartLinkClicks(campaign.smartLinkUrl),
-            qrCodeScans: await storage.getQRCodeScans(campaign.qrCodeUrl),
+            smartLinkClicks: campaign.smartLinkUrl ? await storage.getSmartLinkClicks(campaign.smartLinkUrl) : 0,
+            qrCodeScans: campaign.qrCodeUrl ? await storage.getQRCodeScans(campaign.qrCodeUrl) : 0,
         };
     }
     // Automated retargeting for non-converters
