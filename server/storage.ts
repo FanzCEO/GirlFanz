@@ -473,7 +473,7 @@ export class DatabaseStorage implements IStorage {
   async createUser(userData: Partial<User>): Promise<User> {
     const [user] = await db
       .insert(users)
-      .values(userData)
+      .values(userData as any)
       .returning();
     return user;
   }
@@ -681,18 +681,17 @@ export class DatabaseStorage implements IStorage {
 
   // Moderation operations
   async getModerationQueue(status?: string, limit = 50): Promise<ModerationItem[]> {
-    let query = db
+    const baseQuery = db
       .select()
       .from(moderationQueue)
       .innerJoin(mediaAssets, eq(moderationQueue.mediaId, mediaAssets.id))
       .orderBy(desc(moderationQueue.createdAt))
       .limit(limit);
 
-    if (status) {
-      query = query.where(eq(moderationQueue.status, status as any));
-    }
-
-    const results = await query;
+    const results = status 
+      ? await baseQuery.where(eq(moderationQueue.status, status as any))
+      : await baseQuery;
+      
     return results.map(r => ({
       ...r.moderation_queue,
       media: r.media_assets,
@@ -914,21 +913,22 @@ export class DatabaseStorage implements IStorage {
   async createAuditLog(logData: Partial<AuditLog>): Promise<AuditLog> {
     const [auditLog] = await db
       .insert(auditLogs)
-      .values(logData)
+      .values(logData as any)
       .returning();
     return auditLog;
   }
 
   // Support Ticket operations
   async getSupportTickets(userId?: string, status?: string): Promise<SupportTicket[]> {
-    let query = db.select().from(supportTickets);
     const conditions = [];
     
     if (userId) conditions.push(eq(supportTickets.userId, userId));
     if (status) conditions.push(eq(supportTickets.status, status));
     
+    let query = db.select().from(supportTickets);
+    
     if (conditions.length > 0) {
-      query = query.where(conditions.length === 1 ? conditions[0] : and(...conditions));
+      query = query.where(conditions.length === 1 ? conditions[0] : and(...conditions)) as any;
     }
     
     return await query.orderBy(desc(supportTickets.createdAt));
@@ -1191,17 +1191,21 @@ export class DatabaseStorage implements IStorage {
 
   // Tutorial operations
   async getTutorials(userRole?: string, category?: string): Promise<Tutorial[]> {
-    let query = db.select().from(tutorials);
-    let conditions = [eq(tutorials.status, 'published')];
+    const conditions = [eq(tutorials.status, 'published')];
     
     if (userRole && userRole !== 'all') {
-      conditions.push(or(
+      const roleCondition = or(
         eq(tutorials.roleTarget, userRole),
         eq(tutorials.roleTarget, 'all')
-      ));
+      );
+      if (roleCondition) {
+        conditions.push(roleCondition);
+      }
     }
     
-    return await query.where(and(...conditions)).orderBy(tutorials.createdAt, tutorials.title);
+    return await db.select().from(tutorials)
+      .where(and(...conditions))
+      .orderBy(tutorials.createdAt, tutorials.title);
   }
 
   async getTutorial(id: string): Promise<Tutorial | undefined> {
@@ -2357,19 +2361,17 @@ export class DatabaseStorage implements IStorage {
 
   // Blockchain Wallet operations
   async getBlockchainWallet(userId: string, blockchain?: string): Promise<any | undefined> {
-    let query = db
-      .select()
-      .from(blockchainWallets)
-      .where(eq(blockchainWallets.userId, userId));
-
+    const conditions = [eq(blockchainWallets.userId, userId)];
+    
     if (blockchain) {
-      query = query.where(and(
-        eq(blockchainWallets.userId, userId),
-        eq(blockchainWallets.blockchain, blockchain as any)
-      ));
+      conditions.push(eq(blockchainWallets.blockchain, blockchain as any));
     }
 
-    const [wallet] = await query;
+    const [wallet] = await db
+      .select()
+      .from(blockchainWallets)
+      .where(and(...conditions));
+      
     return wallet;
   }
 
@@ -2544,19 +2546,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAuditLogsInDateRange(startDate: Date, endDate: Date, actionPattern?: string): Promise<any[]> {
-    let query = db
-      .select()
-      .from(auditLogs)
-      .where(and(
-        sql`${auditLogs.createdAt} >= ${startDate}`,
-        sql`${auditLogs.createdAt} <= ${endDate}`
-      ));
+    const conditions = [
+      sql`${auditLogs.createdAt} >= ${startDate}`,
+      sql`${auditLogs.createdAt} <= ${endDate}`
+    ];
 
     if (actionPattern) {
-      query = query.where(sql`${auditLogs.action} LIKE ${`%${actionPattern}%`}`);
+      conditions.push(sql`${auditLogs.action} LIKE ${`%${actionPattern}%`}`);
     }
 
-    return await query.orderBy(desc(auditLogs.createdAt));
+    return await db
+      .select()
+      .from(auditLogs)
+      .where(and(...conditions))
+      .orderBy(desc(auditLogs.createdAt));
   }
 }
 
