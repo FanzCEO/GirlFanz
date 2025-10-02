@@ -115,6 +115,20 @@ import {
   type InsertGeneratedAsset,
   type CreatorStudioSettings,
   type InsertCreatorStudioSettings,
+  type NftCollection,
+  type InsertNftCollection,
+  type NftToken,
+  type InsertNftToken,
+  type NftTransaction,
+  type InsertNftTransaction,
+  type BlockchainWallet,
+  type InsertBlockchainWallet,
+  type RoyaltyDistribution,
+  type InsertRoyaltyDistribution,
+  type IpfsRecord,
+  type InsertIpfsRecord,
+  type MarketplaceIntegration,
+  type InsertMarketplaceIntegration,
 } from "../shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, sql } from "drizzle-orm";
