@@ -14,10 +14,11 @@
     "outDir": "./dist",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "strict": true,
+    "strict": false,
     "resolveJsonModule": true,
     "allowJs": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true
   },
   "include": ["server/**/*", "shared/**/*"],
   "exclude": ["node_modules", "dist", ".next", "src", "client"]

@@ -1,12 +1,12 @@
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes.ts";
+import { registerRoutes } from "./routes.js";
 import { createServer as createViteServer } from "vite";
 import { createServer } from "http";
 import fs from "fs";
 import path from "path";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
-import replitAuthRouter from "./replitAuth";
+import replitAuthRouter from "./replitAuth.js";
 
 
 

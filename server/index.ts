@@ -2,7 +2,7 @@
 
 console.log('🚀 Loading GirlFanz server from start.ts...');
 
-import('./start.ts').then(() => {
+import('./start.js').then(() => {
   console.log('✅ Server initialized');
 }).catch((err) => {
   console.error('❌ Failed to start server:', err);
