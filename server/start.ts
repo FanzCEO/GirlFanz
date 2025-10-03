@@ -78,7 +78,11 @@ app.use((req, res, next) => {
   if (process.env.NODE_ENV !== "production") {
     const react = (await import("@vitejs/plugin-react")).default;
     
-    const plugins = [react()];
+    const plugins = [react({
+      jsxRuntime: 'automatic',
+      fastRefresh: true,
+      include: "**/*.{jsx,tsx}",
+    })];
     
     // Add Replit plugins in development mode
     try {
