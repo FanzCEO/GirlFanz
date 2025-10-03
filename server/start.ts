@@ -6,7 +6,6 @@ import fs from "fs";
 import path from "path";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
-import { nanoid } from "nanoid";
 import replitAuthRouter from "./replitAuth";
 
 
@@ -120,18 +119,16 @@ app.use((req, res, next) => {
     });
 
     app.use(vite.middlewares);
-    app.get(/.*/,async (req, res, next) => {
+    
+    // Fallback handler for HTML - let Vite transform it properly
+    app.get(/.*/, async (req, res, next) => {
       const url = req.originalUrl;
 
       try {
         const clientTemplate = path.resolve(__dirname, "..", "client", "index.html");
-        let template = await fs.promises.readFile(clientTemplate, "utf-8");
-        template = template.replace(
-          `src="/src/main.tsx"`,
-          `src="/src/main.tsx?v=${nanoid()}"`,
-        );
-        const page = await vite.transformIndexHtml(url, template);
-        res.status(200).set({ "Content-Type": "text/html" }).end(page);
+        const template = await fs.promises.readFile(clientTemplate, "utf-8");
+        const html = await vite.transformIndexHtml(url, template);
+        res.status(200).set({ "Content-Type": "text/html" }).end(html);
       } catch (e) {
         vite.ssrFixStacktrace(e as Error);
         next(e);
