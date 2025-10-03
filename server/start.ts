@@ -82,6 +82,7 @@ app.use((req, res, next) => {
       jsxRuntime: 'automatic',
       fastRefresh: true,
       include: "**/*.{jsx,tsx}",
+      devTarget: 'esnext',
     })];
     
     // Add Replit plugins in development mode
