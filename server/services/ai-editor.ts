@@ -378,6 +378,7 @@ export class AIEditorService {
       image: 499, // $4.99
       live_stream: 1999, // $19.99
       audio: 299, // $2.99
+      gif: 399, // $3.99
     };
 
     const suggested = basePricing[session.type] || 999;

@@ -7,6 +7,11 @@ import path from "path";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { nanoid } from "nanoid";
+import replitAuthRouter from "./replitAuth";
+
+
+
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -57,6 +62,9 @@ app.use((req, res, next) => {
 
 (async () => {
   const httpServer = createServer(app);
+  
+  app.use("/api/auth/replit", replitAuthRouter);
+  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -72,6 +80,17 @@ app.use((req, res, next) => {
     const react = (await import("@vitejs/plugin-react")).default;
     
     const plugins = [react()];
+    
+    // Add Replit plugins in development mode
+    try {
+      const { default: devBanner } = await import("@replit/vite-plugin-dev-banner");
+      const { default: cartographer } = await import("@replit/vite-plugin-cartographer");
+      const { default: errorModal } = await import("@replit/vite-plugin-runtime-error-modal");
+      
+      plugins.push(devBanner(), cartographer(), errorModal());
+    } catch (err) {
+      log("Replit plugins not available (optional)", "vite");
+    }
     
     const vite = await createViteServer({
       configFile: false,

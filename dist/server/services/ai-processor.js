@@ -427,10 +427,4 @@ export class AIProcessorService {
         this.processingPipelines.delete(sessionId);
     }
 }
-// Placeholder for processContent function
-const processContent = async (contentId, options) => {
-    // Implementation here
-};
-export const aiProcessorService = {
-    processContent,
-};
+export const aiProcessorService = new AIProcessorService();
