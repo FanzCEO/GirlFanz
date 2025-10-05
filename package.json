@@ -69,6 +69,7 @@
     "@uppy/google-drive": "^4.4.2",
     "@uppy/react": "^4.5.2",
     "@vitejs/plugin-react": "^5.0.4",
+    "@vitejs/plugin-react-swc": "^4.1.0",
     "bcrypt": "^5.1.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

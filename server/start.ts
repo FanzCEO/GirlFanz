@@ -74,29 +74,22 @@ app.use((req, res, next) => {
     throw err;
   });
 
+  // Add cache-busting headers for development
+  app.use((req, res, next) => {
+    if (process.env.NODE_ENV !== "production") {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+    next();
+  });
+
   // Setup Vite in development mode
   if (process.env.NODE_ENV !== "production") {
-    const react = (await import("@vitejs/plugin-react")).default;
-    
-    // Custom plugin to fix React Fast Refresh preamble flag
-    const reactPreambleFix = {
-      name: 'react-preamble-fix',
-      transformIndexHtml(html: string) {
-        // Inject the preamble flag BEFORE the main script loads
-        return html.replace(
-          '<script type="module" src="/src/main.tsx"></script>',
-          '<script>window.__vite_plugin_react_preamble_installed__ = true;</script>\n    <script type="module" src="/src/main.tsx"></script>'
-        );
-      },
-    };
+    const reactSwc = (await import("@vitejs/plugin-react-swc")).default;
     
     const plugins = [
-      react({
-        jsxRuntime: 'automatic',
-        fastRefresh: false,
-        include: "**/*.{jsx,tsx}",
-        devTarget: 'esnext',
-      })
+      reactSwc()
     ];
     
     // Add Replit plugins in development mode
@@ -127,7 +120,7 @@ app.use((req, res, next) => {
       },
       server: {
         middlewareMode: true,
-        hmr: { server: httpServer },
+        hmr: false,
         allowedHosts: true as const,
         fs: {
           strict: true,
