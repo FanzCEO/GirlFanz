@@ -93,11 +93,10 @@ app.use((req, res, next) => {
     const plugins = [
       react({
         jsxRuntime: 'automatic',
-        fastRefresh: true,
+        fastRefresh: false,
         include: "**/*.{jsx,tsx}",
         devTarget: 'esnext',
-      }),
-      reactPreambleFix
+      })
     ];
     
     // Add Replit plugins in development mode
