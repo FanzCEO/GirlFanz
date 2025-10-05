@@ -30,6 +30,21 @@ import CreatorOnboardingPage from "@/pages/CreatorOnboardingPage";
 import FanzOnboardingPage from "@/pages/FanzOnboardingPage";
 import CreatorStudio from "@/pages/CreatorStudio";
 import NotFound from "@/pages/not-found";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
+import TermsOfService from "@/pages/TermsOfService";
+import CookiePolicy from "@/pages/CookiePolicy";
+import Compliance from "@/pages/Compliance";
+import About from "@/pages/About";
+import Safety from "@/pages/Safety";
+import Guidelines from "@/pages/Guidelines";
+import Contact from "@/pages/Contact";
+import ForCreators from "@/pages/ForCreators";
+import ForFans from "@/pages/ForFans";
+import Pricing from "@/pages/Pricing";
+import Features from "@/pages/Features";
+import Careers from "@/pages/Careers";
+import Press from "@/pages/Press";
+import Blog from "@/pages/Blog";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -46,6 +61,23 @@ function Router() {
     <>
       <EnhancedHeader />
       <Switch>
+        {/* Public footer pages - accessible to everyone */}
+        <Route path="/privacy" component={PrivacyPolicy} />
+        <Route path="/terms" component={TermsOfService} />
+        <Route path="/cookies" component={CookiePolicy} />
+        <Route path="/compliance" component={Compliance} />
+        <Route path="/about" component={About} />
+        <Route path="/safety" component={Safety} />
+        <Route path="/guidelines" component={Guidelines} />
+        <Route path="/contact" component={Contact} />
+        <Route path="/creators" component={ForCreators} />
+        <Route path="/fans" component={ForFans} />
+        <Route path="/pricing" component={Pricing} />
+        <Route path="/features" component={Features} />
+        <Route path="/careers" component={Careers} />
+        <Route path="/press" component={Press} />
+        <Route path="/blog" component={Blog} />
+        
         {/* Public help pages - accessible to everyone */}
         <Route path="/help" component={HelpCenter} />
         <Route path="/help/tickets" component={SupportTickets} />
