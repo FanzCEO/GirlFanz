@@ -82,9 +82,10 @@ app.use((req, res, next) => {
     const reactPreambleFix = {
       name: 'react-preamble-fix',
       transformIndexHtml(html: string) {
+        // Inject the preamble flag BEFORE the main script loads
         return html.replace(
-          'window.$RefreshSig$ = () => (type) => type;',
-          'window.$RefreshSig$ = () => (type) => type;\nwindow.__vite_plugin_react_preamble_installed__ = true;'
+          '<script type="module" src="/src/main.tsx"></script>',
+          '<script>window.__vite_plugin_react_preamble_installed__ = true;</script>\n    <script type="module" src="/src/main.tsx"></script>'
         );
       },
     };
