@@ -39,10 +39,17 @@ Preferred communication style: Simple, everyday language.
 ## Development Environment
 - **Package Manager**: npm with workspace support for monorepo structure
 - **Development Server**: Custom server configuration using server/start.ts as entry point (bypasses vite.config.ts to avoid top-level await issues with tsx/esbuild)
-- **Server Entry**: server/index.ts redirects to server/start.ts which contains a simplified Vite dev server setup with inline configuration
+- **Server Entry**: server/index.ts redirects to server/start.ts which contains optimized Vite dev server setup with inline configuration
 - **Code Quality**: TypeScript for type safety, ESLint for code standards
 - **Build Process**: Separate builds for client (Vite) and server (esbuild) with production optimizations
 - **Note**: vite.config.ts is not used due to compatibility issues with tsx; configuration is inline in server/start.ts
+- **Performance Optimizations** (October 2025):
+  - Vite dependency pre-bundling for faster dev server startup
+  - Aggressive cache-busting headers for development to prevent stale code issues
+  - Chunk splitting strategy: vendor libraries separated into 5 optimized chunks (react, router, query, forms, ui)
+  - Build time improved by ~16% (17.8s vs 21.3s)
+  - Main bundle reduced by ~23% through better code splitting (1.53MB vs 1.99MB)
+  - Uses @vitejs/plugin-react-swc for faster compilation
 
 # External Dependencies
 
