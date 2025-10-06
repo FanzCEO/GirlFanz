@@ -114,9 +114,41 @@ app.use((req, res, next) => {
         },
       },
       root: path.resolve(__dirname, "..", "client"),
+      cacheDir: path.resolve(__dirname, "..", "node_modules", ".vite"),
+      optimizeDeps: {
+        include: [
+          'react',
+          'react-dom',
+          'react-dom/client',
+          'wouter',
+          '@tanstack/react-query',
+          'zod',
+          'react-hook-form',
+          '@hookform/resolvers/zod'
+        ],
+        exclude: ['@replit/vite-plugin-dev-banner', '@replit/vite-plugin-cartographer', '@replit/vite-plugin-runtime-error-modal'],
+        force: false,
+        esbuildOptions: {
+          target: 'esnext'
+        }
+      },
       build: {
         outDir: path.resolve(__dirname, "..", "dist/public"),
         emptyOutDir: true,
+        target: 'esnext',
+        minify: 'esbuild',
+        sourcemap: false,
+        rollupOptions: {
+          output: {
+            manualChunks: {
+              'vendor-react': ['react', 'react-dom', 'react-dom/client'],
+              'vendor-router': ['wouter'],
+              'vendor-query': ['@tanstack/react-query'],
+              'vendor-forms': ['react-hook-form', '@hookform/resolvers/zod', 'zod'],
+              'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select', '@radix-ui/react-toast']
+            }
+          }
+        }
       },
       server: {
         middlewareMode: true,
@@ -126,8 +158,13 @@ app.use((req, res, next) => {
           strict: true,
           deny: ["**/.*"],
         },
+        watch: {
+          usePolling: false,
+          interval: 100
+        }
       },
       appType: "custom",
+      logLevel: 'info'
     });
 
     app.use(vite.middlewares);
