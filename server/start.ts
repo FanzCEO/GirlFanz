@@ -74,12 +74,17 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  // Add cache-busting headers for development
+  // Add aggressive cache-busting headers for development
   app.use((req, res, next) => {
     if (process.env.NODE_ENV !== "production") {
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      // Aggressive cache prevention for development
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
+      res.setHeader('Surrogate-Control', 'no-store');
+      // Prevent ETag caching
+      res.removeHeader('ETag');
+      res.removeHeader('Last-Modified');
     }
     next();
   });

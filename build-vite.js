@@ -8,17 +8,30 @@ async function buildApp() {
   console.log('🔨 Building Vite application...');
   
   try {
-    // Build configuration without problematic plugins
+    // Optimized build configuration for faster production builds
     await build({
       root: path.resolve(__dirname, 'client'),
       build: {
         outDir: path.resolve(__dirname, 'dist/public'),
         emptyOutDir: true,
+        target: 'esnext',
+        minify: 'esbuild',
+        sourcemap: false,
+        chunkSizeWarningLimit: 1000,
         rollupOptions: {
           onwarn: (warning, warn) => {
             // Suppress specific warnings that aren't critical
             if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return;
             warn(warning);
+          },
+          output: {
+            manualChunks: {
+              'vendor-react': ['react', 'react-dom', 'react-dom/client'],
+              'vendor-router': ['wouter'],
+              'vendor-query': ['@tanstack/react-query'],
+              'vendor-forms': ['react-hook-form', '@hookform/resolvers/zod', 'zod'],
+              'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select', '@radix-ui/react-toast']
+            }
           }
         }
       },
