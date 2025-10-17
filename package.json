@@ -66,6 +66,7 @@
     "@uppy/aws-s3": "^4.3.2",
     "@uppy/core": "^4.5.3",
     "@uppy/dashboard": "^4.4.3",
+    "@uppy/drag-drop": "^4.2.2",
     "@uppy/google-drive": "^4.4.2",
     "@uppy/react": "^4.5.2",
     "@vitejs/plugin-react": "^5.0.4",
